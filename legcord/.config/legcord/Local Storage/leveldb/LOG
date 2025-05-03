@@ -1,6 +1,3 @@
-2025/05/03-10:16:49.186 360b9 Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
-2025/05/03-10:16:49.186 360b9 Recovering log #47
-2025/05/03-10:16:49.187 360b9 Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000047.log 
-2025/05/03-10:19:50.738 360b9 Level-0 table #52: started
-2025/05/03-10:19:50.750 360b9 Level-0 table #52: 45882 bytes OK
-2025/05/03-10:19:50.755 360b9 Delete type=0 #47
+2025/05/03-16:16:26.857 518fe Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
+2025/05/03-16:16:26.857 518fe Recovering log #59
+2025/05/03-16:16:26.858 518fe Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000059.log 
