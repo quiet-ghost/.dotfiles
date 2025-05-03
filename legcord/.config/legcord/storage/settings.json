@@ -23,7 +23,7 @@
     "transparency": "none",
     "spellcheck": true,
     "hardwareAcceleration": true,
-    "performanceMode": "none",
+    "performanceMode": "dynamic",
     "skipSplash": false,
     "inviteWebsocket": true,
     "startMinimized": false,
