@@ -1,0 +1,16 @@
+# Config:
+
+shell-integration = zsh
+shell-integration-features = true
+
+
+window-colorspace = srgb
+window-theme = auto
+theme = MaterialOcean
+font-family = FiraCode Nerd Font Mono SemBd
+font-size = 14
+
+cursor-style = block
+
+background-blur = true
+bold-is-bright = true
