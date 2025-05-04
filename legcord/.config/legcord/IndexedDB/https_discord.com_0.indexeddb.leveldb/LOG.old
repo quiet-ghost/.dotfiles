@@ -1,3 +1,3 @@
-2025/05/03-14:11:15.831 50df9 Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/05/03-14:11:15.832 50df9 Recovering log #15
-2025/05/03-14:11:15.835 50df9 Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000015.log 
+2025/05/03-23:26:06.443 285b3 Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/05/03-23:26:06.444 285b3 Recovering log #20
+2025/05/03-23:26:06.444 285b3 Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000020.log 
