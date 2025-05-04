@@ -1,4 +1,4 @@
-# Path to your Oh My Zsh installation.
+sudo# Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 # Path to nvim installation
 export PATH="$PATH:/usr/bin/nvim"
@@ -113,3 +113,4 @@ function y() {
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+export RUSTONIG_SYSTEM_LIBONIG=1
