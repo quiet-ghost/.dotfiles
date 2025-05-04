@@ -1,4 +1,4 @@
-sudo# Path to your Oh My Zsh installation.
+# Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 # Path to nvim installation
 export PATH="$PATH:/usr/bin/nvim"
@@ -14,7 +14,7 @@ ZSH_THEME="robbyrussell"
 zstyle ':omz:update' mode auto
 
 # Plugins
-plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-autocomplete fast-syntax-highlighting)
+plugins=(git zsh-syntax-highlighting fast-syntax-highlighting)
 source $ZSH/oh-my-zsh.sh
 source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
