@@ -1,3 +1,3 @@
-2025/05/03-16:16:26.857 518fe Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
-2025/05/03-16:16:26.857 518fe Recovering log #59
-2025/05/03-16:16:26.858 518fe Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000059.log 
+2025/05/03-23:27:12.635 2910d Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
+2025/05/03-23:27:12.636 2910d Recovering log #63
+2025/05/03-23:27:12.637 2910d Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000063.log 
