@@ -1,18 +1,3 @@
-2025/05/04-02:04:23.196 6a3 Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
-2025/05/04-02:04:23.197 6a3 Recovering log #69
-2025/05/04-02:04:23.197 6a3 Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000069.log 
-2025/05/04-02:07:24.777 6a3 Level-0 table #73: started
-2025/05/04-02:07:24.791 6a3 Level-0 table #73: 42771 bytes OK
-2025/05/04-02:07:24.795 6a3 Delete type=0 #69
-2025/05/04-02:07:24.796 6a3 Compacting 4@0 + 1@1 files
-2025/05/04-02:07:24.797 6a3 Generated table #74@0: 102 keys, 29793 bytes
-2025/05/04-02:07:24.798 6a3 Compacted 4@0 + 1@1 files => 29793 bytes
-2025/05/04-02:07:24.799 6a3 compacted to: files[ 0 1 0 0 0 0 0 ]
-2025/05/04-02:07:24.799 6a3 Delete type=2 #61
-2025/05/04-02:07:24.799 6a3 Delete type=2 #64
-2025/05/04-02:07:24.799 6a3 Delete type=2 #67
-2025/05/04-02:07:24.799 6a3 Delete type=2 #70
-2025/05/04-02:07:24.799 6a3 Delete type=2 #73
-2025/05/04-02:42:32.404 6a3 Level-0 table #76: started
-2025/05/04-02:42:32.425 6a3 Level-0 table #76: 20916 bytes OK
-2025/05/04-02:42:32.428 6a3 Delete type=0 #72
+2025/05/05-14:25:03.117 59552 Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
+2025/05/05-14:25:03.118 59552 Recovering log #98
+2025/05/05-14:25:03.118 59552 Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000098.log 

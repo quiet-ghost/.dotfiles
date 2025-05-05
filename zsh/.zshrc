@@ -7,6 +7,8 @@ export PATH="$HOME/.local/bin:$PATH"
 #avante path
 export OPENAI_API_KEY="sk-proj-g6bsJchxUDrKfxtuBC8eT3BlbkFJ6ssBDLXm0N7LmWPMr3mI"
 export ANTHROPIC_API_KEY="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"
+export XAI_API_KEY=xai-QoL9AXqNY2t3toIezu5sIi9HP1wQWykkbMqPByZomZXf0SuaxrbsKpMe9CpWqTsGe3bQmN7a5OcoSa0y
+
 # Theme
 ZSH_THEME="robbyrussell"
 
