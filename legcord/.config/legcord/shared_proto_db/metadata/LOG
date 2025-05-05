@@ -1,2 +1,3 @@
-2025/05/02-20:56:03.525 bcca Creating DB /home/ghost/.config/legcord/shared_proto_db/metadata since it was missing.
-2025/05/02-20:56:03.541 bcca Reusing MANIFEST /home/ghost/.config/legcord/shared_proto_db/metadata/MANIFEST-000001
+2025/05/04-20:28:03.885 16706 Reusing MANIFEST /home/ghost/.config/legcord/shared_proto_db/metadata/MANIFEST-000001
+2025/05/04-20:28:03.885 16706 Recovering log #3
+2025/05/04-20:28:03.885 16706 Reusing old log /home/ghost/.config/legcord/shared_proto_db/metadata/000003.log 
