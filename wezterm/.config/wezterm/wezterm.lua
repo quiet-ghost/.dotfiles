@@ -14,12 +14,13 @@ config.font = wezterm.font("FiraCode Nerd Font Mono SemBd")
 config.font_size = 14
 
 -- Cursor style
-config.default_cursor_style = "BlinkingBlock"
+config.default_cursor_style = "SteadyBlock"
 
 -- Window appearance
 config.window_background_opacity = 1.0 -- Adjust if background-blur is desired
 config.macos_window_background_blur = 10 -- Enable blur if supported
 config.color_scheme = "sRGB" -- Matches window-colorspace = srgb
+config.enable_tab_bar = false -- Disable tab bar
 
 -- Shell integration (approximating Ghostty's zsh integration)
 config.set_environment_variables = {
