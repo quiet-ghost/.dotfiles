@@ -12,30 +12,26 @@ config.color_scheme = "MaterialOcean"
 -- Font configuration from Ghostty config
 config.font = wezterm.font("FiraCode Nerd Font Mono SemBd")
 config.font_size = 14
-
--- Cursor style
 config.default_cursor_style = "SteadyBlock"
+config.use_fancy_tab_bar = false
+config.show_tabs_in_tab_bar = true
+config.show_new_tab_button_in_tab_bar = false
 
 -- Window appearance
-config.window_background_opacity = 1.0 -- Adjust if background-blur is desired
-config.macos_window_background_blur = 10 -- Enable blur if supported
-config.color_scheme = "sRGB" -- Matches window-colorspace = srgb
-config.enable_tab_bar = false -- Disable tab bar
-
--- Shell integration (approximating Ghostty's zsh integration)
-config.set_environment_variables = {
-	TERM = "xterm-256color", -- Common TERM setting for zsh
-}
-
--- Enable bold text to use bright colors
+config.color_scheme = "sRGB"
 config.bold_brightens_ansi_colors = true
 
--- Theme switching based on system appearance (matches window-theme = auto)
+-- Shell integration
+config.set_environment_variables = {
+	TERM = "xterm-256color",
+}
+
+-- Theme switching based on system appearance
 function scheme_for_appearance(appearance)
 	if appearance:find("Dark") then
-		return "MaterialOcean" -- Use MaterialOcean for dark mode
+		return "MaterialOcean"
 	else
-		return "MaterialOcean" -- Use same or a light theme if desired
+		return "MaterialOcean"
 	end
 end
 wezterm.on("window-config-reloaded", function(window, pane)
