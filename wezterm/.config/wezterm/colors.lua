@@ -13,7 +13,7 @@ local colors = {
 	tab_bar = {
 		background = "#0F111A", -- Matches tmux bar background
 		active_tab = {
-			bg_color = "#5C8370", -- Muted green to match tmux active window
+			bg_color = "#529CA6", -- Muted green to match tmux active window
 			fg_color = "#0F111A", -- Dark text
 			intensity = "Normal", -- No bold, matches tmux
 		},
