@@ -7,41 +7,54 @@ for name, scheme in pairs(custom_colors.color_schemes) do
 	config.color_schemes = config.color_schemes or {}
 	config.color_schemes[name] = scheme
 end
-config.color_scheme = "MaterialOcean"
+
+-- Set the color scheme to the custom one
+config.color_scheme = "Catppuccin Mocha"
 
 -- Font configuration from Ghostty config
 config.font = wezterm.font("FiraCode Nerd Font Mono SemBd")
 config.font_size = 14
+
+-- Cursor style
 config.default_cursor_style = "SteadyBlock"
-config.use_fancy_tab_bar = false
-config.show_tabs_in_tab_bar = true
-config.show_new_tab_button_in_tab_bar = false
 
 -- Window appearance
-config.color_scheme = "sRGB"
-config.bold_brightens_ansi_colors = true
-
--- Shell integration
-config.set_environment_variables = {
-	TERM = "xterm-256color",
+config.enable_tab_bar = true
+config.use_fancy_tab_bar = false
+config.window_padding = {
+	top = 0,
+	right = 0,
+	bottom = 0,
+	left = 0,
 }
 
--- Theme switching based on system appearance
-function scheme_for_appearance(appearance)
-	if appearance:find("Dark") then
-		return "MaterialOcean"
-	else
-		return "MaterialOcean"
-	end
-end
-wezterm.on("window-config-reloaded", function(window, pane)
-	local overrides = window:get_config_overrides() or {}
-	local appearance = window:get_appearance()
-	local scheme = scheme_for_appearance(appearance)
-	if overrides.color_scheme ~= scheme then
-		overrides.color_scheme = scheme
-		window:set_config_overrides(overrides)
-	end
-end)
+-- Shell integration (approximating Ghostty's zsh integration)
+config.set_environment_variables = { TERM = "xterm-256color" }
+
+-- Enable bold text to use bright colors
+config.bold_brightens_ansi_colors = true
+
+-- Position the tab bar at the top
+config.tab_bar_at_bottom = false
+
+-- Explicitly set tab bar colors to match Catppuccin Mocha
+config.colors = {
+	tab_bar = {
+		background = "#0F111A", -- Matches tmux bar background
+		active_tab = {
+			bg_color = "#0F111A", -- Muted cyan to match tmux active window
+			fg_color = "#AEBAC0",
+			intensity = "Normal", -- No bold, matches tmux
+		},
+		inactive_tab = {
+			bg_color = "#0F111A", -- Matches tmux inactive window background
+			fg_color = "#414752", -- Matches tmux inactive window text
+		},
+		new_tab = {
+			bg_color = "#0F111A",
+			fg_color = "#414752",
+		},
+	},
+}
 
 return config
