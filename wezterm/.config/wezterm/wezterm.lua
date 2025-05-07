@@ -9,7 +9,7 @@ for name, scheme in pairs(custom_colors.color_schemes) do
 end
 
 -- Set the color scheme to the custom one
-config.color_scheme = "Catppuccin Mocha"
+config.color_scheme = "MaterialOcean"
 
 -- Font configuration from Ghostty config
 config.font = wezterm.font("FiraCode Nerd Font Mono SemBd")
@@ -56,5 +56,18 @@ config.colors = {
 		},
 	},
 }
+
+--Session Config
+config.unix_domains = {
+	{
+		name = "unix",
+	},
+}
+
+-- This causes `wezterm` to act as though it was started as
+-- `wezterm connect unix` by default, connecting to the unix
+-- domain on startup.
+-- If you prefer to connect manually, leave out this line.
+config.default_gui_startup_args = { "connect", "unix" }
 
 return config
