@@ -30,11 +30,11 @@ alias vh="eval \$(history | fzf | cut -d' ' -f4-)" # History search
 alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')" # Kill processes
 alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')" # Git branch and commit switch
 alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
-alias vp="nvim \$(find ~/Github/ -maxdepth 2 -type d | fzf)" # Project switcher
+alias vp="nvim \$(find ~/ ~/Github/ ~/.dotfiles/ -mindepth 1 -maxdepth 1 -type d | fzf)" # Project switcher
 alias cc='~/Applications/Cursor-0.47.9-x86_64.AppImage'
 alias lg='lazygit'
-alias tf='nvim -c "Telescope find_files"'
-alias tg='nvim -c "Telescope live_grep"'
+alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/Github/\", \"~/.dotfiles/\" } })"'
+alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = {  \"~/Github/\", \"~/.dotfiles/\" } })"'
 alias v='nvim'
 alias ya='yazi'
 alias yac='yazi --cwd-file'
@@ -79,11 +79,11 @@ vcf() {
     file=$(fd --type f | fzf --preview 'bat --style=numbers --color=always {}' --preview-window=right:50%)
     local exit_status=$?
     if [ $exit_status -eq 0 ] && [ -n "$file" ]; then
-        nvim "$file"
+        code "$file"
     fi
 }
 # Function for fuzzy file finding with nvim
-vf() {
+vff() {
     local file
     # Run fzf and check its exit status separately
     file=$(fd --type f | fzf --preview 'bat --style=numbers --color=always {}' --preview-window=right:50%)
@@ -92,7 +92,7 @@ vf() {
         v "$file"
     fi
 }
-# Function for fuzzy file finding with nvim
+# Function for fuzzy file finding with cursor
 cf() {
     local file
     # Run fzf and check its exit status separately
