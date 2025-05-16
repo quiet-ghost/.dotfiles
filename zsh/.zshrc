@@ -30,7 +30,7 @@ alias vh="eval \$(history | fzf | cut -d' ' -f4-)" # History search
 alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')" # Kill processes
 alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')" # Git branch and commit switch
 alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
-alias vp="nvim \$(find ~/ ~/Github/ ~/.dotfiles/ -mindepth 1 -maxdepth 1 -type d | fzf)" # Project switcher
+alias vp="nvim \$(find ~/ ~/Github/ ~/.dotfiles/ -mindepth 1 -maxdepth 2 -type d | fzf)" # Project switcher
 alias cc='~/Applications/Cursor-0.47.9-x86_64.AppImage'
 alias lg='lazygit'
 alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/Github/\", \"~/.dotfiles/\" } })"'
@@ -40,7 +40,7 @@ alias ya='yazi'
 alias yac='yazi --cwd-file'
 alias ls='eza --icons=always'
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t main:1 "nvim" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
-alias tmss='tmux-sessionizer'
+alias tmss='~/Github/Repos/tmux-sessionizer/tmux-sessionizer'
 alias arc='sudo arch-clean.sh'
 
 # fzf configuration
@@ -49,14 +49,7 @@ source <(fzf --zsh)
 export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
 
 # Golang environment variables
-export GOROOT=/usr/local/go
-export GOPATH=$HOME/go
-export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
-
-# pyenv
-#export PYENV_ROOT="$HOME/.pyenv"
-#[[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-#eval "$(pyenv init - zsh)"
+export PATH=$PATH:/usr/local/go/bin
 
 # Bind Alt+F to vcf
 bindkey -s '^[f' 'vf\n'

@@ -49,8 +49,9 @@
     "autoScroll": false,
     "useSystemCssEditor": false,
     "modCache": {
-        "shelter": "b853ce7731212d296106186c018c54f5a2b79fa2",
+        "shelter": "fab6f100bd0ab8583d67f792f66722a7d2a14bd1",
         "vencord": "096f8483852a0edf1e4e472f250f396237c662b5",
-        "equicord": "77eae738315eee82e9628d0e6c8fd142e53480c5"
-    }
+        "equicord": "bb6888165da2aa85e010ec65e067152ddaea24d1"
+    },
+    "overlayButtonColor": "#121214"
 }
