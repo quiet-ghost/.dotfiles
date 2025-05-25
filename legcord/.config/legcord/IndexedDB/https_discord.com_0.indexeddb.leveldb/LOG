@@ -1,3 +1,9 @@
-2025/05/11-03:55:09.349 29822 Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/05/11-03:55:09.349 29822 Recovering log #23
-2025/05/11-03:55:09.354 29822 Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000023.log 
+2025/05/22-20:30:24.407 786 Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/05/22-20:30:24.408 786 Recovering log #28
+2025/05/22-20:30:24.409 786 Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000028.log 
+2025/05/24-13:39:06.001 786 Compacting 1@0 + 1@1 files
+2025/05/24-13:39:06.013 786 Generated table #31@0: 206 keys, 45564 bytes
+2025/05/24-13:39:06.013 786 Compacted 1@0 + 1@1 files => 45564 bytes
+2025/05/24-13:39:06.018 786 compacted to: files[ 0 1 1 0 0 0 0 ]
+2025/05/24-13:39:06.018 786 Delete type=2 #26
+2025/05/24-13:39:06.018 786 Delete type=2 #29

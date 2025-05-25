@@ -42,6 +42,11 @@ alias ls='eza --icons=always'
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t main:1 "nvim" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
 alias tmss='~/Github/Repos/tmux-sessionizer/tmux-sessionizer'
 alias arc='sudo arch-clean.sh'
+alias g='cd ~/Github'
+alias p='cd ~/Github/Projects'
+alias s='cd ~/Github/School'
+alias c='cd ~/.dotfiles'
+
 
 # fzf configuration
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
