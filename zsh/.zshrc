@@ -31,7 +31,7 @@ alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')" # Kill processes
 alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')" # Git branch and commit switch
 alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
 alias vp="nvim \$(find ~/ ~/Github/ ~/.dotfiles/ -mindepth 1 -maxdepth 2 -type d | fzf)" # Project switcher
-alias cc='~/Applications/Cursor-0.47.9-x86_64.AppImage'
+alias cc='~/Applications/Cursor-0.50.5-x86_64.AppImage'
 alias lg='lazygit'
 alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/Github/\", \"~/.dotfiles/\" } })"'
 alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = {  \"~/Github/\", \"~/.dotfiles/\" } })"'
