@@ -1,3 +1,6 @@
-2025/06/07-23:07:09.029 6ea7 Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
-2025/06/07-23:07:09.030 6ea7 Recovering log #38
-2025/06/07-23:07:09.037 6ea7 Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000038.log 
+2025/06/17-20:59:58.659 12bb Reusing MANIFEST /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/MANIFEST-000001
+2025/06/17-20:59:58.660 12bb Recovering log #38
+2025/06/17-20:59:58.671 12bb Reusing old log /home/ghost/.config/legcord/IndexedDB/https_discord.com_0.indexeddb.leveldb/000038.log 
+2025/06/17-21:05:18.033 12bc Level-0 table #43: started
+2025/06/17-21:05:18.051 12bc Level-0 table #43: 1425656 bytes OK
+2025/06/17-21:05:18.055 12bc Delete type=0 #38

@@ -1,3 +1,54 @@
-2025/06/07-23:07:06.895 6ea7 Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
-2025/06/07-23:07:06.899 6ea7 Recovering log #250
-2025/06/07-23:07:06.900 6ea7 Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000250.log 
+2025/06/17-20:59:56.771 12bb Reusing MANIFEST /home/ghost/.config/legcord/Local Storage/leveldb/MANIFEST-000001
+2025/06/17-20:59:56.773 12bb Recovering log #280
+2025/06/17-20:59:56.774 12bb Reusing old log /home/ghost/.config/legcord/Local Storage/leveldb/000280.log 
+2025/06/17-21:01:58.390 12bb Level-0 table #284: started
+2025/06/17-21:01:58.404 12bb Level-0 table #284: 50197 bytes OK
+2025/06/17-21:01:58.408 12bb Delete type=0 #280
+2025/06/17-21:06:58.389 12bc Level-0 table #286: started
+2025/06/17-21:06:58.412 12bc Level-0 table #286: 40059 bytes OK
+2025/06/17-21:06:58.414 12bc Delete type=0 #283
+2025/06/17-21:10:58.390 12bb Level-0 table #288: started
+2025/06/17-21:10:58.411 12bb Level-0 table #288: 27458 bytes OK
+2025/06/17-21:10:58.414 12bb Delete type=0 #285
+2025/06/17-21:14:04.711 12bb Level-0 table #290: started
+2025/06/17-21:14:04.729 12bb Level-0 table #290: 33687 bytes OK
+2025/06/17-21:14:04.733 12bb Delete type=0 #287
+2025/06/17-21:14:04.734 12bb Compacting 4@0 + 1@1 files
+2025/06/17-21:14:04.736 12bb Generated table #291@0: 110 keys, 36583 bytes
+2025/06/17-21:14:04.736 12bb Compacted 4@0 + 1@1 files => 36583 bytes
+2025/06/17-21:14:04.737 12bb compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/06/17-21:14:04.737 12bb Delete type=2 #281
+2025/06/17-21:14:04.737 12bb Delete type=2 #284
+2025/06/17-21:14:04.738 12bb Delete type=2 #286
+2025/06/17-21:14:04.738 12bb Delete type=2 #288
+2025/06/17-21:14:04.738 12bb Delete type=2 #290
+2025/06/17-22:01:46.490 12bc Level-0 table #293: started
+2025/06/17-22:01:46.510 12bc Level-0 table #293: 30966 bytes OK
+2025/06/17-22:01:46.513 12bc Delete type=0 #289
+2025/06/18-15:00:41.886 12bc Level-0 table #295: started
+2025/06/18-15:00:41.900 12bc Level-0 table #295: 50397 bytes OK
+2025/06/18-15:00:41.905 12bc Delete type=0 #292
+2025/06/18-20:50:42.975 12bc Level-0 table #297: started
+2025/06/18-20:50:42.988 12bc Level-0 table #297: 54045 bytes OK
+2025/06/18-20:50:42.993 12bc Delete type=0 #294
+2025/06/19-16:36:39.665 12bc Level-0 table #299: started
+2025/06/19-16:36:39.687 12bc Level-0 table #299: 24899 bytes OK
+2025/06/19-16:36:39.691 12bc Delete type=0 #296
+2025/06/19-16:36:39.692 12bc Compacting 4@0 + 1@1 files
+2025/06/19-16:36:39.697 12bc Generated table #300@0: 112 keys, 37614 bytes
+2025/06/19-16:36:39.697 12bc Compacted 4@0 + 1@1 files => 37614 bytes
+2025/06/19-16:36:39.698 12bc compacted to: files[ 0 1 0 0 0 0 0 ]
+2025/06/19-16:36:39.699 12bc Delete type=2 #291
+2025/06/19-16:36:39.699 12bc Delete type=2 #293
+2025/06/19-16:36:39.699 12bc Delete type=2 #295
+2025/06/19-16:36:39.699 12bc Delete type=2 #297
+2025/06/19-16:36:39.699 12bc Delete type=2 #299
+2025/06/19-20:39:33.579 12bc Level-0 table #302: started
+2025/06/19-20:39:33.593 12bc Level-0 table #302: 47797 bytes OK
+2025/06/19-20:39:33.597 12bc Delete type=0 #298
+2025/06/21-10:33:44.421 12bb Level-0 table #304: started
+2025/06/21-10:33:44.424 12bb Level-0 table #304: 35568 bytes OK
+2025/06/21-10:33:44.426 12bb Delete type=0 #301
+2025/06/23-17:16:26.115 12bc Level-0 table #306: started
+2025/06/23-17:16:26.136 12bc Level-0 table #306: 57224 bytes OK
+2025/06/23-17:16:26.140 12bc Delete type=0 #303
