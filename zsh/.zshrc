@@ -7,7 +7,7 @@ export PATH="$HOME/.local/bin:$PATH"
 #avante path
 export OPENAI_API_KEY="REDACTED_OPENAI_KEY"
 export ANTHROPIC_API_KEY="REDACTED_ANTHROPIC_KEY"
-export XAI_API_KEY=xai-QoL9AXqNY2t3toIezu5sIi9HP1wQWykkbMqPByZomZXf0SuaxrbsKpMe9CpWqTsGe3bQmN7a5OcoSa0y
+export XAI_API_KEY="xai-QoL9AXqNY2t3toIezu5sIi9HP1wQWykkbMqPByZomZXf0SuaxrbsKpMe9CpWqTsGe3bQmN7a5OcoSa0y"
 
 # Theme
 ZSH_THEME="robbyrussell"
