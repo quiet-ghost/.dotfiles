@@ -15,3 +15,6 @@ cursor-style-blink = false
 
 background-blur = true
 bold-is-bright = true
+
+# Auto-launch tms session on startup
+command = zsh -c "tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d ; tmux send-keys -t main:1 'opencode' Enter ; tmux new-window -n term ; tmux new-window ; tmux attach-session -t main:1; }"

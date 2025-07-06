@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+if [[ $# -eq 1 ]]; then
+    selected_session=$1
+else
+    selected_session=$(tmux list-sessions -F "#{session_name}" 2>/dev/null | fzf --prompt="Kill session: ")
+fi
+
+if [[ -z $selected_session ]]; then
+    exit 0
+fi
+
+tmux kill-session -t "$selected_session"
+echo "Killed session: $selected_session"

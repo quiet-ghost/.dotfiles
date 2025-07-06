@@ -30,22 +30,35 @@ alias vh="eval \$(history | fzf | cut -d' ' -f4-)" # History search
 alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')" # Kill processes
 alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')" # Git branch and commit switch
 alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
-alias vp="nvim \$(find ~/ ~/Github/ ~/.dotfiles/ -mindepth 1 -maxdepth 2 -type d | fzf)" # Project switcher
-alias cc='~/Applications/Cursor-1.0.0-x86_64.AppImage'
+alias vp="nvim \$(find ~/ ~/dev/ ~/personal/ ~/.dotfiles/ -mindepth 1 -maxdepth 3 -type d | fzf)" # Project switcher
 alias lg='lazygit'
-alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/Github/\", \"~/.dotfiles/\" } })"'
-alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = {  \"~/Github/\", \"~/.dotfiles/\" } })"'
+alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
+alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
 alias v='nvim'
 alias ya='yazi'
 alias yac='yazi --cwd-file'
 alias ls='eza --icons=always'
-alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t main:1 "nvim" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
-alias tmss='~/Github/Repos/tmux-sessionizer/tmux-sessionizer'
+alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t default:1 "opencode" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
+alias tmss='tmux-sessionizer'
+alias tk='tmux-kill-session'
+alias ts='tmux-switch-session'
 alias arc='sudo arch-clean.sh'
-alias g='cd ~/Github'
-alias p='cd ~/Github/Projects'
-alias s='cd ~/Github/School'
+
+# Personal directories
+alias p='cd ~/personal'
+alias pp='cd ~/personal/Projects'
+alias pl='cd ~/personal/Learning'
+alias pn='cd ~/personal/Notes'
+alias pa='cd ~/personal/Archive'
+
+# Dev directories  
+alias d='cd ~/dev'
+alias dw='cd ~/dev/work'
+alias dt='cd ~/dev/tools'
+alias dos='cd ~/dev/open-source'
 alias c='cd ~/.dotfiles'
+
+#Tools
 alias m='mailsy m'
 alias mm='mailsy me'
 alias mg='sudo mailsy g'
@@ -53,6 +66,7 @@ alias st='speedtest-cli --simple'
 alias df='duf'
 alias oc='opencode'
 alias mvnag='mvn archetype:generate'
+alias windows='~/boot-to-windows.sh'
 
 
 # fzf configuration
@@ -177,6 +191,11 @@ export RUSTONIG_SYSTEM_LIBONIG=1
 
 # opencode
 export PATH=/home/ghost/.opencode/bin:$PATH
+
+# Bind Alt+s to tmux-sessionizer
+bindkey -s '^[s' 'tmux-sessionizer\n'
+# Bind Alt+w to tmux session switcher
+bindkey -s '^[w' 'tmux-switch-session\n'
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
