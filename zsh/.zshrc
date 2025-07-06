@@ -61,11 +61,13 @@ source <(fzf --zsh)
 export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
 
 # Golang environment variables
-export PATH=$PATH:/usr/local/go/bin
-export GOROOT=/usr/local/go
 export GOPATH=$HOME/go
-# Update PATH to include GOPATH and GOROOT binaries
-export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
+export PATH=$PATH:$GOPATH/bin:/usr/bin
+# export PATH=$PATH:/usr/local/go/bin
+# export GOROOT=/usr/local/go
+# export GOPATH=$HOME/go
+# # # Update PATH to include GOPATH and GOROOT binaries
+# export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
 
 # Bind Alt+F to vcf
 bindkey -s '^[f' 'vf\n'
@@ -175,3 +177,7 @@ export RUSTONIG_SYSTEM_LIBONIG=1
 
 # opencode
 export PATH=/home/ghost/.opencode/bin:$PATH
+
+#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
+export SDKMAN_DIR="$HOME/.sdkman"
+[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"

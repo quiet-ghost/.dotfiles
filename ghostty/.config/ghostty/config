@@ -8,9 +8,10 @@ window-colorspace = srgb
 window-theme = auto
 theme = MaterialOcean
 font-family = FiraCode Nerd Font Mono SemBd
-font-size = 14
+font-size = 15
 
 cursor-style = block
+cursor-style-blink = false
 
 background-blur = true
 bold-is-bright = true
