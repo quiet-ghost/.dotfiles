@@ -1,0 +1,280 @@
+#!/bin/bash
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run the compiled Go binary
+"$SCRIPT_DIR/tmux-sessionizer-nvim-style-bin" "$@"
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	// Color palette matching your nvim plugin
+	activeColor   = lipgloss.Color("10") // bright green
+	inactiveColor = lipgloss.Color("8")  // gray
+	accentColor   = lipgloss.Color("12") // bright blue
+	warningColor  = lipgloss.Color("11") // bright yellow
+	errorColor    = lipgloss.Color("9")  // bright red
+
+	// Styles
+	titleStyle = lipgloss.NewStyle().
+			Foreground(accentColor).
+			Bold(true).
+			Padding(0, 1).
+			MarginBottom(1)
+
+	helpStyle = lipgloss.NewStyle().
+			Foreground(inactiveColor).
+			Padding(1, 0)
+
+	selectedStyle = lipgloss.NewStyle().
+			Foreground(activeColor).
+			Bold(true)
+
+	normalStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("15"))
+
+	pathStyle = lipgloss.NewStyle().
+			Foreground(inactiveColor).
+			Italic(true)
+)
+
+type item struct {
+	title string
+	desc  string
+	path  string
+}
+
+func (i item) FilterValue() string { return i.title }
+
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w *list.Model, index int, listItem list.Item) string {
+	i, ok := listItem.(item)
+	if !ok {
+		return ""
+	}
+
+	str := fmt.Sprintf("%s", i.title)
+	if i.desc != "" {
+		str += fmt.Sprintf(" %s", pathStyle.Render(i.desc))
+	}
+
+	fn := normalStyle.Render
+	if index == w.Index() {
+		fn = selectedStyle.Render
+		str = "▶ " + str
+	} else {
+		str = "  " + str
+	}
+
+	return fn(str)
+}
+
+type model struct {
+	list     list.Model
+	choice   string
+	quitting bool
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.list.SetWidth(msg.Width)
+		return m, nil
+
+	case tea.KeyMsg:
+		switch keypress := msg.String(); keypress {
+		case "ctrl+c", "q":
+			m.quitting = true
+			return m, tea.Quit
+
+		case "enter":
+			i, ok := m.list.SelectedItem().(item)
+			if ok {
+				m.choice = i.path
+			}
+			return m, tea.Quit
+		}
+	}
+
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
+}
+
+func (m model) View() string {
+	if m.choice != "" {
+		return ""
+	}
+	if m.quitting {
+		return ""
+	}
+
+	title := titleStyle.Render("🚀 TMUX PROJECT SESSIONIZER")
+	help := helpStyle.Render("↑/↓: navigate • enter: select • q: quit")
+
+	return fmt.Sprintf("%s\n%s\n%s", title, m.list.View(), help)
+}
+
+func findDirectories() []item {
+	var items []item
+	
+	// Search paths matching your original script
+	searchPaths := []string{
+		filepath.Join(os.Getenv("HOME"), "dev"),
+		filepath.Join(os.Getenv("HOME"), "personal"),
+	}
+
+	for _, searchPath := range searchPaths {
+		err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil // Skip errors, continue walking
+			}
+
+			if !info.IsDir() {
+				return nil
+			}
+
+			// Calculate depth relative to search path
+			relPath, err := filepath.Rel(searchPath, path)
+			if err != nil {
+				return nil
+			}
+
+			depth := strings.Count(relPath, string(filepath.Separator))
+			if relPath == "." {
+				depth = 0
+			}
+
+			// Match original script: mindepth 1, maxdepth 3
+			if depth >= 1 && depth <= 3 {
+				name := filepath.Base(path)
+				desc := strings.Replace(path, os.Getenv("HOME"), "~", 1)
+				
+				items = append(items, item{
+					title: name,
+					desc:  desc,
+					path:  path,
+				})
+			}
+
+			return nil
+		})
+		
+		if err != nil {
+			continue // Skip this search path if there's an error
+		}
+	}
+
+	// Sort by name for consistent ordering
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].title < items[j].title
+	})
+
+	return items
+}
+
+func createTmuxSession(selectedPath string) error {
+	if selectedPath == "" {
+		return nil
+	}
+
+	// Convert path to session name (same logic as original script)
+	selectedName := strings.ReplaceAll(filepath.Base(selectedPath), ".", "_")
+
+	// Check if tmux is running
+	tmuxRunning := exec.Command("pgrep", "tmux")
+	tmuxRunning.Run()
+	tmuxIsRunning := tmuxRunning.ProcessState.Success()
+
+	// Check if we're inside tmux
+	_, insideTmux := os.LookupEnv("TMUX")
+
+	// If not in tmux and tmux isn't running, create new session and attach
+	if !insideTmux && !tmuxIsRunning {
+		cmd := exec.Command("tmux", "new-session", "-s", selectedName, "-c", selectedPath)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Check if session already exists
+	checkSession := exec.Command("tmux", "has-session", "-t="+selectedName)
+	err := checkSession.Run()
+	
+	// If session doesn't exist, create it
+	if err != nil {
+		createCmd := exec.Command("tmux", "new-session", "-d", "-s", selectedName, "-c", selectedPath)
+		if err := createCmd.Run(); err != nil {
+			return fmt.Errorf("failed to create session: %v", err)
+		}
+	}
+
+	// Switch to the session
+	switchCmd := exec.Command("tmux", "switch-client", "-t", selectedName)
+	return switchCmd.Run()
+}
+
+func main() {
+	items := findDirectories()
+	
+	if len(items) == 0 {
+		fmt.Println("No directories found in ~/dev or ~/personal")
+		os.Exit(1)
+	}
+
+	// Convert to list items
+	listItems := make([]list.Item, len(items))
+	for i, item := range items {
+		listItems[i] = item
+	}
+
+	const defaultWidth = 80
+	const listHeight = 20
+
+	l := list.New(listItems, itemDelegate{}, defaultWidth, listHeight)
+	l.Title = ""
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = helpStyle
+	l.Styles.HelpStyle = helpStyle
+
+	m := model{list: l}
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	finalModel, err := p.Run()
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+		os.Exit(1)
+	}
+
+	// Handle the selection
+	if m, ok := finalModel.(model); ok && m.choice != "" {
+		err := createTmuxSession(m.choice)
+		if err != nil {
+			fmt.Printf("Error creating tmux session: %v\n", err)
+			os.Exit(1)
+		}
+	}
+}
