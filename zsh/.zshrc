@@ -40,6 +40,7 @@ alias yac='yazi --cwd-file'
 alias ls='eza --icons=always'
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t default:1 "opencode" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
 alias tmss='tmux-sessionizer'
+alias tmp='tmux-sessionizer-nvim-style'  # Nvim plugin style interface
 alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
 alias arc='sudo arch-clean.sh'
@@ -77,11 +78,7 @@ export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focu
 # Golang environment variables
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin:/usr/bin
-# export PATH=$PATH:/usr/local/go/bin
-# export GOROOT=/usr/local/go
-# export GOPATH=$HOME/go
-# # # Update PATH to include GOPATH and GOROOT binaries
-# export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
+
 
 # Bind Alt+F to vcf
 bindkey -s '^[f' 'vf\n'
