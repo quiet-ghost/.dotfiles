@@ -225,10 +225,6 @@ stow zsh tmux nvim
 
 Feel free to fork and customize for your own use! If you find improvements or fixes, pull requests are welcome.
 
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
 ---
 
 **Enjoy your new development environment!** 🎉
