@@ -1,4 +1,4 @@
 #!/bin/bash
 
 # Simple installer script - just runs the main setup
-exec "$(dirname "$0")/setup-enhanced.sh"
+exec "$(dirname "$0")/setup.sh"
