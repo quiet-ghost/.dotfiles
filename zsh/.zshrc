@@ -4,10 +4,9 @@ export ZSH="$HOME/.oh-my-zsh"
 export PATH="$PATH:/usr/bin/nvim"
 # Path to Tmux-sessionizer
 export PATH="$HOME/.local/bin:$PATH"
-#avante path
-export OPENAI_API_KEY="sk-proj-g6bsJchxUDrKfxtuBC8eT3BlbkFJ6ssBDLXm0N7LmWPMr3mI"
-export ANTHROPIC_API_KEY="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"
-export XAI_API_KEY="xai-QoL9AXqNY2t3toIezu5sIi9HP1wQWykkbMqPByZomZXf0SuaxrbsKpMe9CpWqTsGe3bQmN7a5OcoSa0y"
+
+# Source private environment variables (API keys, etc.)
+[ -f ~/.env.private ] && source ~/.env.private
 
 # Theme
 ZSH_THEME="robbyrussell"
@@ -21,6 +20,16 @@ source $ZSH/oh-my-zsh.sh
 source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
 source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+
+# Configure zsh-autocomplete to be less aggressive
+zstyle ':autocomplete:*' min-input 2
+zstyle ':autocomplete:*' delay 0.4
+zstyle ':autocomplete:*' list-lines 8
+zstyle ':autocomplete:tab:*' insert-unambiguous yes
+zstyle ':autocomplete:tab:*' widget-style menu-select
+
+# Disable completion for xx alias to prevent nvim terminal issues
+compdef -d xx
 
 # Zsh configuration file
 alias xx='clear'
