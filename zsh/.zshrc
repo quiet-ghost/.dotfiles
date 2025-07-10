@@ -1,96 +1,123 @@
-# Path to your Oh My Zsh installation.
+# Early PATH setup
+export PATH="$HOME/.local/bin:/home/ghost/.opencode/bin:$PATH:/usr/bin/nvim"
+
+# Oh My Zsh setup
 export ZSH="$HOME/.oh-my-zsh"
-# Path to nvim installation
-export PATH="$PATH:/usr/bin/nvim"
-# Path to Tmux-sessionizer
-export PATH="$HOME/.local/bin:$PATH"
-
-# Source private environment variables (API keys, etc.)
-[ -f ~/.env.private ] && source ~/.env.private
-
-# Theme
 ZSH_THEME="robbyrussell"
-
-# Auto-update Oh My Zsh
 zstyle ':omz:update' mode auto
 
-# Plugins
-plugins=(git zsh-syntax-highlighting fast-syntax-highlighting)
-source $ZSH/oh-my-zsh.sh
-source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh
-source ${ZSH_CUSTOM:- ~/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh
+# Minimal plugin list - removed duplicates
+plugins=(git zsh-syntax-highlighting)
 
-# Configure zsh-autocomplete to be less aggressive
+# Source Oh My Zsh
+source $ZSH/oh-my-zsh.sh
+
+# Load additional plugins conditionally
+_load_plugin() {
+    [[ -f "$1" ]] && source "$1"
+}
+
+_load_plugin "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh"
+_load_plugin "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/fast-syntax-highlighting/fast-syntax-highlighting.plugin.zsh"
+_load_plugin "${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autocomplete/zsh-autocomplete.plugin.zsh"
+
+# Configure zsh-autocomplete
 zstyle ':autocomplete:*' min-input 2
 zstyle ':autocomplete:*' delay 0.4
 zstyle ':autocomplete:*' list-lines 8
 zstyle ':autocomplete:tab:*' insert-unambiguous yes
 zstyle ':autocomplete:tab:*' widget-style menu-select
-
-# Disable completion for xx alias to prevent nvim terminal issues
 compdef -d xx
 
-# Zsh configuration file
+# Source private env and fzf conditionally
+[[ -f ~/.env.private ]] && source ~/.env.private
+
+# Lazy load heavy tools
+_lazy_load_nvm() {
+    unset -f nvm node npm npx
+    export NVM_DIR="$HOME/.nvm"
+    [[ -s "$NVM_DIR/nvm.sh" ]] && source "$NVM_DIR/nvm.sh"
+    [[ -s "$NVM_DIR/bash_completion" ]] && source "$NVM_DIR/bash_completion"
+}
+
+nvm() { _lazy_load_nvm && nvm "$@"; }
+node() { _lazy_load_nvm && node "$@"; }
+npm() { _lazy_load_nvm && npm "$@"; }
+npx() { _lazy_load_nvm && npx "$@"; }
+
+_lazy_load_sdkman() {
+    unset -f sdk
+    export SDKMAN_DIR="$HOME/.sdkman"
+    [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+}
+
+sdk() { _lazy_load_sdkman && sdk "$@"; }
+
+# Environment variables
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin:/usr/bin
+export RUSTONIG_SYSTEM_LIBONIG=1
+
+# FZF setup - only if fzf is available
+if command -v fzf >/dev/null 2>&1; then
+    [[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
+    source <(fzf --zsh)
+    export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
+fi
+
+# Aliases - grouped for clarity
 alias xx='clear'
 alias pbcopy='xsel --clipboard --input'
 alias pbpaste='xsel --clipboard --output'
-alias vh="eval \$(history | fzf | cut -d' ' -f4-)" # History search
-alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')" # Kill processes
-alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')" # Git branch and commit switch
-alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
-alias vp="nvim \$(find ~/ ~/dev/ ~/personal/ ~/.dotfiles/ -mindepth 1 -maxdepth 3 -type d | fzf)" # Project switcher
-alias lg='lazygit'
-alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
-alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
 alias v='nvim'
+alias lg='lazygit'
 alias ya='yazi'
 alias yac='yazi --cwd-file'
 alias ls='eza --icons=always'
+alias oc='opencode'
+alias df='duf'
+alias st='speedtest-cli --simple'
+alias arc='sudo arch-clean.sh'
+alias windows='~/boot-to-windows.sh'
+
+# FZF-based aliases
+alias vh="eval \$(history | fzf | cut -d' ' -f4-)"
+alias vk="kill -9 \$(ps aux | fzf --multi | awk '{print \$2}')"
+alias vb="git checkout \$(git branch --all | fzf | tr -d ' *')"
+alias vc="git checkout \$(git log --oneline | fzf --preview 'git show {1}' | cut -d' ' -f1)"
+alias vp="nvim \$(find ~/ ~/dev/ ~/personal/ ~/.dotfiles/ -mindepth 1 -maxdepth 3 -type d | fzf)"
+alias vf='nvim -c "lua require(\"telescope.builtin\").find_files({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
+alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = { \"~/dev/\", \"~/personal/\", \"~/.dotfiles/\" } })"'
+
+# Tmux aliases
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t default:1 "opencode" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
 alias tmss='tmux-sessionizer'
-alias tmp='tmux-sessionizer-nvim-style-bin'  # Nvim plugin style interface
+alias tmp='tmux-sessionizer-nvim-style-bin'
 alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
-alias arc='sudo arch-clean.sh'
 
-# Personal directories
+# Directory navigation
 alias p='cd ~/personal'
 alias pp='cd ~/personal/Projects'
 alias pl='cd ~/personal/Learning'
 alias pn='cd ~/personal/Notes'
 alias pa='cd ~/personal/Archive'
-
-# Dev directories  
 alias d='cd ~/dev'
 alias dw='cd ~/dev/work'
 alias dt='cd ~/dev/tools'
 alias dos='cd ~/dev/open-source'
 alias c='cd ~/.dotfiles'
 
-#Tools
+# Mail and Maven
 alias m='mailsy m'
 alias mm='mailsy me'
 alias mg='sudo mailsy g'
-alias st='speedtest-cli --simple'
-alias df='duf'
-alias oc='opencode'
 alias mvnag='mvn archetype:generate'
-alias windows='~/boot-to-windows.sh'
 
-
-# fzf configuration
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-source <(fzf --zsh)
-export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
-
-# Golang environment variables
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin:/usr/bin
-
-
-# Bind Alt+F to vcf
+# Key bindings
 bindkey -s '^[f' 'vf\n'
+bindkey -s '^[s' 'tmux-sessionizer\n'
+bindkey -s '^[w' 'mux-sesh\n'
 
 # Grep file contents and jump to line
 vcg() {
@@ -143,35 +170,7 @@ function y() {
     rm -f -- "$tmp"
 }
 
-# Define the base directory for Obsidian notes
-#obsidian_base="/home/ghost/Github/Notes/Imports"
 
-# Loop through all files in the ~/.config/fabric/patterns directory
-#for pattern_file in ~/.config/fabric/patterns/*; do
-    # Get the base name of the file (i.e., remove the directory path)
- #   pattern_name=$(basename "$pattern_file")
-
-    # Remove any existing alias with the same name
-  #  unalias "$pattern_name" 2>/dev/null
-
-    # Define a function dynamically for each pattern
-   # eval "
-    #$pattern_name() {
-     #   local title=\$1
-      #  local date_stamp=\$(date +'%Y-%m-%d')
-       # local output_path=\"\$obsidian_base/\${date_stamp}-\${title}.md\"
-
-        # Check if a title was provided
-        #if [ -n \"\$title\" ]; then
-            # If a title is provided, use the output path
-         #   fabric --pattern \"$pattern_name\" -o \"\$output_path\"
-       # else
-            # If no title is provided, use --stream
-       #     fabric --pattern \"$pattern_name\" --stream
-        #fi
-  #  }
-   # "
-#done
 
 yt() {
     if [ "$#" -eq 0 ] || [ "$#" -gt 2 ]; then
@@ -190,19 +189,4 @@ yt() {
 }
 
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-export RUSTONIG_SYSTEM_LIBONIG=1
 
-# opencode
-export PATH=/home/ghost/.opencode/bin:$PATH
-
-# Bind Alt+s to tmux-sessionizer
-bindkey -s '^[s' 'tmux-sessionizer\n'
-# Bind Alt+w to tmux session switcher
-bindkey -s '^[w' 'mux-sesh\n'
-
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="$HOME/.sdkman"
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
