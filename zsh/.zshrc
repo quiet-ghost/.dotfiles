@@ -49,7 +49,7 @@ alias yac='yazi --cwd-file'
 alias ls='eza --icons=always'
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t default:1 "opencode" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
 alias tmss='tmux-sessionizer'
-alias tmp='tmux-sessionizer-nvim-style'  # Nvim plugin style interface
+alias tmp='tmux-sessionizer-nvim-style-bin'  # Nvim plugin style interface
 alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
 alias arc='sudo arch-clean.sh'
@@ -201,7 +201,7 @@ export PATH=/home/ghost/.opencode/bin:$PATH
 # Bind Alt+s to tmux-sessionizer
 bindkey -s '^[s' 'tmux-sessionizer\n'
 # Bind Alt+w to tmux session switcher
-bindkey -s '^[w' 'tmux-switch-session\n'
+bindkey -s '^[w' 'mux-sesh\n'
 
 #THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
 export SDKMAN_DIR="$HOME/.sdkman"
