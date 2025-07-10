@@ -187,7 +187,7 @@ func (m model) handleNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.searchInput.Focus()
 		m.searchInput.SetValue("")
-		m.searchInput.Placeholder = "Type to filter projects or create custom session..."
+		m.searchInput.Placeholder = "Type project name, GitHub URL, or custom session name..."
 		return m, textinput.Blink
 
 	case "d":
@@ -344,11 +344,23 @@ func (m model) handleNewSessionMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Create session with search term or select filtered project
 		searchTerm := strings.TrimSpace(m.searchInput.Value())
 		if searchTerm != "" {
-			if len(m.items) > 0 {
-				// Use first filtered project
-				selectedItem := m.items[0]
-				m.choice = selectedItem.path
-				m.action = "create"
+			// Check if it's a GitHub URL
+			if isGitHubURL(searchTerm) {
+				m.choice = searchTerm
+				m.action = "clone_and_create"
+				return m, tea.Quit
+			} else if len(m.items) > 0 {
+				// Use selected filtered project (cursor position)
+				if m.cursor < len(m.items) {
+					selectedItem := m.items[m.cursor]
+					m.choice = selectedItem.path
+					m.action = "create"
+				} else {
+					// Fallback to first item
+					selectedItem := m.items[0]
+					m.choice = selectedItem.path
+					m.action = "create"
+				}
 			} else {
 				// Create session with search term as name
 				m.choice = searchTerm
@@ -643,8 +655,18 @@ func (m model) View() string {
 	if itemCount == 0 {
 		if m.appMode == ModeNewSession {
 			if m.searchInput.Value() != "" {
-				// Show what will be created when typing
-				itemLines = append(itemLines, selectedSessionStyle.Render(fmt.Sprintf("▶ Create session: %s", m.searchInput.Value())))
+				// Check if it's a GitHub URL
+				if isGitHubURL(m.searchInput.Value()) {
+					repoName := extractRepoName(m.searchInput.Value())
+					if repoName != "" {
+						itemLines = append(itemLines, selectedSessionStyle.Render(fmt.Sprintf("▶ Clone & create session: %s", repoName)))
+					} else {
+						itemLines = append(itemLines, selectedSessionStyle.Render("▶ Clone repository"))
+					}
+				} else {
+					// Show what will be created when typing
+					itemLines = append(itemLines, selectedSessionStyle.Render(fmt.Sprintf("▶ Create session: %s", m.searchInput.Value())))
+				}
 			} else {
 				itemLines = append(itemLines, inactiveIndicatorStyle.Render("No projects found"))
 			}
@@ -726,6 +748,72 @@ func (m model) View() string {
 
 	// Center the content on screen
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+}
+
+// isGitHubURL checks if the input is a GitHub URL (https or ssh)
+func isGitHubURL(input string) bool {
+	input = strings.TrimSpace(input)
+	return strings.HasPrefix(input, "https://github.com/") ||
+		strings.HasPrefix(input, "git@github.com:")
+}
+
+// extractRepoName extracts repository name from GitHub URL
+func extractRepoName(url string) string {
+	url = strings.TrimSpace(url)
+
+	if strings.HasPrefix(url, "https://github.com/") {
+		// Remove https://github.com/ prefix
+		path := strings.TrimPrefix(url, "https://github.com/")
+		// Remove .git suffix if present
+		path = strings.TrimSuffix(path, ".git")
+		// Get just the repo name (last part after /)
+		parts := strings.Split(path, "/")
+		if len(parts) >= 2 {
+			return parts[1]
+		}
+	} else if strings.HasPrefix(url, "git@github.com:") {
+		// Remove git@github.com: prefix
+		path := strings.TrimPrefix(url, "git@github.com:")
+		// Remove .git suffix if present
+		path = strings.TrimSuffix(path, ".git")
+		// Get just the repo name (last part after /)
+		parts := strings.Split(path, "/")
+		if len(parts) >= 2 {
+			return parts[1]
+		}
+	}
+
+	return ""
+}
+
+// cloneGitHubRepo clones a GitHub repository to ~/repos/
+func cloneGitHubRepo(url string) (string, error) {
+	repoName := extractRepoName(url)
+	if repoName == "" {
+		return "", fmt.Errorf("could not extract repository name from URL")
+	}
+
+	// Create ~/dev/repos directory if it doesn't exist
+	reposDir := filepath.Join(os.Getenv("HOME"), "dev", "repos")
+	if err := os.MkdirAll(reposDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create repos directory: %v", err)
+	}
+
+	// Target directory for the clone
+	targetDir := filepath.Join(reposDir, repoName)
+
+	// Check if directory already exists
+	if _, err := os.Stat(targetDir); err == nil {
+		return targetDir, nil // Directory already exists, just return it
+	}
+
+	// Clone the repository
+	cmd := exec.Command("git", "clone", url, targetDir)
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to clone repository: %v", err)
+	}
+
+	return targetDir, nil
 }
 
 func buildSessionDetails(sessionName string) string {
@@ -1125,6 +1213,22 @@ func main() {
 			}
 		case "create_named":
 			err := createNamedTmuxSession(m.choice)
+			if err != nil {
+				fmt.Printf("Error creating tmux session: %v\n", err)
+				os.Exit(1)
+			}
+		case "clone_and_create":
+			// Clone GitHub repo and create session
+			fmt.Printf("Cloning repository: %s\n", m.choice)
+			clonedPath, err := cloneGitHubRepo(m.choice)
+			if err != nil {
+				fmt.Printf("Error cloning repository: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Repository cloned to: %s\n", clonedPath)
+
+			// Create tmux session in the cloned directory
+			err = createTmuxSession(clonedPath)
 			if err != nil {
 				fmt.Printf("Error creating tmux session: %v\n", err)
 				os.Exit(1)
