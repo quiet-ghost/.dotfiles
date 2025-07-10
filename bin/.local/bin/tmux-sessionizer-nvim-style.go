@@ -878,9 +878,9 @@ func getProjectItems() []item {
 				depth = 0
 			}
 
-			// Match original script: mindepth 1, maxdepth 3
+			// Only include direct subdirectories of ~/dev and ~/personal (depth 1)
 			// Skip hidden directories and node_modules
-			if depth >= 1 && depth <= 3 &&
+			if depth == 1 &&
 				!strings.HasPrefix(filepath.Base(path), ".") &&
 				!strings.Contains(path, "node_modules") {
 				name := filepath.Base(path)
