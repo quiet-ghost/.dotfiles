@@ -66,6 +66,7 @@ if command -v fzf >/dev/null 2>&1; then
 fi
 
 # Aliases - grouped for clarity
+alias sz="source ~/.zshrc"
 alias xx='clear'
 alias pbcopy='xsel --clipboard --input'
 alias pbpaste='xsel --clipboard --output'
@@ -92,7 +93,6 @@ alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = 
 # Tmux aliases
 alias tms='tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d \; send-keys -t default:1 "opencode" Enter  \; new-window -n term \; new-window \; attach-session -t main:1; }'
 alias tmss='tmux-sessionizer'
-alias tmp='tmux-sessionizer-nvim-style-bin'
 alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
 
