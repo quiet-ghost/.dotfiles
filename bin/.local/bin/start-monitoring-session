@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Start or ensure monitoring session with opencode-sesh server
+
+SESSION="monitoring"
+OPENCODE_SESH_SERVER="/home/ghost-desktop/dev/open-source/opencode-sessions/server"
+
+# Create monitoring session if it doesn't exist
+if ! tmux has-session -t $SESSION 2>/dev/null; then
+    echo "Creating monitoring session..."
+    
+    # Create session with btop
+    tmux new-session -d -s $SESSION -n "btop" "btop"
+    
+    # Add opencode-sesh server window
+    tmux new-window -t $SESSION -n "opencode-sesh-server" "$OPENCODE_SESH_SERVER"
+    
+    # Go back to btop window
+    tmux select-window -t $SESSION:btop
+    
+    echo "Monitoring session created with opencode-sesh server"
+else
+    echo "Monitoring session already exists"
+    
+    # Check if opencode-sesh server window exists
+    if ! tmux list-windows -t $SESSION | grep -q "opencode-sesh-server"; then
+        echo "Adding opencode-sesh server to existing monitoring session..."
+        tmux new-window -t $SESSION -n "opencode-sesh-server" "$OPENCODE_SESH_SERVER"
+    fi
+fi
