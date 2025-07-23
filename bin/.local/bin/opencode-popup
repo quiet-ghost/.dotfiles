@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# OpenCode Sessionizer Popup Wrapper
+# Tries tmux popup first, then falls back to floating terminal
+
+if command -v tmux >/dev/null 2>&1 && tmux info >/dev/null 2>&1; then
+    # We're in a tmux session, use tmux popup
+    tmux popup -d '#{pane_current_path}' -xC -yC -w80% -h80% -E "opencode-client"
+elif command -v ghostty >/dev/null 2>&1; then
+    # Use ghostty floating window
+    ghostty --class=opencode-popup --title="OpenCode Sessionizer" -e opencode-client &
+elif command -v kitty >/dev/null 2>&1; then
+    # Use kitty floating window
+    kitty --class=opencode-popup --title="OpenCode Sessionizer" opencode-client &
+elif command -v wezterm >/dev/null 2>&1; then
+    # Use wezterm floating window
+    wezterm start --class=opencode-popup opencode-client &
+else
+    # Fallback to regular client
+    opencode-client
+fi
