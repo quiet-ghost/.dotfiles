@@ -1,3 +1,5 @@
+export EDITOR=nvim
+
 # Early PATH setup
 export PATH="$HOME/.local/bin:/home/ghost/.opencode/bin:$PATH:/usr/bin/nvim"
 
