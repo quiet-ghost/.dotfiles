@@ -67,7 +67,7 @@ if command -v fzf >/dev/null 2>&1; then
     export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
 fi
 
-# Aliases - grouped for clarity
+# Aliases
 alias sz="source ~/.zshrc"
 alias xx='clear'
 alias pbcopy='xsel --clipboard --input'
@@ -109,6 +109,7 @@ alias dw='cd ~/dev/work'
 alias dt='cd ~/dev/tools'
 alias dos='cd ~/dev/open-source'
 alias c='cd ~/.dotfiles'
+alias nvc="cd $HOME/.config/nvim && nvim"
 
 # Mail and Maven
 alias m='mailsy m'
