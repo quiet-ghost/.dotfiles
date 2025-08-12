@@ -64,7 +64,7 @@ export RUSTONIG_SYSTEM_LIBONIG=1
 if command -v fzf >/dev/null 2>&1; then
     [[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
     source <(fzf --zsh)
-    export FZF_DEFAULT_OPTS="--style full --preview 'fzf-preview.sh {}' --bind 'focus:transform-header:file --brief {}'"
+    export FZF_DEFAULT_OPTS="--height=40% --layout=reverse --border=rounded --padding=1 --color='bg+:#313244,bg:#1e1e2e,spinner:#74c7ec,hl:#89b4fa,fg:#cdd6f4,header:#74c7ec,info:#89b4fa,pointer:#74c7ec,marker:#74c7ec,fg+:#cdd6f4,prompt:#89b4fa,hl+:#89b4fa,border:#6c7086' --preview 'bat --color=always --style=numbers --line-range=:500 {}' --bind 'focus:transform-header:file --brief {}'"
 fi
 
 # Aliases
