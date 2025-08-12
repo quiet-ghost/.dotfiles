@@ -197,5 +197,4 @@ yt() {
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-export PATH=~/.npm-global/bin:$PATH
-
+export PATH=home/ghost-desktop/.npm-global/bin:$PATH
