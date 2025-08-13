@@ -1,0 +1,27 @@
+[user]
+	email = ksclafani26@pm.me
+	name = K
+[fetch]
+    prune = true
+[core]
+	pager = diff-so-fancy | less --tabs=4 -RF
+[interactive]
+	diffFilter = diff-so-fancy --patch
+[color]
+	ui = true
+[color "diff-highlight"]
+	oldNormal = red bold
+	oldHighlight = red bold 52
+	newNormal = green bold
+	newHighlight = green bold 22
+[color "diff"]
+	meta = 11
+	frag = magenta bold
+	func = 146 bold
+	commit = yellow bold
+	old = red bold
+	new = green bold
+	whitespace = red reverse
+[alias]
+  wt = "!f() { if [ -z \"$1\" ]; then echo \"Available branches:\"; git branch -a | grep -v HEAD; echo \"\"; echo \"Usage: git wt [branch-name]\"; return; fi; if git show-ref --verify --quiet refs/heads/$1; then echo \"Using existing branch: $1\"; git worktree add ./.worktrees/$1 $1; else echo \"Branch $1 does not exist.\"; echo \"Available branches:\"; git branch -a | grep -v HEAD; echo \"\"; read -p \"Create new branch $1? (Y/n): \" -n 1 -r; echo \"\"; if [[ \\$REPLY =~ ^[Nn]\\$ ]]; then echo \"Cancelled.\"; else git worktree add -b $1 ./.worktrees/$1 HEAD; fi; fi; }; f"
+  wtr = "!f() { if [ -n \"$1\" ]; then if [ -d \".worktrees/$1\" ]; then echo \"Removing worktree: $1\"; git worktree remove .worktrees/$1; echo \"Worktree $1 removed.\"; else echo \"Worktree $1 not found in .worktrees/\"; fi; return; fi; echo \"Current worktrees:\"; git worktree list | grep \"\\.worktrees\" | while read line; do path=$(echo \"$line\" | awk \"{print \\$1}\"); branch=$(basename \"$path\"); echo \"  $branch\"; done; if ! git worktree list | grep -q \"\\.worktrees\"; then echo \"  No worktrees found.\"; return; fi; echo \"\"; read -p \"Enter worktree name to remove (or press Enter to cancel): \" worktree_name; if [ -z \"$worktree_name\" ]; then echo \"Cancelled.\"; return; fi; if [ -d \".worktrees/$worktree_name\" ]; then read -p \"Remove worktree $worktree_name? (Y/n): \" -n 1 -r; echo \"\"; if [[ \\$REPLY =~ ^[Nn]\\$ ]]; then echo \"Cancelled.\"; else git worktree remove .worktrees/$worktree_name; echo \"Worktree $worktree_name removed.\"; fi; else echo \"Worktree $worktree_name not found.\"; fi; }; f"
