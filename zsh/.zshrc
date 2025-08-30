@@ -8,7 +8,7 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
 zstyle ':omz:update' mode auto
 
-# Minimal plugin list - removed duplicates
+# Minimal plugin list
 plugins=(git zsh-syntax-highlighting)
 
 # Source Oh My Zsh
@@ -59,6 +59,12 @@ sdk() { _lazy_load_sdkman && sdk "$@"; }
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin:/usr/bin
 export RUSTONIG_SYSTEM_LIBONIG=1
+# Golang environment variables
+export GOROOT=/usr/local/go
+export GOPATH=$HOME/go
+
+# Update PATH to include GOPATH and GOROOT binaries
+export PATH=$GOPATH/bin:$GOROOT/bin:$HOME/.local/bin:$PATH
 
 # FZF setup - only if fzf is available
 if command -v fzf >/dev/null 2>&1; then
@@ -82,6 +88,7 @@ alias df='duf'
 alias st='speedtest-cli --simple'
 alias arc='sudo arch-clean.sh'
 alias windows='~/boot-to-windows.sh'
+# fabric alias removed - now handled by lazy loading function
 
 # FZF-based aliases
 alias vh="eval \$(history | fzf | cut -d' ' -f4-)"
@@ -176,6 +183,7 @@ function y() {
 
 
 yt() {
+    _load_fabric_patterns  # Load patterns before using fabric
     if [ "$#" -eq 0 ] || [ "$#" -gt 2 ]; then
         echo "Usage: yt [-t | --timestamps] youtube-link"
         echo "Use the '-t' flag to get the transcript with timestamps."
@@ -189,6 +197,13 @@ yt() {
     fi
     local video_link="$1"
     fabric -y "$video_link" $transcript_flag
+}
+# Fabric patterns - always load them for now
+[[ -f ~/.fabric-patterns.zsh ]] && source ~/.fabric-patterns.zsh
+
+# Override fabric command to use fabric-ai
+fabric() {
+    fabric-ai "$@"
 }
 
 # bun completions
