@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Web App Remover for Arch Linux Menu System
+
+DESKTOP_DIR="$HOME/.local/share/applications"
+ICON_DIR="$DESKTOP_DIR/icons"
+
+# Find all custom web apps
+webapps=$(ls "$DESKTOP_DIR"/*.desktop 2>/dev/null | xargs -I {} basename {} .desktop | fzf --multi --prompt="Select web apps to remove> ")
+
+if [[ -n "$webapps" ]]; then
+  echo "$webapps" | while read -r app; do
+    rm -f "$DESKTOP_DIR/$app.desktop"
+    rm -f "$ICON_DIR/$app.png"
+    echo "Removed: $app"
+  done
+  echo -e "\n✓ Web apps removed successfully!"
+  read -n 1 -s -p "Press any key to close..."
+fi

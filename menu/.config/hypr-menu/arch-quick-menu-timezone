@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Timezone selector
+timezone=$(tzselect | tail -1)
+if [ -n "$timezone" ]; then
+  sudo timedatectl set-timezone "$timezone"
+  notify-send "Timezone" "Set to $timezone"
+fi

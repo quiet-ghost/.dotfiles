@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# AUR Package Installer for Arch Linux Menu System
+
+set -e
+
+fzf_args=(
+  --multi
+  --preview 'yay -Sii {1} 2>/dev/null || paru -Sii {1} 2>/dev/null'
+  --preview-label='alt-p: toggle description, alt-j/k: scroll, tab: multi-select, F11: maximize'
+  --preview-label-pos='bottom'
+  --preview-window 'down:65%:wrap'
+  --bind 'alt-p:toggle-preview'
+  --bind 'alt-d:preview-half-page-down,alt-u:preview-half-page-up'
+  --bind 'alt-k:preview-up,alt-j:preview-down'
+  --color 'pointer:green,marker:green'
+)
+
+# Check which AUR helper is available
+if command -v yay &> /dev/null; then
+    AUR_HELPER="yay"
+    pkg_names=$(yay -Slqa | fzf "${fzf_args[@]}")
+elif command -v paru &> /dev/null; then
+    AUR_HELPER="paru"
+    pkg_names=$(paru -Slqa | fzf "${fzf_args[@]}")
+else
+    echo "No AUR helper found! Please install yay or paru."
+    exit 1
+fi
+
+if [[ -n "$pkg_names" ]]; then
+  echo "$pkg_names" | tr '\n' ' ' | xargs $AUR_HELPER -S --noconfirm
+  sudo updatedb
+  echo -e "\n✓ AUR packages installed successfully!"
+  read -n 1 -s -p "Press any key to close..."
+fi
