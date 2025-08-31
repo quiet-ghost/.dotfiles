@@ -30,7 +30,7 @@ if ! curl -sL -o "$ICON_PATH" "$ICON_URL"; then
 fi
 
 # Always use Chrome for web apps
-browser_cmd="google-chrome-stable --app=\"$APP_URL\""
+browser_cmd="chromium --app=\"$APP_URL\""
 
 cat >"$DESKTOP_FILE" <<EOFDESKTOP
 [Desktop Entry]
