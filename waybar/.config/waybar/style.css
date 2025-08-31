@@ -125,3 +125,32 @@ button:hover {
   padding-left: 6px;
   padding-right: 6px;
 }
+
+/* Arch Menu Styling */
+#custom-arch-menu {
+  color: #1793d1;  /* Arch blue */
+  font-size: 18px;;
+  padding: 0 10px;
+  margin-left: 5px;
+  transition: all 0.2s ease;
+}
+
+#custom-arch-menu:hover {
+  background: rgba(23, 147, 209, 0.2);
+  border-radius: 5px;
+}
+
+#custom-arch-menu.updates {
+  color: #fab387;  /* Yellow for updates */
+  animation: pulse 2s infinite;
+}
+
+#custom-arch-menu.normal {
+  color: #1793d1;  /* Arch blue */
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}

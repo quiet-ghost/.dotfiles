@@ -1,0 +1,167 @@
+#!/bin/bash
+
+# Arch Linux Menu System
+# Uses wofi for menus and ghostty for presentations
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Menu wrapper using wofi
+menu() {
+  local prompt="$1"
+  local options="$2"
+  local extra="$3"
+
+  echo -e "$options" | wofi --dmenu --prompt "$prompt" $extra
+}
+
+# Terminal wrapper using ghostty
+terminal() {
+  ghostty --title="ArchMenu" -e "$@"
+}
+
+# Presentation terminal with branding
+present_terminal() {
+  local cmd="$1"
+  ghostty --title="ArchMenu" -e bash -c "
+    echo -e '\033[34m󰣇 Arch Linux Menu\033[0m\n'
+    $cmd
+    echo -e '\n\033[32m✓ Done! Press any key to close...\033[0m'
+    read -n 1 -s
+  "
+}
+
+# Show main menu
+show_main_menu() {
+  local choice
+  choice=$(menu "Arch Menu" "󰣇 Install\n󰭌 Remove\n Update\n Style\n System\n Keybindings")
+
+  case "$choice" in
+    *Install*) show_install_menu ;;
+    *Remove*) show_remove_menu ;;
+    *Update*) show_update_menu ;;
+    *Style*) show_style_menu ;;
+    *System*) show_system_menu ;;
+    *Keybindings*) show_keybindings ;;
+    *) exit 0 ;;
+  esac
+}
+
+# Show install submenu
+show_install_menu() {
+  local choice
+  choice=$(menu "Install" "󰣇 Packages\n󰣇 AUR\n Web App\n TUI\n Theme")
+
+  case "$choice" in
+    *Packages*) terminal "$HOME/.config/hypr-menu/pkg-install" ;;
+    *AUR*) terminal "$HOME/.config/hypr-menu/aur-install" ;;
+    *Web*) terminal "$HOME/.config/hypr-menu/webapp-install" ;;
+    *TUI*) terminal "$HOME/.config/hypr-menu/tui-install" ;;
+    *Theme*) show_theme_menu ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show remove submenu
+show_remove_menu() {
+  local choice
+  choice=$(menu "Remove" "󰣇 Package\n Web App\n TUI\n Theme")
+
+  case "$choice" in
+    *Package*) terminal "$HOME/.config/hypr-menu/pkg-remove" ;;
+    *Web*) terminal "$HOME/.config/hypr-menu/webapp-remove" ;;
+    *TUI*) terminal "$HOME/.config/hypr-menu/tui-remove" ;;
+    *Theme*) terminal "$HOME/.config/hypr-menu/theme-remove" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show update submenu
+show_update_menu() {
+  local choice
+  choice=$(menu "Update" " System\n Config\n󰸌 Themes")
+
+  case "$choice" in
+    *System*) present_terminal "sudo pacman -Syu --noconfirm" ;;
+    *Config*) present_terminal "$HOME/.config/hypr-menu/refresh-config" ;;
+    *Themes*) present_terminal "$HOME/.config/hypr-menu/theme-update" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show style submenu
+show_style_menu() {
+  local choice
+  choice=$(menu "Style" "󰸌 Theme\n Wallpaper\n Font")
+
+  case "$choice" in
+    *Theme*) show_theme_menu ;;
+    *Wallpaper*) terminal "$HOME/.config/hypr-menu/wallpaper-set" ;;
+    *Font*) terminal "$HOME/.config/hypr-menu/font-set" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show system submenu
+show_system_menu() {
+  local choice
+  choice=$(menu "System" " Lock\n󱄄 Screensaver\n󰤄 Suspend\n Restart Hyprland\n󰜉 Reboot\n󰐥 Shutdown")
+
+  case "$choice" in
+    *Lock*) hyprlock ;;
+    *Screensaver*) present_terminal "hyprctl dispatch dpms off" ;;
+    *Suspend*) systemctl suspend ;;
+    *Restart*) uwsm stop ;;
+    *Reboot*) systemctl reboot ;;
+    *Shutdown*) systemctl poweroff ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show theme submenu
+show_theme_menu() {
+  local themes
+  themes=$(ls "$HOME/.config/hypr-menu/themes" 2>/dev/null | sed 's/\.sh$//' | tr '\n' '\n')
+
+  if [[ -z "$themes" ]]; then
+    themes="No themes found"
+  fi
+
+  local choice
+  choice=$(menu "Theme" "$themes")
+
+  if [[ -n "$choice" && "$choice" != "No themes found" ]]; then
+    present_terminal "$HOME/.config/hypr-menu/themes/$choice.sh"
+  else
+    show_style_menu
+  fi
+}
+
+# Show keybindings
+show_keybindings() {
+  local keybinds
+  keybinds="Super + Space: App Launcher
+Super + Enter: Terminal
+Super + Q: Close Window
+Super + M: Menu
+Super + Shift + E: Exit Hyprland
+Super + Tab: Window Switcher
+Super + S: Screenshot
+Super + Shift + S: Region Screenshot"
+
+  echo -e "$keybinds" | wofi --dmenu --prompt "Keybindings" --height 400
+  show_main_menu
+}
+
+# Main execution
+if [[ $# -eq 0 ]]; then
+  show_main_menu
+else
+  case "$1" in
+    install) show_install_menu ;;
+    remove) show_remove_menu ;;
+    update) show_update_menu ;;
+    style) show_style_menu ;;
+    system) show_system_menu ;;
+    *) show_main_menu ;;
+  esac
+fi

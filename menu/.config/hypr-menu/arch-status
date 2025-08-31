@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Arch status script for waybar
+# Returns JSON with system status
+
+updates=$(checkupdates 2>/dev/null | wc -l)
+battery=$(cat /sys/class/power_supply/BAT*/capacity 2>/dev/null || echo "100")
+network=$(nmcli -t -f STATE general | grep -q "connected" && echo "connected" || echo "disconnected")
+
+# Determine status class
+if [ "$updates" -gt 0 ]; then
+  status_class="updates"
+  tooltip="System Status\n\nUpdates: $updates available\nBattery: ${battery}%\nNetwork: $network\n\nLeft: Main Menu\nRight: Power\nMiddle: Quick Actions"
+else
+  status_class="normal"
+  tooltip="System Status\n\nSystem up to date\nBattery: ${battery}%\nNetwork: $network\n\nLeft: Main Menu\nRight: Power\nMiddle: Quick Actions"
+fi
+
+# Output JSON for waybar
+echo "{\"text\":\" \",\"class\":\"$status_class\",\"tooltip\":\"$tooltip\"}"

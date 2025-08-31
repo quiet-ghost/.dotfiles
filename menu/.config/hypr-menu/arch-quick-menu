@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Quick menu for waybar Arch button - HyprPanel style
+
+menu() {
+  echo -e "$2" | wofi --dmenu --prompt "$1" --width 300 --height 400 --location top_left
+}
+
+case "$1" in
+  "power")
+    choice=$(menu "Power" "󰤄 Suspend\n Reboot\n󰐥 Shutdown\n Lock\n Logout")
+    case "$choice" in
+      *Suspend*) systemctl suspend ;;
+      *Reboot*) systemctl reboot ;;
+      *Shutdown*) systemctl poweroff ;;
+      *Lock*) hyprlock ;;
+      *Logout*) hyprctl dispatch exit ;;
+    esac
+    ;;
+  "quick")
+    choice=$(menu "Quick Actions" "󰣇 Packages\n Web Apps\n󰕧 WiFi Settings\n󰂯 Bluetooth\n Display Settings\n Volume Control\n󰇅 System Monitor")
+    case "$choice" in
+      *Packages*) ghostty --title="ArchMenu" -e ~/.config/hypr-menu/pkg-install ;;
+      *Web*) ghostty --title="ArchMenu" -e ~/.config/hypr-menu/webapp-install ;;
+      *WiFi*) nm-connection-editor ;;
+      *Bluetooth*) blueman-manager ;;
+      *Display*) wdisplays || arandr ;;
+      *Volume*) pavucontrol ;;
+      *Monitor*) ghostty -e btop ;;
+    esac
+    ;;
+  *)
+    ~/.local/bin/arch-menu
+    ;;
+esac
