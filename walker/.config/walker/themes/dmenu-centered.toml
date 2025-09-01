@@ -1,0 +1,21 @@
+[ui.window.box]
+width = 250
+min_width = 250
+max_width = 250
+height = 600
+min_height = 400
+max_height = 600
+
+[ui.window.box.scroll.list]
+width = 250
+min_width = 250
+max_width = 250
+height = 500
+min_height = 300
+max_height = 500
+
+[ui.window.box.scroll.list.item.icon]
+pixel_size = 40
+
+[ui.window.box.search]
+hide = false
