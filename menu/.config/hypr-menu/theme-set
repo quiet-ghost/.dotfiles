@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# Theme management script
+# Lists available themes and applies selection without closing
+
+THEMES_DIR="$HOME/.config/walker/themes"
+WALKER_CONFIG="$HOME/.config/walker/config.toml"
+
+# Get current theme from walker config
+CURRENT_THEME=$(grep "^theme = " "$WALKER_CONFIG" 2>/dev/null | sed 's/theme = "//' | sed 's/"//')
+
+# List available themes (CSS files without extension)
+THEMES=$(find "$THEMES_DIR" -name "*.css" -type f -printf "%f\n" | sed 's/\.css$//' | sort)
+
+if [[ -z "$THEMES" ]]; then
+  echo "No themes found in $THEMES_DIR"
+  sleep 2
+  exec "$HOME/.local/bin/arch-menu" style
+fi
+
+# Add indicator for current theme
+THEME_LIST=""
+while IFS= read -r theme; do
+  if [[ "$theme" == "$CURRENT_THEME" ]]; then
+    THEME_LIST+="󰸌 $theme [current]\n"
+  else
+    THEME_LIST+="󰸌 $theme\n"
+  fi
+done <<< "$THEMES"
+
+# Use walker to select theme
+SELECTED=$(echo -e "${THEME_LIST%\\n}" | walker --dmenu --theme omarchy-catppuccin --placeholder "󰸌 Select Theme")
+
+# Extract theme name (remove icon and [current] if present)
+SELECTED_THEME=$(echo "$SELECTED" | sed 's/^[󰸌 ]*//' | sed 's/ \[current\]$//')
+
+if [[ -n "$SELECTED_THEME" && "$SELECTED_THEME" != "CNCLD" ]]; then
+  # Check if theme files exist
+  if [[ -f "$THEMES_DIR/$SELECTED_THEME.css" ]]; then
+    echo "Setting theme to: $SELECTED_THEME"
+    
+    # Update walker config
+    sed -i "s/^theme = .*/theme = \"$SELECTED_THEME\"/g" "$WALKER_CONFIG"
+    
+    # Apply GTK theme based on theme name
+    if [[ "$SELECTED_THEME" == *"light"* ]]; then
+      gsettings set org.gnome.desktop.interface color-scheme "prefer-light" 2>/dev/null || true
+      gsettings set org.gnome.desktop.interface gtk-theme "Adwaita" 2>/dev/null || true
+    else
+      gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" 2>/dev/null || true
+      gsettings set org.gnome.desktop.interface gtk-theme "Adwaita-dark" 2>/dev/null || true
+    fi
+    
+    # Reload hyprland for any theme-related changes
+    hyprctl reload
+    
+    # Notify success
+    notify-send "Theme Changed" "Set to: $SELECTED_THEME" -t 3000 2>/dev/null || echo "✓ Theme set to: $SELECTED_THEME"
+    
+    # Return to style menu
+    exec "$HOME/.local/bin/arch-menu" style
+  else
+    echo "Error: Theme files not found for: $SELECTED_THEME"
+    sleep 2
+    exec "$HOME/.local/bin/arch-menu" style
+  fi
+else
+  # User cancelled, return to style menu
+  exec "$HOME/.local/bin/arch-menu" style
+fi
