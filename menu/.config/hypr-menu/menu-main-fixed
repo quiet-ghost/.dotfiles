@@ -1,0 +1,195 @@
+#!/bin/bash
+
+# Arch Linux Menu System
+# Uses walker for menus and ghostty for presentations
+
+export PATH="$HOME/.local/bin:$PATH"
+
+# Menu wrapper using walker (uses default theme from config)
+menu() {
+  local prompt="$1"
+  local options="$2"
+  local extra="$3"
+
+  echo -e "$options" | walker --dmenu --placeholder "$prompt" $extra
+}
+
+# Terminal wrapper using ghostty
+terminal() {
+  ghostty --title="ArchMenu" -e "$@"
+}
+
+# Presentation terminal with branding
+present_terminal() {
+  local cmd="$1"
+  ghostty --title="ArchMenu" -e bash -c "
+    echo -e '\033[34m󰣇 Arch Linux Menu\033[0m\n'
+    $cmd
+    echo -e '\n\033[32m✓ Done! Press any key to close...\033[0m'
+    read -n 1 -s
+  "
+}
+
+# Show main menu - properly formatted like omarchy
+show_main_menu() {
+  local choice
+  choice=$(menu "Arch Menu" "󰣇  Install\n󰭌  Remove\n  Update\n  Style\n  System\n  Keybindings")
+
+  case "$choice" in
+    *Install*) show_install_menu ;;
+    *Remove*) show_remove_menu ;;
+    *Update*) show_update_menu ;;
+    *Style*) show_style_menu ;;
+    *System*) show_system_menu ;;
+    *Keybindings*) show_keybindings ;;
+    *) exit 0 ;;
+  esac
+}
+
+# Show install submenu
+show_install_menu() {
+  local choice
+  choice=$(menu "Install" "󰣇  Packages\n󰣇  AUR\n  Web App\n  TUI\n󰸌  Theme")
+
+  case "$choice" in
+    *Packages*) terminal "$HOME/.config/hypr-menu/pkg-install" ;;
+    *AUR*) terminal "$HOME/.config/hypr-menu/aur-install" ;;
+    *Web*) terminal "$HOME/.config/hypr-menu/webapp-install" ;;
+    *TUI*) terminal "$HOME/.config/hypr-menu/tui-install" ;;
+    *Theme*) show_theme_menu ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show remove submenu
+show_remove_menu() {
+  local choice
+  choice=$(menu "Remove" "󰣇  Package\n  Web App\n  TUI\n󰸌  Theme")
+
+  case "$choice" in
+    *Package*) terminal "$HOME/.config/hypr-menu/pkg-remove" ;;
+    *Web*) terminal "$HOME/.config/hypr-menu/webapp-remove" ;;
+    *TUI*) terminal "$HOME/.config/hypr-menu/tui-remove" ;;
+    *Theme*) terminal "$HOME/.config/hypr-menu/theme-remove" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show update submenu
+show_update_menu() {
+  local choice
+  choice=$(menu "Update" "  System\n  Config\n󰸌  Themes")
+
+  case "$choice" in
+    *System*) present_terminal "sudo pacman -Syu --noconfirm" ;;
+    *Config*) present_terminal "$HOME/.config/hypr-menu/refresh-config" ;;
+    *Themes*) present_terminal "$HOME/.config/hypr-menu/theme-update" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show style submenu
+show_style_menu() {
+  local choice
+  choice=$(menu "Style" "󰸌  Theme\n  Wallpaper\n  Font")
+
+  case "$choice" in
+    *Theme*) "$HOME/.config/hypr-menu/theme-set" ;;
+    *Wallpaper*) "$HOME/.config/hypr-menu/wallpaper-set" ;;
+    *Font*) "$HOME/.config/hypr-menu/font-set" ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show theme submenu
+show_theme_menu() {
+  local themes=$(ls ~/.config/hypr-menu/themes 2>/dev/null | sed 's/^/󰸌  /')
+  local choice
+  choice=$(menu "Theme" "$themes")
+  
+  if [[ -n "$choice" ]]; then
+    local theme_name=$(echo "$choice" | sed 's/^󰸌  //')
+    present_terminal "cp ~/.config/hypr-menu/themes/$theme_name/* ~/.config/hypr/"
+  else
+    show_install_menu
+  fi
+}
+
+# Show system submenu
+show_system_menu() {
+  local choice
+  choice=$(menu "System" "  Lock\n󱄄  Screensaver\n󰤄  Suspend\n  Restart Hyprland\n󰜉  Reboot\n󰐥  Shutdown")
+
+  case "$choice" in
+    *Lock*) hyprlock ;;
+    *Screensaver*) hyprlock ;;
+    *Suspend*) systemctl suspend ;;
+    *Restart*Hyprland*) hyprctl dispatch exit ;;
+    *Reboot*) systemctl reboot ;;
+    *Shutdown*) systemctl poweroff ;;
+    *) show_main_menu ;;
+  esac
+}
+
+# Show keybindings
+show_keybindings() {
+  local keybinds="󰌌  Keybindings\n\n\
+  Terminal: Super + Return\n\
+  Kill Window: Super + C\n\
+󰈆  Exit Hyprland: Super + Shift + E\n\
+  File Manager: Super + E\n\
+  Floating Toggle: Super + V\n\
+  App Launcher: Alt + Space\n\
+  Pseudo Tiling: Super + P\n\
+  Toggle Split: Super + Shift + J\n\
+  Fullscreen: Super + F\n\
+  Screenshot: Alt + P\n\
+  AUR Install: Super + A\n\
+  Kill Process: Super + K\n\
+  Arch Menu: Super + Shift + Space\n\
+\n\
+  Workspaces 1-6: Alt + 1-6\n\
+  Move to Workspace: Super + Shift + 1-6\n\
+  Special Workspace: Super + \`\n\
+  Show Scratchpad: Super + S\n\
+\n\
+  Focus: Super + H/J/K/L\n\
+  Move: Super + Shift + H/J/K/L\n\
+  Resize: Super + Ctrl + H/J/K/L\n\
+\n\
+󱐋  Performance: Super + Alt + P\n\
+  Balanced: Super + Alt + B\n\
+󰾆  Power Save: Super + Alt + S\n\
+\n\
+  Volume Up: XF86AudioRaiseVolume\n\
+  Volume Down: XF86AudioLowerVolume\n\
+  Mute: XF86AudioMute\n\
+  Brightness Up: XF86MonBrightnessUp\n\
+  Brightness Down: XF86MonBrightnessDown\n\
+\n\
+  Next Track: XF86AudioNext\n\
+  Play/Pause: XF86AudioPlay\n\
+  Previous Track: XF86AudioPrev\n\
+\n\
+  Lock: Super + Shift + L\n\
+󰈆  Exit: Super + Shift + [\n\
+  Tab Switcher: Super + Tab\n\
+  Screenshot: Super + S"
+
+  echo -e "$keybinds" | walker --dmenu --placeholder "Keybindings"
+  show_main_menu
+}
+
+# Main execution
+if [[ $# -eq 0 ]]; then
+  show_main_menu
+else
+  case "$1" in
+    install) show_install_menu ;;
+    remove) show_remove_menu ;;
+    update) show_update_menu ;;
+    style) show_style_menu ;;
+    system) show_system_menu ;;
+    *) show_main_menu ;;
+  esac
+fi

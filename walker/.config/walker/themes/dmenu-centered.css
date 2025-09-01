@@ -1,24 +1,12 @@
-/* Catppuccin Mocha Theme for Walker - Omarchy Style */
-
-/* Color definitions */
+/* Catppuccin Mocha colors */
 @define-color base #1e1e2e;
 @define-color text #cdd6f4;
-@define-color sapphire #74c7ec;
-@define-color surface0 #313244;
-@define-color surface1 #45475a;
-@define-color surface2 #585b70;
-@define-color overlay0 #6c7086;
-@define-color overlay1 #7f849c;
-@define-color subtext0 #a6adc8;
-@define-color subtext1 #bac2de;
-
-/* Walker color mappings */
-@define-color selected-text #1e1e2e;
+@define-color selected-text #74c7ec;
 @define-color border #74c7ec;
 @define-color foreground #cdd6f4;
 @define-color background #1e1e2e;
 
-/* Reset all elements - Omarchy style */
+/* Reset all elements */
 #window,
 #box,
 #search,
@@ -50,12 +38,12 @@ slider,
   color: @text;
 }
 
-/* Main box - Omarchy minimal style */
+/* Main box container */
 #box {
   background: alpha(@base, 0.95);
   padding: 20px;
   border: 2px solid @border;
-  border-radius: 0px;  /* Omarchy uses no border radius */
+  border-radius: 0px;
 }
 
 /* Search container */
@@ -65,14 +53,14 @@ slider,
   margin-bottom: 0;
 }
 
-/* Hide prompt icon - Omarchy style */
+/* Hide prompt icon */
 #prompt {
   opacity: 0;
   min-width: 0;
   margin: 0;
 }
 
-/* Hide clear button - Omarchy style */
+/* Hide clear button */
 #clear {
   opacity: 0;
   min-width: 0;
@@ -90,7 +78,7 @@ slider,
   color: @text;
 }
 
-/* Hide typeahead - Omarchy style */
+/* Hide typeahead */
 #typeahead {
   opacity: 0;
 }
@@ -100,7 +88,7 @@ slider,
   background: transparent;
 }
 
-/* List items - matching omarchy */
+/* List items */
 child {
   padding: 0px 12px;
   background: transparent;
@@ -121,45 +109,44 @@ child:hover {
   font-style: italic;
 }
 
-/* Icon - omarchy style */
+/* Icon */
 #icon {
   margin-right: 10px;
   -gtk-icon-transform: scale(0.7);
 }
 
-/* Text - centered */
+/* Text */
 #text {
   color: @text;
   padding: 14px 0;
-  width: 100%;
 }
 
 #label {
   font-weight: normal;
 }
 
-/* Selected state - Omarchy highlight */
+/* Selected state */
 child:selected #text,
 child:selected #label,
 child:hover #text,
 child:hover #label {
-  color: @sapphire;  /* Use sapphire for selected text like omarchy uses selected-text */
+  color: @selected-text;
 }
 
-/* Hide sub text - Omarchy style */
+/* Hide sub text */
 #sub {
   opacity: 0;
   font-size: 0;
   min-height: 0;
 }
 
-/* Hide activation label - Omarchy style */
+/* Hide activation label */
 #activationlabel {
   opacity: 0;
   min-width: 0;
 }
 
-/* Scrollbar styling - Hidden in Omarchy */
+/* Scrollbar styling */
 scrollbar {
   opacity: 0;
 }
@@ -177,7 +164,7 @@ scrollbar {
   min-height: 0;
 }
 
-/* Bar entry (switcher) - Hidden in Omarchy */
+/* Bar entry (switcher) */
 #bar {
   opacity: 0;
   min-height: 0;

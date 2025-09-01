@@ -8,7 +8,7 @@ timeout = 60
 hotreload_theme = true
 
 # Theme configuration
-theme = "omarchy-catppuccin"
+theme = "catppuccin-mocha"
 theme_base = []
 theme_location = ["~/.config/walker/themes/"]
 

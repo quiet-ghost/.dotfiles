@@ -88,7 +88,7 @@ slider,
   background: transparent;
 }
 
-/* List items - no transitions for instant response */
+/* List items - matching omarchy */
 child {
   padding: 0px 12px;
   background: transparent;
@@ -110,16 +110,17 @@ child:hover {
   font-style: italic;
 }
 
-/* Icon */
+/* Icon - omarchy style */
 #icon {
   margin-right: 10px;
   -gtk-icon-transform: scale(0.7);
 }
 
-/* Text */
+/* Text - centered */
 #text {
   color: @text;
   padding: 14px 0;
+  width: 100%;
 }
 
 #label {

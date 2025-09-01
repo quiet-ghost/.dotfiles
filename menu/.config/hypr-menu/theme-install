@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# Theme Installation Script for Hyprland (Omarchy-style)
+# Clones themes from GitHub repositories
+
+# Colors for output
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Themes directory
+THEMES_DIR="$HOME/.config/hypr/themes"
+TEMP_DIR="/tmp/omarchy-theme-$$"
+
+# Create themes directory if it doesn't exist
+mkdir -p "$THEMES_DIR"
+
+echo -e "${BLUE}Let's install a new Hyprland theme.\n${NC}"
+echo "You can enter a theme name from the Omarchy collection"
+echo "or provide a GitHub repository URL."
+echo ""
+echo "Popular themes: dracula, midnight, mars, rose-pine-dark,"
+echo "                solarized, synthwave-84, flexoki-dark"
+echo ""
+
+# Theme URLs mapping
+declare -A THEME_URLS=(
+  ["ash"]="https://github.com/bjarneo/omarchy-ash-theme"
+  ["aura"]="https://github.com/bjarneo/omarchy-aura-theme"
+  ["all-hallows-eve"]="https://github.com/guilhermetk/omarchy-all-hallows-eve-theme"
+  ["blue-ridge-dark"]="https://github.com/hipsterusername/omarchy-blueridge-dark-theme"
+  ["dracula"]="https://github.com/catlee/omarchy-dracula-theme"
+  ["green-hakkar"]="https://github.com/joaquinmeza/omarchy-hakker-green-theme"
+  ["flexoki-light"]="https://github.com/euandeas/omarchy-flexoki-light-theme"
+  ["flexoki-dark"]="https://github.com/euandeas/omarchy-flexoki-dark-theme"
+  ["futurism"]="https://github.com/bjarneo/omarchy-futurism-theme"
+  ["gold-rush"]="https://github.com/tahayvr/omarchy-gold-rush-theme"
+  ["mars"]="https://github.com/steve-lohmeyer/omarchy-mars-theme"
+  ["midnight"]="https://github.com/JaxonWright/omarchy-midnight-theme"
+  ["milky-matcha"]="https://github.com/hipsterusername/omarchy-milkmatcha-light-theme"
+  ["monochrome"]="https://github.com/Swarnim114/omarchy-monochrome-theme"
+  ["nes"]="https://github.com/bjarneo/omarchy-nes-theme"
+  ["retropc"]="https://github.com/rondilley/omarchy-retropc-theme"
+  ["rose-pine-dark"]="https://github.com/guilhermetk/omarchy-rose-pine-dark"
+  ["snow"]="https://github.com/bjarneo/omarchy-snow-theme"
+  ["solarized"]="https://github.com/Gazler/omarchy-solarized-theme"
+  ["solarized-light"]="https://github.com/dfrico/omarchy-solarized-light-theme"
+  ["solarized-osaka"]="https://github.com/motorsss/omarchy-solarizedosaka-theme"
+  ["space-monkey"]="https://github.com/TyRichards/omarchy-space-monkey-theme"
+  ["synthwave-84"]="https://github.com/omacom-io/omarchy-synthwave84-theme"
+  ["waveform-dark"]="https://github.com/hipsterusername/omarchy-waveform-dark-theme"
+)
+
+# Get input using gum
+THEME_INPUT=$(gum input --prompt "Theme name or GitHub URL> " --placeholder "e.g., 'dracula' or 'https://github.com/user/theme'")
+
+if [[ -z "$THEME_INPUT" ]]; then
+  echo "Installation cancelled"
+  exit 0
+fi
+
+# Determine if input is a theme name or URL
+if [[ "$THEME_INPUT" == http* ]]; then
+  # Direct GitHub URL provided
+  THEME_URL="$THEME_INPUT"
+  THEME_NAME=$(basename "$THEME_URL" .git | sed 's/omarchy-//' | sed 's/-theme//')
+else
+  # Check if it's a known theme name
+  THEME_KEY=$(echo "$THEME_INPUT" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+  THEME_URL="${THEME_URLS[$THEME_KEY]}"
+  
+  if [[ -z "$THEME_URL" ]]; then
+    echo -e "${RED}Unknown theme: $THEME_INPUT${NC}"
+    echo "Please use a valid theme name or provide a GitHub URL"
+    echo ""
+    echo "See available themes at:"
+    echo "https://learn.omacom.io/2/the-omarchy-manual/90/extra-themes"
+    exit 1
+  fi
+  THEME_NAME="$THEME_KEY"
+fi
+
+echo ""
+echo "Installing theme: $THEME_NAME"
+echo "From: $THEME_URL"
+echo ""
+
+# Create temp directory
+mkdir -p "$TEMP_DIR"
+
+# Clone the repository with progress
+echo "Downloading theme..."
+if git clone "$THEME_URL" "$TEMP_DIR/$THEME_NAME"; then
+  # Create theme directory
+  mkdir -p "$THEMES_DIR/$THEME_NAME"
+  
+  # Copy all config files
+  cp -r "$TEMP_DIR/$THEME_NAME"/* "$THEMES_DIR/$THEME_NAME/" 2>/dev/null
+  
+  echo ""
+  echo -e "${GREEN}✓ Theme installed successfully!${NC}"
+  echo ""
+  echo "Theme location: $THEMES_DIR/$THEME_NAME"
+  echo ""
+  echo "To apply this theme:"
+  echo "1. Edit your hyprland.conf"
+  echo "2. Add: source = ~/.config/hypr/themes/$THEME_NAME/theme.conf"
+  echo ""
+  echo "You can remove this theme later using:"
+  echo "Remove > Style > Theme"
+  
+  # Clean up temp directory
+  rm -rf "$TEMP_DIR"
+else
+  echo ""
+  echo -e "${RED}Failed to clone theme repository${NC}"
+  echo "Please check the URL and your internet connection"
+  rm -rf "$TEMP_DIR"
+  exit 1
+fi
