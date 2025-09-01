@@ -12,7 +12,7 @@ end
 config.color_scheme = "MaterialOcean"
 
 -- Font configuration from Ghostty config
-config.font = wezterm.font("FiraCode Nerd Font Mono SemBd")
+config.font = wezterm.font("FiraCode Nerd Font"),
 config.font_size = 17
 
 -- Disable wayland support

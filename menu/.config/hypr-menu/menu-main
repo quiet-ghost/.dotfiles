@@ -94,9 +94,9 @@ show_style_menu() {
   choice=$(menu "Style" "󰸌 Theme\n Wallpaper\n Font")
 
   case "$choice" in
-    *Theme*) show_theme_menu ;;
-    *Wallpaper*) terminal "$HOME/.config/hypr-menu/wallpaper-set" ;;
-    *Font*) terminal "$HOME/.config/hypr-menu/font-set" ;;
+    *Theme*) "$HOME/.config/hypr-menu/theme-set" ;;
+    *Wallpaper*) "$HOME/.config/hypr-menu/wallpaper-set" ;;
+    *Font*) "$HOME/.config/hypr-menu/font-set" ;;
     *) show_main_menu ;;
   esac
 }
