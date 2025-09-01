@@ -1,0 +1,112 @@
+#!/bin/bash
+
+# Theme Selector Script for Hyprland
+# Switches between installed themes
+
+# Colors for output
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Directories
+THEMES_DIR="$HOME/.config/hypr/themes"
+HYPR_CONFIG="$HOME/.config/hypr/hyprland.conf"
+
+echo -e "${BLUE}Let's switch to a different Hyprland theme.\n${NC}"
+
+# Check if themes directory exists
+if [[ ! -d "$THEMES_DIR" ]]; then
+  echo "No themes directory found"
+  echo "Install themes first using: Install > Style > Theme"
+  exit 0
+fi
+
+# Get list of installed themes
+INSTALLED_THEMES=$(ls -d "$THEMES_DIR"/*/ 2>/dev/null | xargs -n 1 basename)
+
+if [[ -z "$INSTALLED_THEMES" ]]; then
+  echo "No themes installed"
+  echo "Install themes first using: Install > Style > Theme"
+  exit 0
+fi
+
+# Check current theme
+CURRENT_THEME=$(grep "^source.*themes/" "$HYPR_CONFIG" 2>/dev/null | sed 's|.*themes/||' | sed 's|/.*||')
+
+echo "Installed themes:"
+echo ""
+while IFS= read -r theme; do
+  if [[ "$theme" == "$CURRENT_THEME" ]]; then
+    echo "  • $theme (current)"
+  else
+    echo "  • $theme"
+  fi
+done <<< "$INSTALLED_THEMES"
+echo ""
+
+# Get theme to apply using gum
+SELECTED_THEME=$(echo "$INSTALLED_THEMES" | gum choose --header "Select a theme to apply:")
+
+if [[ -z "$SELECTED_THEME" ]]; then
+  echo "Selection cancelled"
+  exit 0
+fi
+
+# Find the main theme config file
+THEME_CONFIG=""
+if [[ -f "$THEMES_DIR/$SELECTED_THEME/theme.conf" ]]; then
+  THEME_CONFIG="theme.conf"
+elif [[ -f "$THEMES_DIR/$SELECTED_THEME/hyprland.conf" ]]; then
+  THEME_CONFIG="hyprland.conf"
+elif [[ -f "$THEMES_DIR/$SELECTED_THEME/colors.conf" ]]; then
+  THEME_CONFIG="colors.conf"
+else
+  # Find first .conf file
+  THEME_CONFIG=$(ls "$THEMES_DIR/$SELECTED_THEME"/*.conf 2>/dev/null | head -1 | xargs basename)
+  if [[ -z "$THEME_CONFIG" ]]; then
+    echo -e "${RED}No configuration file found in theme directory${NC}"
+    echo "Theme directory should contain a .conf file"
+    exit 1
+  fi
+fi
+
+echo ""
+echo "Applying theme: $SELECTED_THEME"
+echo "Config file: $THEME_CONFIG"
+echo ""
+
+# Backup current config
+cp "$HYPR_CONFIG" "$HYPR_CONFIG.backup.$(date +%s)"
+
+# Remove any existing theme source lines
+sed -i '/^source.*themes\//d' "$HYPR_CONFIG"
+
+# Add new theme source at the beginning of the file (after any initial comments)
+# Find the first non-comment line
+FIRST_LINE=$(grep -n -v "^#" "$HYPR_CONFIG" | head -1 | cut -d: -f1)
+if [[ -z "$FIRST_LINE" ]]; then
+  FIRST_LINE=1
+fi
+
+# Insert the theme source
+sed -i "${FIRST_LINE}i source = ~/.config/hypr/themes/$SELECTED_THEME/$THEME_CONFIG" "$HYPR_CONFIG"
+
+echo -e "${GREEN}✓ Theme applied: $SELECTED_THEME${NC}"
+echo ""
+echo "Reloading Hyprland configuration..."
+
+# Reload Hyprland
+if hyprctl reload; then
+  echo -e "${GREEN}✓ Configuration reloaded${NC}"
+  echo ""
+  echo "Theme is now active!"
+  echo ""
+  echo "Note: Some theme changes may require restarting Hyprland:"
+  echo "  • Press Super + Shift + E to exit"
+  echo "  • Or run: hyprctl dispatch exit"
+else
+  echo -e "${YELLOW}Warning: Failed to reload configuration${NC}"
+  echo "You may need to restart Hyprland for changes to take effect"
+fi
