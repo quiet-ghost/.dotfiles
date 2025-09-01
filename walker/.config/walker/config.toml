@@ -1,0 +1,130 @@
+# Walker Configuration - Catppuccin Mocha Theme
+# Based on omarchy configuration with personal customizations
+
+# Window behavior
+close_when_open = true
+force_keyboard_focus = true
+timeout = 60
+hotreload_theme = true
+
+# Theme configuration
+theme = "omarchy-catppuccin"
+theme_base = []
+theme_location = ["~/.config/walker/themes/"]
+
+# List configuration
+[list]
+max_entries = 200
+cycle = true
+
+# Search configuration
+[search]
+placeholder = " Search..."
+
+# Key bindings
+[keys.ai]
+run_last_response = ["ctrl e"]
+
+# Applications module (main launcher - like wofi drun)
+[builtins.applications]
+launch_prefix = ""
+placeholder = " Search..."
+prioritize_new = false
+context_aware = false
+show_sub_when_single = false
+history = false
+icon = ""
+hidden = false
+
+[builtins.applications.actions]
+enabled = false
+hide_category = true
+
+# Calculator module
+[builtins.calc]
+name = "Calculator"
+icon = ""
+min_chars = 3
+prefix = "="
+hidden = false
+
+# Emoji picker module
+[builtins.emojis]
+name = "Emojis"
+icon = "😀"
+prefix = ":"
+hidden = false
+
+# File finder module
+[builtins.finder]
+use_fd = true
+cmd_alt = "xdg-open $(dirname ~/%RESULT%)"
+icon = ""
+name = "Finder"
+preview_images = true
+hidden = false
+prefix = "."
+
+# Clipboard manager
+[builtins.clipboard]
+hidden = false
+name = "Clipboard"
+icon = ""
+prefix = "@"
+
+# Web search
+[builtins.websearch]
+switcher_only = false
+hidden = false
+prefix = "?"
+
+# System commands
+[builtins.commands]
+hidden = false
+prefix = "!"
+shell_config = ""
+
+# Window switcher
+[builtins.windows]
+switcher_only = false
+hidden = false
+icon = ""
+prefix = "/"
+
+# SSH connections
+[builtins.ssh]
+hidden = false
+icon = ""
+prefix = "#"
+
+# Bookmarks - you can add your own
+[builtins.bookmarks]
+hidden = false
+icon = ""
+prefix = "~"
+
+[[builtins.bookmarks.entries]]
+label = "GitHub"
+url = "https://github.com"
+keywords = ["github", "git"]
+
+[[builtins.bookmarks.entries]]
+label = "Arch Wiki"
+url = "https://wiki.archlinux.org"
+keywords = ["arch", "wiki", "documentation"]
+
+# Hide unused modules
+[builtins.hyprland_keybinds]
+hidden = true
+
+[builtins.runner]
+hidden = true
+
+[builtins.custom_commands]
+hidden = true
+
+[builtins.symbols]
+hidden = true
+
+[builtins.translation]
+hidden = true

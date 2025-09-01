@@ -382,7 +382,7 @@ stow_dotfiles() {
 	mkdir -p "$backup_dir"
 
 	# List of configs to stow
-	local configs=("zsh" "tmux" "nvim" "hypr" "waybar" "ghostty" "fastfetch" "wofi" "wezterm")
+	local configs=("zsh" "tmux" "nvim" "hypr" "waybar" "ghostty" "fastfetch" "wofi" "wezterm" "walker")
 
 	for config in "${configs[@]}"; do
 		if [[ -d "$config" ]]; then

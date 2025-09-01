@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # Arch Linux Menu System
-# Uses wofi for menus and ghostty for presentations
+# Uses walker for menus and ghostty for presentations
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# Menu wrapper using wofi
+# Menu wrapper using walker with theme
 menu() {
   local prompt="$1"
   local options="$2"
   local extra="$3"
 
-  echo -e "$options" | wofi --dmenu --prompt "$prompt" $extra
+  echo -e "$options" | walker --dmenu --theme catppuccin-mocha --placeholder "$prompt" $extra
 }
 
 # Terminal wrapper using ghostty
@@ -148,7 +148,7 @@ Super + Tab: Window Switcher
 Super + S: Screenshot
 Super + Shift + S: Region Screenshot"
 
-  echo -e "$keybinds" | wofi --dmenu --prompt "Keybindings" --height 400
+  echo -e "$keybinds" | walker --dmenu --theme catppuccin-mocha --placeholder "Keybindings"
   show_main_menu
 }
 
