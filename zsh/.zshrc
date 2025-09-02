@@ -1,7 +1,7 @@
 export EDITOR=nvim
 
 # Early PATH setup
-export PATH="$HOME/.local/bin:/home/ghost/.opencode/bin:$PATH:/usr/bin/nvim"
+export PATH="$HOME/.local/bin:/home/ghost/.opencode/bin:$HOME/.config/composer/vendor/bin:$PATH:/usr/bin/nvim"
 
 # Oh My Zsh setup
 export ZSH="$HOME/.oh-my-zsh"
@@ -50,10 +50,16 @@ npx() { _lazy_load_nvm && npx "$@"; }
 _lazy_load_sdkman() {
     unset -f sdk
     export SDKMAN_DIR="$HOME/.sdkman"
-    [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
+    [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
 }
 
 sdk() { _lazy_load_sdkman && sdk "$@"; }
+
+# Mise configuration for development environments
+if command -v mise &>/dev/null; then
+    eval "$(mise activate zsh)"
+    export PATH="$HOME/.local/share/mise/shims:$PATH"
+fi
 
 # Environment variables
 export GOPATH=$HOME/go
