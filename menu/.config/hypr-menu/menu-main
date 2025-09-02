@@ -94,7 +94,7 @@ show_update_menu() {
 # Show style submenu
 show_style_menu() {
 	local choice
-	choice=$(menu "Style" "󰸌  Walker Theme\n    Hyprland Theme\n󰸉  Wallpaper\n󰣖  Font")
+	choice=$(menu "Style" "󰸌  Walker Theme\n  Hyprland Theme\n󰸉  Wallpaper\n󰣖  Font")
 
 	case "$choice" in
 	*Walker*) "$HOME/.config/hypr-menu/theme-set" ;;
@@ -246,7 +246,7 @@ show_performance_menu() {
 	# Show menu with current profile highlighted
 	local choice
 	choice=$(menu "Performance Profile (Current: $profile_display)" \
-		"󱐋  Performance Mode\n󰗑  Balanced Mode\n󰾆  Power Save Mode\n󰊈  View Current Status")
+		"󱐋  Performance Mode\n󰗑  Balanced Mode\n󰾆  Power Save Mode\n")
 
 	case "$choice" in
 	*Performance*Mode*)
