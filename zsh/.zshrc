@@ -188,6 +188,12 @@ function y() {
 
 
 
+# Lazy load fabric patterns
+_load_fabric_patterns() {
+    [[ -f ~/.fabric-patterns.zsh ]] && source ~/.fabric-patterns.zsh
+    unset -f _load_fabric_patterns  # Remove this function after loading
+}
+
 yt() {
     _load_fabric_patterns  # Load patterns before using fabric
     if [ "$#" -eq 0 ] || [ "$#" -gt 2 ]; then
@@ -204,8 +210,8 @@ yt() {
     local video_link="$1"
     fabric -y "$video_link" $transcript_flag
 }
-# Fabric patterns - always load them for now
-[[ -f ~/.fabric-patterns.zsh ]] && source ~/.fabric-patterns.zsh
+# Fabric patterns - lazy loaded when first used
+# [[ -f ~/.fabric-patterns.zsh ]] && source ~/.fabric-patterns.zsh
 
 # Override fabric command to use fabric-ai
 fabric() {
