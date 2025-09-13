@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# JavaFX Project Generator Script
+# Usage: new-javafx <AppName> [MainClassName]
+# Creates a new JavaFX project with dev.quietghost as the base package
+
+app_name=${1:?"Usage: new-javafx <AppName> [MainClassName]"}
+main_class=${2:-"App"}
+group_id="dev.quietghost"
+
+# Convert app name to lowercase for package name
+package_name=$(echo "$app_name" | tr '[:upper:]' '[:lower:]')
+
+echo "Creating JavaFX project: $app_name"
+echo "Main class: $main_class"
+echo "Package: $group_id.$package_name"
+
+mvn archetype:generate -B \
+    -DarchetypeGroupId=org.openjfx \
+    -DarchetypeArtifactId=javafx-archetype-fxml \
+    -DarchetypeVersion=0.0.6 \
+    -DgroupId=$group_id \
+    -DartifactId=$app_name \
+    -Dpackage=$group_id.$package_name \
+    -Dversion=1.0-SNAPSHOT \
+    -Djavafx-version=21
+
+if [ $? -eq 0 ]; then
+    cd "$app_name"
+    
+    # If a custom main class name was specified, rename App.java
+    if [ "$main_class" != "App" ]; then
+        echo "Renaming App.java to ${main_class}.java..."
+        
+        # Find and rename the App.java file
+        app_file=$(find src/main/java -name "App.java" -type f)
+        if [ -n "$app_file" ]; then
+            new_file=$(echo "$app_file" | sed "s/App\.java/${main_class}.java/")
+            mv "$app_file" "$new_file"
+            
+            # Replace class name inside the file
+            sed -i "s/class App/class ${main_class}/g" "$new_file"
+            sed -i "s/public App/public ${main_class}/g" "$new_file"
+            
+            # Update module-info.java if it exists
+            if [ -f "src/main/java/module-info.java" ]; then
+                sed -i "s/\.App;/.${main_class};/g" src/main/java/module-info.java
+            fi
+            
+            # Update pom.xml mainClass reference
+            sed -i "s/<mainClass>[^<]*\.App<\/mainClass>/<mainClass>${group_id}.${package_name}.${main_class}<\/mainClass>/g" pom.xml
+            
+            echo "Successfully renamed App to ${main_class}"
+        fi
+    fi
+    
+    nvim .
+else
+    echo "Failed to create JavaFX project"
+    exit 1
+fi
