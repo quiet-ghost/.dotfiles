@@ -1,7 +1,7 @@
 export EDITOR=nvim
 
 # Early PATH setup
-export PATH="$HOME/.local/bin:/home/ghost/.opencode/bin:$HOME/.config/composer/vendor/bin:$PATH:/usr/bin/nvim"
+export PATH="$HOME/usr/bin:$HOME/.local/bin:/home/ghost/.opencode/bin:$HOME/.config/composer/vendor/bin:$PATH:/usr/bin/nvim"
 
 # Oh My Zsh setup
 export ZSH="$HOME/.oh-my-zsh"
@@ -225,3 +225,6 @@ fabric() {
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 export PATH=~/.npm-global/bin:$PATH
+
+# JavaFX project generator alias
+alias jn='new-javafx'
