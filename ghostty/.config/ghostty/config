@@ -7,7 +7,7 @@ shell-integration-features = true
 window-colorspace = srgb
 window-theme = auto
 theme = MaterialOcean
-font-family = FiraCode Nerd Font Mono SemBd
+font-family = Cascadia Code SemiBold
 font-size = 15
 
 cursor-style = block
