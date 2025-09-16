@@ -94,6 +94,7 @@ alias df='duf'
 alias st='speedtest-cli --simple'
 alias arc='sudo arch-clean.sh'
 alias windows='~/boot-to-windows.sh'
+alias sf='source ~/.fabric-patterns.zsh'
 # fabric alias removed - now handled by lazy loading function
 
 # FZF-based aliases
