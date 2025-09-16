@@ -1,0 +1,1 @@
+set -g status-right "#[fg=#f5c2e7,bg=#1e1e2e,nobold,nounderscore,noitalics]█#[fg=#1e1e2e,bg=#f5c2e7,nobold,nounderscore,noitalics] #[fg=#cdd6f4,bg=#313244] #W #{?client_prefix,#[fg=#f38ba8],#[fg=#a6e3a1]}#[bg=#313244]█#{?client_prefix,#[bg=#f38ba8],#[bg=#a6e3a1]}#[fg=#1e1e2e] #[fg=#cdd6f4,bg=#313244] #S #(~/.config/tmux/scripts/ssh-status.sh) "
