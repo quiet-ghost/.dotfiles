@@ -6,7 +6,7 @@ shell-integration-features = true
 
 window-colorspace = srgb
 window-theme = auto
-theme = MaterialOcean
+theme = Material Ocean
 font-family = Cascadia Code SemiBold
 font-size = 15
 
