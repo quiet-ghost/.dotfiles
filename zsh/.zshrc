@@ -66,7 +66,7 @@ export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin:/usr/bin
 export RUSTONIG_SYSTEM_LIBONIG=1
 # Golang environment variables
-export GOROOT=/usr/local/go
+export GOROOT=/usr/lib/go
 export GOPATH=$HOME/go
 
 # Update PATH to include GOPATH and GOROOT binaries
