@@ -1,20 +1,28 @@
-# Config:
+# Dynamic theme colors
+config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
 
-shell-integration = zsh
 shell-integration-features = true
-
-
-window-colorspace = srgb
-window-theme = auto
-theme = Material Ocean
-font-family = Cascadia Code SemiBold
+# Font
+font-family = "FiraCode Nerd Font Mono"
+font-style = Regular
 font-size = 15
 
-cursor-style = block
-cursor-style-blink = false
-
-background-blur = true
+# Window
+window-padding-x = 14
+window-padding-y = 14
+confirm-close-surface=false
+resize-overlay = never
+window-theme = auto
+theme = Material Ocean
 bold-is-bright = true
+
+# Cursor stlying
+cursor-style = "block"
+cursor-style-blink = false
+shell-integration-features = no-cursor
+
+# Keyboard bindings
+keybind = f11=toggle_fullscreen
 
 # Auto-launch tms session on startup
 command = zsh -c "tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d ; tmux send-keys -t main:1 'opencode' Enter ; tmux new-window -n term ; tmux new-window ; tmux new-session -d -s monitoring -n btop 'btop' ; tmux new-session -d -s notes -c '$HOME/personal/Notes/Import' 'nvim .' ; tmux attach-session -t main:1; }"
