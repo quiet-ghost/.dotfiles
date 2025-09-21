@@ -3,6 +3,9 @@ export EDITOR=nvim
 # Early PATH setup
 export PATH="$HOME/usr/bin:$HOME/.local/bin:/home/ghost/.opencode/bin:$HOME/.config/composer/vendor/bin:$PATH:/usr/bin/nvim"
 
+#ohmarchy
+export PATH="$HOME/.local/share/omarchy/bin:$PATH"
+
 # Oh My Zsh setup
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"

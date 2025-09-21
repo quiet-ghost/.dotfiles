@@ -8,9 +8,9 @@ timeout = 60
 hotreload_theme = true
 
 # Theme configuration
-theme = "catppuccin-mocha"
+theme = "omarchy-catppuccin"
 theme_base = []
-theme_location = ["~/.config/walker/themes/"]
+theme_location = ["themes/"]
 
 # List configuration
 [list]
@@ -128,3 +128,4 @@ hidden = true
 
 [builtins.translation]
 hidden = true
+

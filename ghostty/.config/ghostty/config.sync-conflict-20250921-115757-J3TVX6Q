@@ -1,0 +1,23 @@
+# Config:
+
+shell-integration = zsh
+shell-integration-features = true
+
+
+maximize = true
+window-colorspace = srgb
+window-theme = auto
+theme = Material Ocean
+font-family = Cascadia Code SemiBold
+font-size = 15
+
+cursor-style = block
+cursor-style-blink = false
+
+background-blur = true
+bold-is-bright = true
+
+confirm-close-surface = false
+
+# Auto-launch tms session on startup
+command = zsh -c "tmux has-session -t main 2>/dev/null && tmux attach-session -t main || { tmux new-session -s main -d ; tmux send-keys -t main:1 'opencode' Enter ; tmux new-window -n term ; tmux new-window ; tmux new-session -d -s monitoring -n btop 'btop' ; tmux new-session -d -s notes -c '$HOME/personal/Notes/Import' 'nvim .' ; tmux attach-session -t main:1; }"
