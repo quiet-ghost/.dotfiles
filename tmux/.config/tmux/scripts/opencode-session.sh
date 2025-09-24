@@ -31,4 +31,5 @@ if ! tmux has-session -t "$session_name" 2>/dev/null; then
 	tmux new-session -d -s "$session_name" -c "$current_path" opencode
 fi
 
+# Create popup and attach to session
 exec tmux display-popup -E -w 90% -h 90% "tmux attach-session -t $session_name"

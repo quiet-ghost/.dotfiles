@@ -38,9 +38,9 @@ hide_category = true
 hidden = true
 
 [[builtins.bookmarks.entries]]
-label = "Omarchy - Github"
-url = "https://github.com/basecamp/omarchy"
-keywords = ["omarchy", "github"]
+label = "Ghost - Github"
+url = "https://github.com/quiet-ghost"
+keywords = ["ghost", "github"]
 
 [[builtins.bookmarks.entries]]
 label = "Omarchy Manual"
