@@ -1,0 +1,85 @@
+return {
+  {
+    "saghen/blink.cmp",
+    event = "InsertEnter",
+    version = "*",
+    opts = {
+      keymap = {
+        preset = "none", -- Don't use any preset, define everything custom
+
+        -- Your custom Alt keybindings
+        ["<M-n>"] = { "select_next", "fallback" },
+        ["<M-b>"] = { "select_prev", "fallback" },
+        ["<M-CR>"] = { "accept", "fallback" },
+        ["<M-e>"] = { "cancel", "fallback" },
+
+        -- Essential functions
+        ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
+        ["<C-d>"] = { "scroll_documentation_down", "fallback" },
+        ["<C-f>"] = { "scroll_documentation_up", "fallback" },
+
+        -- DISABLE Enter - only Alt+Enter works
+        ["<CR>"] = { "fallback" },
+
+        -- Disable Tab for blink.cmp to avoid conflicts with Supermaven
+        -- Tab will fallback to Supermaven
+        ["<Tab>"] = { "fallback" },
+        ["<S-Tab>"] = { "fallback" },
+      },
+
+      appearance = {
+        use_nvim_cmp_as_default = true,
+        nerd_font_variant = "mono",
+      },
+
+      sources = {
+        default = { "lsp", "path", "snippets", "buffer" },
+      },
+
+      completion = {
+        accept = {
+          auto_brackets = {
+            enabled = true,
+          },
+        },
+        menu = {
+          draw = {
+            treesitter = { "lsp" },
+          },
+        },
+        documentation = {
+          auto_show = true,
+          auto_show_delay_ms = 200,
+        },
+      },
+
+      snippets = {
+        expand = function(snippet)
+          require("luasnip").lsp_expand(snippet)
+        end,
+        active = function(filter)
+          if filter and filter.direction then
+            return require("luasnip").jumpable(filter.direction)
+          end
+          return require("luasnip").in_snippet()
+        end,
+        jump = function(direction)
+          require("luasnip").jump(direction)
+        end,
+      },
+    },
+
+    -- Add LuaSnip dependency for snippets
+    dependencies = {
+      "L3MON4D3/LuaSnip",
+      "rafamadriz/friendly-snippets",
+    },
+
+    config = function(_, opts)
+      require("blink.cmp").setup(opts)
+
+      -- Load snippets
+      require("luasnip.loaders.from_vscode").lazy_load()
+    end,
+  },
+}
