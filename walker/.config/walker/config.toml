@@ -1,131 +1,100 @@
-# Walker Configuration - Catppuccin Mocha Theme
-# Based on omarchy configuration with personal customizations
-
-# Window behavior
 close_when_open = true
+theme = "omarchy-default"
+theme_base = []
+theme_location = ["~/.local/share/omarchy/default/walker/themes/"]
+hotreload_theme = true
 force_keyboard_focus = true
 timeout = 60
-hotreload_theme = true
 
-# Theme configuration
-theme = "omarchy-catppuccin"
-theme_base = []
-theme_location = ["themes/"]
+[keys.ai]
+run_last_response = ["ctrl e"]
 
-# List configuration
 [list]
 max_entries = 200
 cycle = true
 
-# Search configuration
 [search]
-placeholder = " Search..."
+placeholder = " Search..."
 
-# Key bindings
-[keys.ai]
-run_last_response = ["ctrl e"]
+[builtins.hyprland_keybinds]
+path = "~/.config/hypr/hyprland.conf"
+hidden = true
 
-# Applications module (main launcher - like wofi drun)
 [builtins.applications]
-launch_prefix = ""
-placeholder = " Search..."
+launch_prefix = "uwsm app -- "
+placeholder = " Search..."
 prioritize_new = false
 context_aware = false
 show_sub_when_single = false
 history = false
 icon = ""
-hidden = false
+hidden = true
 
 [builtins.applications.actions]
 enabled = false
 hide_category = true
 
-# Calculator module
+[builtins.bookmarks]
+hidden = true
+
+[[builtins.bookmarks.entries]]
+label = "Omarchy - Github"
+url = "https://github.com/basecamp/omarchy"
+keywords = ["omarchy", "github"]
+
+[[builtins.bookmarks.entries]]
+label = "Omarchy Manual"
+url = "https://manuals.omamix.org/2/the-omarchy-manual"
+keywords = ["omarchy"]
+
 [builtins.calc]
 name = "Calculator"
 icon = ""
 min_chars = 3
 prefix = "="
-hidden = false
 
-# Emoji picker module
-[builtins.emojis]
-name = "Emojis"
-icon = "😀"
-prefix = ":"
-hidden = false
-
-# File finder module
-[builtins.finder]
-use_fd = true
-cmd_alt = "xdg-open $(dirname ~/%RESULT%)"
-icon = ""
-name = "Finder"
-preview_images = true
-hidden = false
-prefix = "."
-
-# Clipboard manager
-[builtins.clipboard]
-hidden = false
-name = "Clipboard"
-icon = ""
-prefix = "@"
-
-# Web search
-[builtins.websearch]
-switcher_only = false
-hidden = false
-prefix = "?"
-
-# System commands
-[builtins.commands]
-hidden = false
-prefix = "!"
-shell_config = ""
-
-# Window switcher
 [builtins.windows]
-switcher_only = false
-hidden = false
-icon = ""
-prefix = "/"
-
-# SSH connections
-[builtins.ssh]
-hidden = false
-icon = ""
-prefix = "#"
-
-# Bookmarks - you can add your own
-[builtins.bookmarks]
-hidden = false
-icon = ""
-prefix = "~"
-
-[[builtins.bookmarks.entries]]
-label = "GitHub"
-url = "https://github.com"
-keywords = ["github", "git"]
-
-[[builtins.bookmarks.entries]]
-label = "Arch Wiki"
-url = "https://wiki.archlinux.org"
-keywords = ["arch", "wiki", "documentation"]
-
-# Hide unused modules
-[builtins.hyprland_keybinds]
+switcher_only = true
 hidden = true
 
-[builtins.runner]
+[builtins.clipboard]
+hidden = true
+
+[builtins.commands]
 hidden = true
 
 [builtins.custom_commands]
 hidden = true
 
+[builtins.emojis]
+name = "Emojis"
+icon = ""
+prefix = ":"
+
 [builtins.symbols]
+after_copy = ""
+hidden = true
+
+[builtins.finder]
+use_fd = true
+cmd_alt = "xdg-open $(dirname ~/%RESULT%)"
+icon = "file"
+name = "Finder"
+preview_images = true
+hidden = false
+prefix = "."
+
+[builtins.runner]
+shell_config = ""
+switcher_only = true
+hidden = true
+
+[builtins.ssh]
+hidden = true
+
+[builtins.websearch]
+switcher_only = true
 hidden = true
 
 [builtins.translation]
 hidden = true
-
