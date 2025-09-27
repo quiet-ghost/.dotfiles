@@ -1,6 +1,9 @@
 return {
   "nvim-java/nvim-java",
-  lazy = false,
+  lazy = false, -- Load immediately
+  cond = function()
+    return vim.fn.glob("*.java") ~= "" or vim.fn.glob("**/*.java") ~= ""
+  end,
   dependencies = {
     "JavaHello/spring-boot.nvim",
     "nvim-java/lua-async-await",
@@ -34,8 +37,8 @@ return {
       "mason-org/mason.nvim",
       opts = {
         registries = {
-          "github:mason-org/mason-registry",
           "github:nvim-java/mason-registry",
+          "github:mason-org/mason-registry",
         },
       },
     },
@@ -69,6 +72,7 @@ return {
             })
             local lspconfig = require("lspconfig")
             lspconfig.jdtls.setup({
+              filetypes = { "java" },
               init_options = {
                 bundles = bundles,
               },
@@ -95,32 +99,41 @@ return {
               },
               -- Project root detection for single files, Maven, and IntelliJ projects
               root_dir = function(fname)
+                -- Only handle .java files
+                if not fname:match("%.java$") then
+                  return nil
+                end
+
                 local util = require("lspconfig.util")
                 local project_root = util.root_pattern("pom.xml", "build.gradle", ".idea", ".project", ".git")(fname)
                 return project_root or vim.fn.fnamemodify(fname, ":p:h")
               end,
             })
-            -- Configure DAP for Java
-            local dap = require("dap")
-            dap.configurations.java = {
-              {
-                type = "java",
-                request = "launch",
-                name = "Launch Java",
-                mainClass = "${fileBasenameNoExtension}",
-                classPaths = { "${workspaceFolder}", vim.fn.getcwd() },
-                javaExec = java_exec, -- Use detected JDK
-                projectName = "${fileBasenameNoExtension}",
-              },
-              {
-                type = "java",
-                request = "attach",
-                name = "Debug (Attach) - Remote",
-                hostName = "127.0.0.1",
-                port = 1326,
-              },
-            }
-            return true -- Skip mason-lspconfig's default jdtls setup
+            -- Configure DAP for Java (delayed to avoid initialization errors)
+            vim.defer_fn(function()
+              pcall(function()
+                local dap = require("dap")
+                dap.configurations.java = {
+                  {
+                    type = "java",
+                    request = "launch",
+                    name = "Launch Java",
+                    mainClass = "${fileBasenameNoExtension}",
+                    classPaths = { "${workspaceFolder}", vim.fn.getcwd() },
+                    javaExec = java_exec, -- Use detected JDK
+                    projectName = "${fileBasenameNoExtension}",
+                  },
+                  {
+                    type = "java",
+                    request = "attach",
+                    name = "Debug (Attach) - Remote",
+                    hostName = "127.0.0.1",
+                    port = 1326,
+                  },
+                }
+              end)
+            end, 2000)
+            return true
           end,
         },
       },
