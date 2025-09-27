@@ -26,7 +26,7 @@ return {
       return vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t")
     end
 
-    -- Workspace directory (equivalent to your data directory)
+    -- Workspace directory (equivalent to  data directory)
     local workspace_dir = vim.fn.stdpath("data") .. "/jdtls-workspace/" .. get_project_name()
 
     -- Mason installation paths
@@ -35,11 +35,11 @@ return {
     local java_debug_path = mason_path .. "/packages/java-debug-adapter"
     local java_test_path = mason_path .. "/packages/java-test"
 
-    -- Java executable (equivalent to your JAVA_HOME logic)
+    -- Java executable (equivalent to  JAVA_HOME logic)
     local java_home = os.getenv("JAVA_HOME")
     local java_exec = java_home and (java_home .. "/bin/java") or vim.fn.exepath("java")
 
-    -- Build bundles for debugging (equivalent to your bundles)
+    -- Build bundles for debugging (equivalent to  bundles)
     local bundles = {}
 
     -- Add java-debug bundles
@@ -61,21 +61,12 @@ return {
       end
     end
 
-    -- Equivalent to your runtimes configuration
+    -- Equivalent to runtimes configuration
     local function get_runtimes()
-      -- You can customize this based on your utils/java.lua logic
-      local runtimes = {}
-      if java_home then
-        table.insert(runtimes, {
-          name = "JavaSE-21",
-          path = java_home,
-          default = true,
-        })
-      end
-      return runtimes
+      return require("utils.java").get_runtimes_config()
     end
 
-    -- Main JDTLS configuration (equivalent to your lspconfig.jdtls.setup)
+    -- Main JDTLS configuration (equivalent to lspconfig.jdtls.setup)
     local config = {
       name = "jdtls",
       cmd = {
@@ -99,7 +90,7 @@ return {
         workspace_dir,
       },
 
-      -- Equivalent to your root_dir function
+      -- Equivalent to  root_dir function
       root_dir = function(fname)
         if not fname:match("%.java$") then
           return nil
@@ -109,7 +100,7 @@ return {
         return project_root or vim.fn.fnamemodify(fname, ":p:h")
       end,
 
-      -- Equivalent to your settings
+      -- Equivalent to  settings
       settings = {
         java = {
           configuration = {
@@ -131,7 +122,7 @@ return {
         },
       },
 
-      -- Equivalent to your init_options
+      -- Equivalent to  init_options
       init_options = {
         bundles = bundles,
         -- Add this for single file support:
@@ -165,7 +156,7 @@ return {
           jdtls.setup.add_commands()
         end
 
-        -- Key mappings (equivalent to your refactoring setup)
+        -- Key mappings (equivalent to  refactoring setup)
         local opts = { buffer = bufnr, silent = true }
         vim.keymap.set("n", "<A-o>", jdtls.organize_imports, opts)
         vim.keymap.set("n", "crv", jdtls.extract_variable, opts)
@@ -180,7 +171,7 @@ return {
           jdtls.extract_method(true)
         end, opts)
 
-        -- Test runners (equivalent to your DAP test functionality)
+        -- Test runners (equivalent to  DAP test functionality)
         vim.keymap.set("n", "<leader>df", jdtls.test_class, opts)
         vim.keymap.set("n", "<leader>dn", jdtls.test_nearest_method, opts)
       end,
