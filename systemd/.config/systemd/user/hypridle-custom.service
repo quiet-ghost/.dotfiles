@@ -1,0 +1,14 @@
+[Unit]
+Description=Hypridle with custom launcher (desktop/laptop detection)
+Documentation=https://wiki.hyprland.org/Hypr-Ecosystem/hypridle
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/hypridle-launcher
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
