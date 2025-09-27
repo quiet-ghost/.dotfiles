@@ -59,7 +59,7 @@ vim.api.nvim_create_autocmd("BufNewFile", {
   end,
 })
 
--- -- Auto-start JDTLS for Java files
+-- Auto-start JDTLS for Java files (using nvim-jdtls)
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "java",
   callback = function()
