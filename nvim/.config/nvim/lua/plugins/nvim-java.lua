@@ -96,14 +96,8 @@ return {
               -- Project root detection for single files, Maven, and IntelliJ projects
               root_dir = function(fname)
                 local util = require("lspconfig.util")
-                return util.root_pattern(
-                  "pom.xml",           -- Maven
-                  "build.gradle",      -- Gradle
-                  "build.gradle.kts",  -- Gradle Kotlin
-                  ".idea",             -- IntelliJ IDEA
-                  ".project",          -- Eclipse
-                  ".git"               -- Git repository
-                )(fname) or vim.fn.getcwd()
+                local project_root = util.root_pattern("pom.xml", "build.gradle", ".idea", ".project", ".git")(fname)
+                return project_root or vim.fn.fnamemodify(fname, ":p:h")
               end,
             })
             -- Configure DAP for Java
@@ -131,5 +125,5 @@ return {
         },
       },
     },
-   },
- }
+  },
+}
