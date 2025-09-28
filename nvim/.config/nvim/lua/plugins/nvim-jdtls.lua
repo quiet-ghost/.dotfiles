@@ -1,9 +1,10 @@
 return {
   "mfussenegger/nvim-jdtls",
-  lazy = false,
-  cond = function()
-    return vim.fn.glob("*.java") ~= "" or vim.fn.glob("**/*.java") ~= ""
-  end,
+  ft = "java",
+  -- lazy = false,
+  -- cond = function()
+  --   return vim.fn.glob("*.java") ~= "" or vim.fn.glob("**/*.java") ~= ""
+  -- end,
   dependencies = {
     "mfussenegger/nvim-dap",
     "rcarriga/nvim-dap-ui",
@@ -96,8 +97,27 @@ return {
           return nil
         end
         local util = require("lspconfig.util")
-        local project_root = util.root_pattern("pom.xml", "build.gradle", ".idea", ".project", ".git")(fname)
-        return project_root or vim.fn.fnamemodify(fname, ":p:h")
+
+        -- First check for proper Java project markers
+        local java_project_root = util.root_pattern("pom.xml", "build.gradle", ".idea", ".project", ".git", "")(fname)
+        if java_project_root then
+          return java_project_root
+        end
+
+        -- If in a git repo but no Java project files, treat as single file
+        local git_root = util.root_pattern(".git")(fname)
+        if git_root then
+          -- Check if git repo has Java project structure
+          local has_java_project = vim.fn.glob(git_root .. "/pom.xml") ~= ""
+            or vim.fn.glob(git_root .. "/build.gradle") ~= ""
+            or vim.fn.glob(git_root .. "/.idea") ~= ""
+          if not has_java_project then
+            return vim.fn.fnamemodify(fname, ":p:h") -- Single file mode
+          end
+          return git_root
+        end
+
+        return vim.fn.fnamemodify(fname, ":p:h") -- Default single file mode
       end,
 
       -- Equivalent to  settings
@@ -117,7 +137,21 @@ return {
               "**/*.jar", -- Allow finding JARs anywhere for single files
             },
             resourceFilters = { "node_modules", ".git" },
-            sourcePaths = { "" }, -- Current directory as source path
+            sourcePaths = {},
+            encoding = "UTF-8",
+            outputPath = ".output",
+          },
+          sources = {
+            organizeImports = {
+              starThreshold = 9999,
+              staticStarThreshold = 9999,
+            },
+          },
+          eclipse = {
+            downloadSources = true,
+          },
+          maven = {
+            downloadSources = true,
           },
         },
       },
@@ -155,30 +189,9 @@ return {
           jdtls.setup_dap({ hotcodereplace = "auto" })
           jdtls.setup.add_commands()
         end
-
-        -- Key mappings (equivalent to  refactoring setup)
-        local opts = { buffer = bufnr, silent = true }
-        vim.keymap.set("n", "<A-o>", jdtls.organize_imports, opts)
-        vim.keymap.set("n", "crv", jdtls.extract_variable, opts)
-        vim.keymap.set("v", "crv", function()
-          jdtls.extract_variable(true)
-        end, opts)
-        vim.keymap.set("n", "crc", jdtls.extract_constant, opts)
-        vim.keymap.set("v", "crc", function()
-          jdtls.extract_constant(true)
-        end, opts)
-        vim.keymap.set("v", "crm", function()
-          jdtls.extract_method(true)
-        end, opts)
-
-        -- Test runners (equivalent to  DAP test functionality)
-        vim.keymap.set("n", "<leader>df", jdtls.test_class, opts)
-        vim.keymap.set("n", "<leader>dn", jdtls.test_nearest_method, opts)
       end,
-
       capabilities = require("blink.cmp").get_lsp_capabilities(),
     }
-
     -- Start or attach JDTLS
     jdtls.start_or_attach(config)
 
@@ -195,7 +208,7 @@ return {
         virt_text_pos = "eol",
         all_frames = false,
         virt_lines = false,
-        virt_text_win_col = nil,
+        virt_text_win_col = true,
       })
     end
   end,
