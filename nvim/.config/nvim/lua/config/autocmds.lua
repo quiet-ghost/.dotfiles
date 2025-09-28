@@ -70,3 +70,11 @@ vim.api.nvim_create_autocmd("FileType", {
     end, 100)
   end,
 })
+
+-- Setup JDTLS keymaps for Java files (buffer-local)
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "java",
+  callback = function()
+    require("utils.jdtls").setup_keymaps()
+  end,
+})
