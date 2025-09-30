@@ -21,9 +21,8 @@ return {
         -- DISABLE Enter - only Alt+Enter works
         ["<CR>"] = { "fallback" },
 
-        -- Disable Tab for blink.cmp to avoid conflicts with Supermaven
-        -- Tab will fallback to Supermaven
-        ["<Tab>"] = { "fallback" },
+        -- Tab accepts completion (including Supermaven suggestions)
+        ["<Tab>"] = { "accept", "fallback" },
         ["<S-Tab>"] = { "fallback" },
       },
 
