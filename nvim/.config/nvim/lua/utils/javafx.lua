@@ -71,22 +71,26 @@ function M.compile_and_run()
 
     -- Find the class that contains the main method
     local main_class = classname -- Default to filename without extension
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
-    -- Look for public static void main
+    -- Look for the class containing public static void main
     local main_pattern = "public%s+static%s+void%s+main"
-    local main_match = file_content:match(main_pattern)
 
-    if main_match then
-      -- Find the public class (there should be only one per file)
-      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    -- Find which class contains the main method
+    local in_class = nil
+    for i = 1, #lines do
+      local line = lines[i]
 
-      -- Search for public class declaration from the beginning
-      for i = 1, #lines do
-        local class_match = lines[i]:match("^%s*public%s+class%s+([%w_]+)")
-        if class_match then
-          main_class = class_match
-          break
-        end
+      -- Match any class declaration (public or not)
+      local class_match = line:match("^%s*public%s+class%s+([%w_]+)") or line:match("^%s*class%s+(Main)%s")
+      if class_match then
+        in_class = class_match
+      end
+
+      -- If we find main method, use the current class
+      if line:match(main_pattern) and in_class then
+        main_class = in_class
+        break
       end
     end
 
@@ -149,12 +153,8 @@ function M.compile_only()
   else
     -- Single file - use javac directly
     local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
-    local compile_cmd = string.format(
-      "cd %s && %s/bin/javac %s",
-      vim.fn.shellescape(dir),
-      java_home,
-      vim.fn.shellescape(filename)
-    )
+    local compile_cmd =
+      string.format("cd %s && %s/bin/javac %s", vim.fn.shellescape(dir), java_home, vim.fn.shellescape(filename))
 
     vim.cmd("split | terminal " .. compile_cmd)
     vim.cmd("resize 10")

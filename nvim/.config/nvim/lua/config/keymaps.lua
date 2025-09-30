@@ -27,6 +27,8 @@ map("i", "<C-c>", "<Esc>", { desc = "Exit insert mode" }) -- Exit insert mode
 
 map("n", "Q", "<nop>", { desc = "Disable Q" }) -- Disable Q
 
+map("n", "<leader>lr", "<cmd>LspRestart<cr>", { desc = "Restart LSP" })
+
 map("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>", { desc = "tmux sessionizer" }) -- tmux sessionizer
 map("n", "<leader>f", function()
   require("conform").format({ async = true, lsp_fallback = true })
