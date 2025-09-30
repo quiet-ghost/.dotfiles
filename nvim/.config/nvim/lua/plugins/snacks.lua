@@ -7,11 +7,11 @@ return {
     -- Merge with existing opts but override terminal settings
     opts = opts or {}
     opts = vim.tbl_deep_extend("force", opts, {
-    bigfile = { enabled = true },
-    notifier = { enabled = true },
-    quickfile = { enabled = true },
-    statuscolumn = { enabled = true },
-    words = { enabled = true },
+      bigfile = { enabled = true },
+      notifier = { enabled = true },
+      quickfile = { enabled = true },
+      statuscolumn = { enabled = true },
+      words = { enabled = true },
       terminal = {
         enabled = true,
         -- Terminal options
@@ -23,7 +23,7 @@ return {
         },
       },
       scroll = {
-        enabled = false, -- Keep your scrolling animation disabled
+        enabled = true, -- Keep your scrolling animation disabled
       },
     })
     return opts
