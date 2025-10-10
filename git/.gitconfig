@@ -14,3 +14,8 @@
 	email = ksclafani26@pm.me
 [coderabbit]
 	machineId = cli/97ad248212e74636ae908904d9d7c896
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
