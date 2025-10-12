@@ -59,18 +59,6 @@ vim.api.nvim_create_autocmd("BufNewFile", {
   end,
 })
 
--- Auto-start JDTLS for Java files (using nvim-jdtls)
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "java",
-  callback = function()
-    vim.defer_fn(function()
-      if #vim.lsp.get_active_clients({ name = "jdtls" }) == 0 then
-        vim.cmd("LspStart jdtls")
-      end
-    end, 100)
-  end,
-})
-
 -- Setup JDTLS keymaps for Java files (buffer-local)
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "java",
