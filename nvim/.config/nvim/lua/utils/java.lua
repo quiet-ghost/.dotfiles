@@ -92,8 +92,13 @@ local function detect_jdk(path, source)
     name = vim.fn.fnamemodify(path, ":t")
   end
 
+  local jdtls_version = version
+  if tonumber(version) >= 21 then
+    jdtls_version = "21"
+  end
+
   return {
-    name = (tonumber(version) >= 23) and "JavaSE-21" or string.format("JavaSE-%s", version),
+    name = string.format("JavaSE-%s", jdtls_version),
     display_name = string.format("%s %s (%s) [%s]", vendor, version, name, source),
     path = path,
     version = version,
@@ -120,6 +125,31 @@ local function detect_sdkman_jdks()
     if not dir:match("/current$") then
       local jdk = detect_jdk(dir, "sdkman")
       if jdk then
+        table.insert(jdks, jdk)
+      end
+    end
+  end
+
+  return jdks
+end
+
+-- Detect all mise JDKs
+local function detect_mise_jdks()
+  local jdks = {}
+  local mise_dir = os.getenv("HOME") .. "/.local/share/mise/installs/java"
+
+  if vim.fn.isdirectory(mise_dir) == 0 then
+    return jdks
+  end
+
+  local dirs = vim.fn.glob(mise_dir .. "/*", false, true)
+  for _, dir in ipairs(dirs) do
+    local dir_name = vim.fn.fnamemodify(dir, ":t")
+    local is_symlink = dir_name:match("^%d+$") or dir_name:match("^%d+%.%d+$") or dir_name == "latest" or dir_name == "lts" or dir_name:match("^liberica%-javafx%-%d+$") or dir_name:match("^liberica%-javafx%-%d+%.%d+$")
+    
+    if vim.fn.isdirectory(dir) == 1 and not is_symlink then
+      local jdk = detect_jdk(dir, "mise")
+      if jdk and tonumber(jdk.version or 0) <= 22 then
         table.insert(jdks, jdk)
       end
     end
@@ -162,7 +192,7 @@ local function detect_java_home_jdk()
   local java_home = os.getenv("JAVA_HOME")
   if java_home and vim.fn.isdirectory(java_home) == 1 then
     local jdk = detect_jdk(java_home, "JAVA_HOME")
-    if jdk then
+    if jdk and tonumber(jdk.version or 0) <= 22 then
       jdk.default = true -- Mark JAVA_HOME as default
       return jdk
     end
@@ -185,6 +215,22 @@ function M.detect_all_jdks()
   local sdkman_jdks = detect_sdkman_jdks()
   for _, jdk in ipairs(sdkman_jdks) do
     -- Avoid duplicates with JAVA_HOME
+    local is_duplicate = false
+    for _, existing in ipairs(M.jdks) do
+      if existing.path == jdk.path then
+        is_duplicate = true
+        break
+      end
+    end
+    if not is_duplicate then
+      table.insert(M.jdks, jdk)
+    end
+  end
+
+  -- Detect mise JDKs
+  local mise_jdks = detect_mise_jdks()
+  for _, jdk in ipairs(mise_jdks) do
+    -- Avoid duplicates with JAVA_HOME and SDKMAN
     local is_duplicate = false
     for _, existing in ipairs(M.jdks) do
       if existing.path == jdk.path then
