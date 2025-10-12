@@ -36,9 +36,15 @@ return {
     local java_debug_path = mason_path .. "/packages/java-debug-adapter"
     local java_test_path = mason_path .. "/packages/java-test"
 
-    -- Java executable (equivalent to  JAVA_HOME logic)
-    local java_home = os.getenv("JAVA_HOME")
-    local java_exec = java_home and (java_home .. "/bin/java") or vim.fn.exepath("java")
+    -- Java executable - prioritize Java 21 for JDTLS server
+    local java_21_path = os.getenv("HOME") .. "/.local/share/mise/installs/java/21.0.2/bin/java"
+    local java_exec
+    if vim.fn.filereadable(java_21_path) == 1 then
+      java_exec = java_21_path
+    else
+      local java_home = os.getenv("JAVA_HOME")
+      java_exec = java_home and (java_home .. "/bin/java") or vim.fn.exepath("java")
+    end
 
     -- Build bundles for debugging (equivalent to  bundles)
     local bundles = {}
@@ -185,31 +191,14 @@ return {
         vim.api.nvim_buf_set_option(bufnr, "omnifunc", "v:lua.vim.lsp.omnifunc")
 
         -- Setup DAP if available
+        -- The setup_dap() function registers a provider that auto-discovers configurations
+        -- when you run DapContinue, so no need to manually call setup_dap_main_class_configs()
         if pcall(require, "dap") then
-          jdtls.setup_dap({ hotcodereplace = "auto" })
-          jdtls.setup.add_commands()
+          require("jdtls").setup_dap({ hotcodereplace = "auto" })
         end
       end,
       capabilities = require("blink.cmp").get_lsp_capabilities(),
     }
-    -- Start or attach JDTLS
     jdtls.start_or_attach(config)
-
-    -- Setup DAP UI if available
-    if pcall(require, "dapui") then
-      require("dapui").setup()
-      require("nvim-dap-virtual-text").setup({
-        enabled = true,
-        enabled_commands = true,
-        highlight_changed_variables = true,
-        highlight_new_as_changed = true,
-        show_stop_reason = true,
-        commented = false,
-        virt_text_pos = "eol",
-        all_frames = false,
-        virt_lines = false,
-        virt_text_win_col = true,
-      })
-    end
   end,
 }
