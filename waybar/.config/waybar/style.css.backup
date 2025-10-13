@@ -78,16 +78,3 @@ tooltip {
   font-size: 8px; /* Make the bars smaller */
   margin: 0 5px; /* Adjust spacing */
 }
-
-#custom-ssh-indicator {
-  min-width: 12px;
-  margin: 0 7.5px;
-}
-
-#custom-ssh-indicator.ssh-active {
-  color: #88c0d0;
-}
-
-#custom-ssh-indicator.ssh-inactive {
-  opacity: 0.6;
-}
