@@ -92,13 +92,10 @@ local function detect_jdk(path, source)
     name = vim.fn.fnamemodify(path, ":t")
   end
 
-  local jdtls_version = version
-  if tonumber(version) >= 21 then
-    jdtls_version = "21"
-  end
-
+  -- Use actual version for unique runtime names
+  -- jdtls can handle any JDK >= 8, so no need to collapse versions
   return {
-    name = string.format("JavaSE-%s", jdtls_version),
+    name = string.format("JavaSE-%s", version),
     display_name = string.format("%s %s (%s) [%s]", vendor, version, name, source),
     path = path,
     version = version,
@@ -145,11 +142,11 @@ local function detect_mise_jdks()
   local dirs = vim.fn.glob(mise_dir .. "/*", false, true)
   for _, dir in ipairs(dirs) do
     local dir_name = vim.fn.fnamemodify(dir, ":t")
-    local is_symlink = dir_name:match("^%d+$") or dir_name:match("^%d+%.%d+$") or dir_name == "latest" or dir_name == "lts" or dir_name:match("^liberica%-javafx%-%d+$") or dir_name:match("^liberica%-javafx%-%d+%.%d+$")
+    local is_symlink = dir_name:match("^%d+$") or dir_name:match("^%d+%.%d+$") or dir_name == "latest" or dir_name == "lts" or dir_name == "liberica-javafx-latest" or dir_name:match("^liberica%-javafx%-%d+$") or dir_name:match("^liberica%-javafx%-%d+%.%d+$")
     
     if vim.fn.isdirectory(dir) == 1 and not is_symlink then
       local jdk = detect_jdk(dir, "mise")
-      if jdk and tonumber(jdk.version or 0) <= 22 then
+      if jdk then
         table.insert(jdks, jdk)
       end
     end
@@ -280,12 +277,34 @@ function M.get_runtimes_config()
   end
 
   local runtimes = {}
+  local has_default = false
+  
   for _, jdk in ipairs(M.jdks) do
-    table.insert(runtimes, {
+    local runtime = {
       name = jdk.name,
       path = jdk.path,
-      default = jdk.default or false,
-    })
+    }
+    
+    if jdk.default then
+      runtime.default = true
+      has_default = true
+    end
+    
+    table.insert(runtimes, runtime)
+  end
+  
+  if not has_default and #runtimes > 0 then
+    for _, runtime in ipairs(runtimes) do
+      if runtime.name == "JavaSE-21" then
+        runtime.default = true
+        has_default = true
+        break
+      end
+    end
+    
+    if not has_default then
+      runtimes[1].default = true
+    end
   end
 
   return runtimes

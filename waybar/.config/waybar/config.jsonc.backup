@@ -11,7 +11,6 @@
     "custom/screenrecording-indicator",
   ],
   "modules-right": [
-    "custom/ssh-indicator",
     "cava",
     "group/tray-expander",
     "bluetooth",
@@ -25,7 +24,7 @@
     "on-click": "activate",
     "format": "{icon}",
     "format-icons": {
-      "default": "",
+      "default": "",
       "1": "1",
       "2": "2",
       "3": "3",
@@ -49,18 +48,12 @@
     "tooltip-format": "Omarchy Menu\n\nSuper + Alt + Space",
   },
   "custom/update": {
-    "format": "",
+    "format": "",
     "exec": "omarchy-update-available",
     "on-click": "omarchy-launch-floating-terminal-with-presentation omarchy-update",
     "tooltip-format": "Omarchy update available",
     "signal": 7,
     "interval": 3600,
-  },
-  "custom/ssh-indicator": {
-    "exec": "/home/ghost/.config/waybar/ssh-indicator.sh",
-    "return-type": "json",
-    "interval": 10,
-    "tooltip": true,
   },
   "cpu": {
     "interval": 5,
@@ -69,7 +62,7 @@
   },
   "memory": {
     "interval": 5,
-    "format": " {percentage}%",
+    "format": " {percentage}%",
     "tooltip-format": "Memory: {used:0.1f}G/{total:0.1f}G ({percentage}%)",
     "on-click": "$TERMINAL -e btop",
   },

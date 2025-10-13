@@ -17,7 +17,7 @@ cursor-style-blink = false
 shell-integration-features = no-cursor
 
 # Auto-launch tms session on startup
-command = zsh -c "tmux has-session -t quietghost 2>/dev/null && tmux attach-session -t quietghost || { tmux new-session -s quietghost -d ; tmux send-keys -t quietghost:1 'opencode' Enter ; tmux new-window -n terminal ; tmux new-session -d -s notes -c '$HOME/personal/Notes/Import' 'nvim .' ; tmux attach-session -t quietghost:2; }"
+# command = zsh -c "tmux has-session -t quietghost 2>/dev/null && tmux attach-session -t quietghost || { tmux new-session -s quietghost -d ; tmux send-keys -t quietghost:1 'opencode' Enter ; tmux new-window -n terminal ; tmux new-session -d -s notes -c '$HOME/personal/Notes/Import' 'nvim .' ; tmux attach-session -t quietghost:2; }"
 
 # Keyboard bindings
 keybind = f11=toggle_fullscreen
