@@ -24,9 +24,8 @@ return {
       virt_text_win_col = nil,
     })
 
-    -- Custom highlighting for virtual text to make it more visible
-    vim.api.nvim_set_hl(0, 'NvimDapVirtualText', { fg = '#c53737', italic = true })
-    vim.api.nvim_set_hl(0, 'NvimDapVirtualTextChanged', { fg = '#c53737', italic = true, bold = true })
+    vim.api.nvim_set_hl(0, "NvimDapVirtualText", { fg = "#c53737", italic = true })
+    vim.api.nvim_set_hl(0, "NvimDapVirtualTextChanged", { fg = "#c53737", italic = true, bold = true })
 
     dap.listeners.before.attach.dapui_config = function()
       dapui.open()
@@ -34,30 +33,28 @@ return {
     dap.listeners.before.launch.dapui_config = function()
       dapui.open()
     end
+    
+    -- Override terminate/exit listeners with empty functions
+    -- This prevents auto-close of DAP UI when debug session ends
     dap.listeners.before.event_terminated.dapui_config = function()
-      dapui.close()
+      -- Intentionally empty - prevents auto-close
     end
     dap.listeners.before.event_exited.dapui_config = function()
-      dapui.close()
+      -- Intentionally empty - prevents auto-close
+    end
+    dap.listeners.after.event_terminated.dapui_config = function()
+      -- Intentionally empty - prevents auto-close
+    end
+    dap.listeners.after.event_exited.dapui_config = function()
+      -- Intentionally empty - prevents auto-close
     end
     
-    -- Clear virtual text when debug session ends
+    -- Keep virtual text cleanup (doesn't affect UI windows)
     dap.listeners.after.event_terminated.dap_virtual_text = function()
-      require('nvim-dap-virtual-text/virtual_text').clear_virtual_text()
+      require("nvim-dap-virtual-text/virtual_text").clear_virtual_text()
     end
     dap.listeners.after.event_exited.dap_virtual_text = function()
-      require('nvim-dap-virtual-text/virtual_text').clear_virtual_text()
+      require("nvim-dap-virtual-text/virtual_text").clear_virtual_text()
     end
-
-    -- Fallback Java DAP configuration
-    -- This provides a basic "Launch Current File" option while the JDTLS provider
-    -- discovers more specific configurations in the background
-    dap.configurations.java = {
-      {
-        type = 'java',
-        request = 'launch',
-        name = "Launch Current File",
-      },
-    }
   end,
 }
