@@ -142,8 +142,14 @@ local function detect_mise_jdks()
   local dirs = vim.fn.glob(mise_dir .. "/*", false, true)
   for _, dir in ipairs(dirs) do
     local dir_name = vim.fn.fnamemodify(dir, ":t")
-    local is_symlink = dir_name:match("^%d+$") or dir_name:match("^%d+%.%d+$") or dir_name == "latest" or dir_name == "lts" or dir_name == "liberica-javafx-latest" or dir_name:match("^liberica%-javafx%-%d+$") or dir_name:match("^liberica%-javafx%-%d+%.%d+$")
-    
+    local is_symlink = dir_name:match("^%d+$")
+      or dir_name:match("^%d+%.%d+$")
+      or dir_name == "latest"
+      or dir_name == "lts"
+      or dir_name == "liberica-javafx-latest"
+      or dir_name:match("^liberica%-javafx%-%d+$")
+      or dir_name:match("^liberica%-javafx%-%d+%.%d+$")
+
     if vim.fn.isdirectory(dir) == 1 and not is_symlink then
       local jdk = detect_jdk(dir, "mise")
       if jdk then
@@ -162,8 +168,6 @@ local function detect_system_jdks()
     "/usr/lib/jvm",
     "/usr/local/java",
     "/opt/java",
-    "/System/Library/Java/JavaVirtualMachines", -- macOS
-    "/Library/Java/JavaVirtualMachines", -- macOS
   }
 
   for _, base_dir in ipairs(system_dirs) do
@@ -189,8 +193,8 @@ local function detect_java_home_jdk()
   local java_home = os.getenv("JAVA_HOME")
   if java_home and vim.fn.isdirectory(java_home) == 1 then
     local jdk = detect_jdk(java_home, "JAVA_HOME")
-    if jdk and tonumber(jdk.version or 0) <= 22 then
-      jdk.default = true -- Mark JAVA_HOME as default
+    if jdk then
+      jdk.default = true
       return jdk
     end
   end
@@ -251,7 +255,7 @@ function M.detect_all_jdks()
         break
       end
     end
-    if not is_duplicate and tonumber(jdk.version or 0) < 23 then
+    if not is_duplicate then
       table.insert(M.jdks, jdk)
     end
   end
@@ -278,21 +282,21 @@ function M.get_runtimes_config()
 
   local runtimes = {}
   local has_default = false
-  
+
   for _, jdk in ipairs(M.jdks) do
     local runtime = {
       name = jdk.name,
       path = jdk.path,
     }
-    
+
     if jdk.default then
       runtime.default = true
       has_default = true
     end
-    
+
     table.insert(runtimes, runtime)
   end
-  
+
   if not has_default and #runtimes > 0 then
     for _, runtime in ipairs(runtimes) do
       if runtime.name == "JavaSE-21" then
@@ -301,7 +305,7 @@ function M.get_runtimes_config()
         break
       end
     end
-    
+
     if not has_default then
       runtimes[1].default = true
     end
