@@ -89,3 +89,6 @@ export PATH="$HOME/.local/bin:$PATH"
 bindkey -s '^[f' 'vf\n'
 bindkey -s '^[s' 'tmux-sessionizer\n'
 bindkey -s '^[w' 'mux-sesh\n'
+
+# Java - let mise manage JAVA_HOME dynamically
+export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"

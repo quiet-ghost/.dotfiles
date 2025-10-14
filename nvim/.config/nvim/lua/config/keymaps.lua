@@ -60,17 +60,6 @@ map("n", "<leader>mc", "<cmd>MCPHub<CR>", { desc = "Start MCPHub" })
 map("n", "<leader>in", "O/**<CR><CR>/<Esc>kA ")
 map("v", "<leader>in", "c/**<CR><CR>/<Esc>kA ")
 
--- Java JDTLS keymaps (buffer-local setup via autocmd)
-map("n", "<leader>jo", require("utils.jdtls").organize_imports, { desc = "Organize Java imports" })
-map("n", "<leader>jv", require("utils.jdtls").extract_variable, { desc = "Extract variable" })
-map("v", "<leader>jv", require("utils.jdtls").extract_variable_visual, { desc = "Extract variable (visual)" })
-map("n", "<leader>jk", require("utils.jdtls").extract_constant, { desc = "Extract constant" })
-map("v", "<leader>jk", require("utils.jdtls").extract_constant_visual, { desc = "Extract constant (visual)" })
-map("v", "<leader>jm", require("utils.jdtls").extract_method_visual, { desc = "Extract method (visual)" })
-map("n", "<leader>jtf", require("utils.jdtls").test_class, { desc = "Test Java class" })
-map("n", "<leader>jtn", require("utils.jdtls").test_nearest_method, { desc = "Test nearest Java method" })
-map("n", "<leader>jg", require("utils.jdtls").generate_getters_setters, { desc = "Generate getters/setters" })
-
 -- DAP keymaps
 map("n", "<C-b>", "<cmd>DapToggleBreakpoint<CR>", { desc = "DAP Toggle Breakpoint" })
 map("n", "<C-M-c>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
