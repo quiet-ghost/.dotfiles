@@ -12,25 +12,16 @@ return {
     dapui.setup()
 
     require("nvim-dap-virtual-text").setup({
-      enabled = true,
-      enabled_commands = true,
-      highlight_changed_variables = true,
-      highlight_new_as_changed = false,
-      show_stop_reason = true,
-      commented = false,
-      only_first_definition = true,
-      all_references = false,
-      display_callback = function(variable, buf, stackframe, node, options)
-        if options.virt_text_pos == "inline" then
-          return " = " .. variable.value:gsub("%s+", " ")
-        else
-          return variable.name .. " = " .. variable.value:gsub("%s+", " ")
-        end
-      end,
-      virt_text_pos = "eol",
-      all_frames = false,
-      virt_lines = false,
-      virt_text_win_col = nil,
+      enabled = true, -- Enable the plugin
+      enabled_commands = true, -- Create commands like :DapVirtualTextEnable
+      highlight_changed_variables = true, -- Highlight changed variables
+      highlight_new_as_changed = true, -- Highlight new variables as changed
+      show_stop_reason = true, -- Show why DAP stopped (e.g., breakpoint)
+      commented = false, -- Show virtual text as comments (e.g., // value)
+      virt_text_pos = "eol", -- Position of virtual text ("eol" or "inline")
+      all_frames = false, -- Show virtual text for all stack frames
+      virt_lines = false, -- Use virtual lines instead of virtual text
+      virt_text_win_col = nil, -- Set to a number to fix column position
     })
 
     vim.api.nvim_set_hl(0, "NvimDapVirtualText", { fg = "#c53737", italic = true })
@@ -57,8 +48,15 @@ return {
     end
 
     -- Refresh virtual text when debugger stops at breakpoint
-    -- dap.listeners.after.event_stopped.dap_virtual_text = function()
-    --   require("nvim-dap-virtual-text").refresh()
-    -- end
+    dap.listeners.after.event_stopped.dap_virtual_text = function()
+      require("nvim-dap-virtual-text").refresh()
+    end
+    dap.configurations.java = {
+      {
+        type = "java",
+        request = "launch",
+        name = "Launch Current File",
+      },
+    }
   end,
 }
