@@ -4,6 +4,9 @@
 # Path to your Oh My Zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
 
+# Bin PATH
+export PATH="$HOME/.cache/.bun/bin:$PATH"
+
 # Only initialize if we're actually running in zsh
 if [ -n "$ZSH_VERSION" ]; then
     eval "$(mise activate zsh)"
@@ -43,6 +46,7 @@ alias vg='nvim -c "lua require(\"telescope.builtin\").live_grep({ search_dirs = 
 # Tmux aliases
 alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
+alias ta='tmux attach -t quietghost'
 
 # Directory navigation
 alias p='cd ~/personal'
