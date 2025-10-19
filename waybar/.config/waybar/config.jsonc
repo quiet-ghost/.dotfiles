@@ -77,7 +77,7 @@
     "format": "{:%m.%d - %I:%M %p}",
     "format-alt": "{:%m.%d.%Y - %H:%M}",
     "tooltip": false,
-    "on-click-right": "omarchy-cmd-tzupdate",
+    "on-click-right": "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select",
   },
   "network": {
     "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
