@@ -29,7 +29,7 @@ alias oc='opencode'
 alias df='duf'
 alias st='speedtest-cli --simple'
 alias arc='sudo arch-clean.sh'
-alias windows='~/boot-to-windows.sh'
+alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-javafx'
 # fabric alias removed - now handled by lazy loading function
