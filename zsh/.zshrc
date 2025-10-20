@@ -10,6 +10,8 @@ export PATH="$HOME/.cache/.bun/bin:$PATH"
 # Only initialize if we're actually running in zsh
 if [ -n "$ZSH_VERSION" ]; then
     eval "$(mise activate zsh)"
+    export GOPATH="$HOME/go"
+    export PATH="$GOPATH/bin:$PATH"
     ZSH_THEME="robbyrussell"
     zstyle ':omz:update' mode auto
     
@@ -96,3 +98,5 @@ bindkey -s '^[w' 'mux-sesh\n'
 
 # Java - let mise manage JAVA_HOME dynamically
 export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"
+
+
