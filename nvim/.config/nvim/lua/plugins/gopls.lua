@@ -5,6 +5,12 @@ return {
       gopls = {
         mason = false,
       },
+      jdtls = false,
+    },
+    setup = {
+      jdtls = function()
+        return true
+      end,
     },
   },
 }

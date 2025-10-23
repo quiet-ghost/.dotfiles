@@ -2,8 +2,9 @@
 config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
 
 # Font
-font-family = "CaskaydiaMono Nerd Font"
+font-family = "Cascadia Code"
 font-size = 15
+font-feature = +calt
 
 # Window
 window-padding-x = 14

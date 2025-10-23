@@ -1,3 +1,9 @@
+-- Prevent multiple runs for the same buffer
+if vim.b.jdtls_setup_done then
+  return
+end
+vim.b.jdtls_setup_done = true
+
 local home = os.getenv("HOME")
 local jdtls = require("jdtls")
 
@@ -23,7 +29,7 @@ end
 local java_exec = get_java_executable()
 
 -- Workspace
-local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":p:h:t")
+local project_name = vim.fn.fnamemodify(vim.fn.expand("%:p:h"), ":t")
 local workspace_dir = home .. "/.local/share/nvim-data/jdtls-workspace/" .. project_name
 
 -- Bundles for java-debug and java-test
@@ -163,8 +169,7 @@ local config = {
     workspace_dir,
   },
 
-  root_dir = require("jdtls.setup").find_root({ ".git", "mvnw", "gradlew", "pom.xml", "build.gradle" }),
-
+  root_dir = require("jdtls.setup").find_root({ "mvnw", "gradlew", "pom.xml", "build.gradle" }) or vim.fn.getcwd(),
   settings = {
     java = {
       eclipse = {
@@ -249,4 +254,17 @@ local config = {
   end)(),
 }
 
+-- Check if JDTLS is already running for this root
+local root_dir = config.root_dir
+local clients = vim.lsp.get_active_clients({ name = "jdtls" })
+for _, client in ipairs(clients) do
+  if client.config.root_dir == root_dir then
+    -- Reuse existing client for the same root directory
+    vim.lsp.buf_attach_client(0, client.id)
+    vim.notify("Reusing JDTLS client for root: " .. root_dir, vim.log.levels.DEBUG)
+    return
+  end
+end
+
+-- Start new JDTLS instance for this root
 jdtls.start_or_attach(config)
