@@ -4,7 +4,7 @@ return {
     notification = {
       window = {
         normal_hl = "",
-        winblend = 100,
+        winblend = 0,
         border = "none",
       },
     },
