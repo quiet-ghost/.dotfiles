@@ -19,11 +19,11 @@ return {
       follow_files = true, -- Follow files moved in Git
     },
     attach_to_untracked = true, -- Attach to untracked files
-    current_line_blame = false, -- Don’t enable blame by default (toggle with keybinding)
+    current_line_blame = true, -- Don’t enable blame by default (toggle with keybinding)
     current_line_blame_opts = {
       virt_text = true,
       virt_text_pos = "eol", -- Show blame at end of line
-      delay = 1000, -- Delay before showing blame
+      delay = 200, -- Delay before showing blame
       ignore_whitespace = false,
     },
     sign_priority = 6, -- Lower priority than todo-comments (8) and LSP diagnostics (10)
