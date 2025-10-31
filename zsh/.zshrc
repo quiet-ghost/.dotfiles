@@ -36,6 +36,7 @@ fi
 
 # Ensure ~/.local/bin is in PATH (after all other PATH modifications)
 export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/usr/bin:$PATH"
 #export JAVA_HOME=/usr/lib/jvm/liberica-jdk-17-full
 
 . "$HOME/.local/share/../bin/env"
