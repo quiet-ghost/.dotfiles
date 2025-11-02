@@ -1,3 +1,5 @@
+-- will need to find alternative come Nov. 30
+
 return {
   {
     "supermaven-inc/supermaven-nvim",
