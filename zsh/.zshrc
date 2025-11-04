@@ -11,7 +11,7 @@ if [ -n "$ZSH_VERSION" ]; then
     eval "$(mise activate zsh)"
     export GOPATH="$HOME/go"
     export PATH="$GOPATH/bin:$PATH"
-    ZSH_THEME="robbyrussell"
+    ZSH_THEME=""
     zstyle ':omz:update' mode auto
     
     plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
@@ -49,4 +49,4 @@ bindkey -s '^[w' 'mux-sesh\n'
 # Java - let mise manage JAVA_HOME dynamically
 export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"
 
-
+eval "$(starship init zsh)"
