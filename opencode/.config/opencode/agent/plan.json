@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "plan": {
+      "permission": {
+        "bash": {
+          "find *": "allow",
+          "head *": "allow",
+          "ls *": "allow",
+          "tail *": "allow",
+          "rg *": "allow",
+          "*": "ask"
+        }
+      }
+    }
+  }
+}

@@ -17,9 +17,6 @@ if [ -n "$ZSH_VERSION" ]; then
     plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
 fi
 
-# Aliases
-source ~/.dotfiles/zsh/aliases.zsh
-
 [[ -f ~/.env.private ]] && source ~/.env.private
 
 if [ -n "$ZSH_VERSION" ]; then
@@ -50,3 +47,9 @@ bindkey -s '^[w' 'mux-sesh\n'
 export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"
 
 eval "$(starship init zsh)"
+
+# Unalias any ls variants set by Oh My Zsh or plugins
+unalias ls 2>/dev/null
+
+# Aliases - loaded last to override everything
+source ~/.dotfiles/zsh/aliases.zsh
