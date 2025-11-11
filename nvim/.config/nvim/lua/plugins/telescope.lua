@@ -5,6 +5,7 @@ return {
     vim.api.nvim_set_hl(0, "TelescopePromptTitle", { fg = "#08f4d0", bold = true })
     vim.api.nvim_set_hl(0, "TelescopeResultsTitle", { fg = "#08f4d0", bold = true })
     vim.api.nvim_set_hl(0, "TelescopePreviewTitle", { fg = "#08f4d0", bold = true })
+    vim.api.nvim_set_hl(0, "TelescopeBorder", { fg = "#08f4d0" })
 
     -- Setup telescope
     require("telescope").setup({
@@ -17,6 +18,8 @@ return {
         layout_config = {
           horizontal = {
             prompt_position = "bottom",
+            width = { padding = 0 },
+            height = { padding = 0 },
             preview_width = 0.55,
           },
           width = 0.87,
@@ -38,12 +41,12 @@ return {
         buffers = {
           prompt_title = "Buffers",
         },
-        extensions = {
-          mux_manager = {
-            prompt_title = "Tmux Sessions",
-            results_title = "Available Sessions",
-            preview_title = "Session Info",
-          },
+      },
+      extensions = {
+        mux_manager = {
+          prompt_title = "Tmux Sessions",
+          results_title = "Available Sessions",
+          preview_title = "Session Info",
         },
       },
     })
