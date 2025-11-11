@@ -3,7 +3,7 @@ return {
   dependencies = { "nvim-telescope/telescope.nvim" },
   config = function()
     require("mux-manager").setup({
-      directories = { "~/", "~/dev", "~/personal", "~/projects" }, -- Your project directories
+      directories = { "~/", "~/dev", "~/personal/Learning/", "~/dev/repos/", "~/dev/projects/" }, -- Your project directories
       max_depth = 3, -- How deep to search in directories
       min_depth = 1, -- Minimum depth to search
       clone_directory = "~/dev/repos", -- Where to clone GitHub repos

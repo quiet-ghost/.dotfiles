@@ -3,20 +3,16 @@
   "autoupdate": true,
   "model": "anthroptic/claude-sonnet-4.5",
   "tui": {
-    "scroll_speed": 9
+    "scroll_speed": 5
   },
-  "plugin": [
-    "opencode-openai-codex-auth"
-  ],
+  "plugin": ["opencode-openai-codex-auth"],
   "provider": {
     "openai": {
       "options": {
         "reasoningEffort": "medium",
         "reasoningSummary": "auto",
         "textVerbosity": "medium",
-        "include": [
-          "reasoning.encrypted_content"
-        ],
+        "include": ["reasoning.encrypted_content"],
         "store": false
       },
       "models": {
@@ -30,9 +26,7 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -46,9 +40,7 @@
             "reasoningEffort": "medium",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -62,9 +54,7 @@
             "reasoningEffort": "high",
             "reasoningSummary": "detailed",
             "textVerbosity": "medium",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -78,9 +68,7 @@
             "reasoningEffort": "minimal",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -94,9 +82,7 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -110,9 +96,7 @@
             "reasoningEffort": "medium",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -126,9 +110,7 @@
             "reasoningEffort": "high",
             "reasoningSummary": "detailed",
             "textVerbosity": "high",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -142,9 +124,7 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         },
@@ -158,9 +138,7 @@
             "reasoningEffort": "minimal",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": [
-              "reasoning.encrypted_content"
-            ],
+            "include": ["reasoning.encrypted_content"],
             "store": false
           }
         }
