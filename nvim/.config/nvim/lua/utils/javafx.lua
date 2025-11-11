@@ -94,7 +94,7 @@ function M.compile_and_run()
       end
     end
 
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
+    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-21.0.8+12"
     local javac_path = java_home .. "/bin/javac"
     local java_path = java_home .. "/bin/java"
 
@@ -152,7 +152,7 @@ function M.compile_only()
     vim.cmd("resize 10")
   else
     -- Single file - use javac directly
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
+    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-21.0.8+12"
     local compile_cmd =
       string.format("cd %s && %s/bin/javac %s", vim.fn.shellescape(dir), java_home, vim.fn.shellescape(filename))
 
