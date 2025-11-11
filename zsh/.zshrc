@@ -53,3 +53,5 @@ unalias ls 2>/dev/null
 
 # Aliases - loaded last to override everything
 source ~/.dotfiles/zsh/aliases.zsh
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh

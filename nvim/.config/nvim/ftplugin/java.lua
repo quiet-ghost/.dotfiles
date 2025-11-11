@@ -55,17 +55,13 @@ end
 local on_attach = function(client, bufnr)
   local opts = { buffer = bufnr, silent = true }
 
-  -- Standard LSP keymaps
+  -- Standard LSP keymaps (using Telescope for navigation)
   vim.keymap.set("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", opts, { desc = "Hover Documentation" }))
-  vim.keymap.set("n", "gd", vim.lsp.buf.definition, vim.tbl_extend("force", opts, { desc = "Go to Definition" }))
+  vim.keymap.set("n", "gd", function() require("telescope.builtin").lsp_definitions({ reuse_win = true }) end, vim.tbl_extend("force", opts, { desc = "Go to Definition" }))
   vim.keymap.set("n", "gD", vim.lsp.buf.declaration, vim.tbl_extend("force", opts, { desc = "Go to Declaration" }))
-  vim.keymap.set(
-    "n",
-    "gi",
-    vim.lsp.buf.implementation,
-    vim.tbl_extend("force", opts, { desc = "Go to Implementation" })
-  )
-  vim.keymap.set("n", "gr", vim.lsp.buf.references, vim.tbl_extend("force", opts, { desc = "References" }))
+  vim.keymap.set("n", "gi", function() require("telescope.builtin").lsp_implementations({ reuse_win = true }) end, vim.tbl_extend("force", opts, { desc = "Go to Implementation" }))
+  vim.keymap.set("n", "gr", function() require("telescope.builtin").lsp_references() end, vim.tbl_extend("force", opts, { desc = "References" }))
+  vim.keymap.set("n", "gy", function() require("telescope.builtin").lsp_type_definitions({ reuse_win = true }) end, vim.tbl_extend("force", opts, { desc = "Go to Type Definition" }))
   vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, vim.tbl_extend("force", opts, { desc = "Code Action" }))
   vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "Rename" }))
   vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, vim.tbl_extend("force", opts, { desc = "Signature Help" }))
