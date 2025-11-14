@@ -8,15 +8,6 @@ return {
   --   keys[#keys + 1] = { "gI", false }
   --   keys[#keys + 1] = { "gy", false }
   -- end,
-  opts = {
-    servers = {
-      ["*"] = {
-        keys = {
-          { "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", has = "definition" },
-        },
-      },
-    },
-  },
   keys = {
     -- Override with Telescope versions
     {
