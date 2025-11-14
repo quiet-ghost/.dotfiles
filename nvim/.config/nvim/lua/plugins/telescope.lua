@@ -15,6 +15,9 @@ return {
         selection_caret = " ",
         entry_prefix = "  ",
         layout_strategy = "horizontal",
+        file_ignore_patterns = {
+          "node_modules/*",
+        },
         layout_config = {
           horizontal = {
             prompt_position = "bottom",
@@ -33,6 +36,10 @@ return {
           prompt_title = "Search Files",
           results_title = "Files",
           preview_title = "Preview",
+          hidden = true,
+        },
+        git_files = {
+          hidden = true,
         },
         live_grep = {
           prompt_title = "Search Text",
