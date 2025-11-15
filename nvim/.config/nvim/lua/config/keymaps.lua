@@ -90,7 +90,7 @@ map("n", "<leader>sql", require("utils.notes").search_sql_notes, { desc = "Searc
 map("n", "<M-i>", "<cmd>DevdocsOpen<CR>", { desc = "Open DevDocs" })
 
 -- telescope-tmux-manager plugin (custom popup)
-map("n", "<A-w>", require("utils.tmux").session_manager, { desc = "Tmux Manager" })
+-- map("n", "<A-w>", require("utils.tmux").session_manager, { desc = "Tmux Manager" })
 
 -- Manual tmux session switch (backup)
 vim.api.nvim_create_user_command("TmuxSwitch", function(opts)
