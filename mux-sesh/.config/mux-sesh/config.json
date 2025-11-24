@@ -9,5 +9,6 @@
   "editor": "nvim",
   "editor_cmd": "nvim -c \"lua if pcall(require, 'telescope') then vim.cmd('Telescope find_files') end\"",
   "keybind_mode": "vim",
-  "start_in_search_mode": false
+  "start_in_search_mode": false,
+  "auto_update": true
 }
