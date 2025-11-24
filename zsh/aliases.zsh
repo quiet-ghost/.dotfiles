@@ -6,6 +6,7 @@ alias pbcopy='xsel --clipboard --input'
 alias pbpaste='xsel --clipboard --output'
 alias v='nvim'
 alias nvim-tj='NVIM_APPNAME=nvim-tj nvim'
+alias nvim-java='NVIM_APPNAME=nvim-java nvim'
 alias lg='lazygit'
 alias ls='eza --icons --long --git --group-directories-first'
 alias oc='opencode'
@@ -13,6 +14,7 @@ alias df='duf'
 alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-javafx'
+alias ya='yazi'
 # fabric alias removed - now handled by lazy loading function
 
 # FZF-based aliases

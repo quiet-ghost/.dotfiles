@@ -57,13 +57,28 @@ function M.compile_and_run()
   if maven_dir and pom_path and is_javafx_maven_project(pom_path) then
     -- Maven JavaFX project - use mvn javafx:run
     vim.notify("Maven JavaFX project detected - running with mvn", vim.log.levels.INFO)
+    -- Get current DISPLAY from systemd user environment (most reliable source)
+    local display =
+      vim.fn.system("systemctl --user show-environment 2>/dev/null | grep '^DISPLAY=' | cut -d= -f2 | tr -d '\n'")
+    local wayland_display = vim.fn.system(
+      "systemctl --user show-environment 2>/dev/null | grep '^WAYLAND_DISPLAY=' | cut -d= -f2 | tr -d '\n'"
+    )
+    -- Fallback to shell environment if systemctl fails
+    if display == "" then
+      display = vim.fn.system("bash -c 'echo -n $DISPLAY'")
+    end
+    if wayland_display == "" then
+      wayland_display = vim.fn.system("bash -c 'echo -n $WAYLAND_DISPLAY'")
+    end
 
     local tmux_cmd = string.format(
-      [[tmux split-window -h -l 20%% "cd '%s' && echo 'Running Maven JavaFX project...' && mvn clean javafx:run; echo && echo 'Press Enter to close...'; read"]],
-      maven_dir
+      [[tmux split-window -h -l 20%% "cd '%s' && DISPLAY='%s' WAYLAND_DISPLAY='%s' echo 'Running Maven JavaFX project...' && mvn clean javafx:run; echo && echo 'Press Enter to close...'; read"]],
+      maven_dir,
+      display,
+      wayland_display
     )
     vim.fn.system(tmux_cmd)
-    vim.notify("Maven JavaFX running from " .. maven_dir, vim.log.levels.INFO)
+    vim.notify("Maven JavaFX running from " .. maven_dir .. " (DISPLAY=" .. display .. ")", vim.log.levels.INFO)
   else
     -- Single file JavaFX or regular Java - use existing logic
     local file_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")

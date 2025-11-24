@@ -23,7 +23,7 @@ return {
         },
       },
       scroll = {
-        enabled = true, -- Keep your scrolling animation disabled
+        enabled = false, -- Keep your scrolling animation disabled
       },
       dashboard = {
         enabled = true,
