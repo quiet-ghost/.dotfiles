@@ -1,15 +1,6 @@
 return {
   "neovim/nvim-lspconfig",
-  -- init = function()
-  --   local keys = require("lazyvim.plugins.lsp.keymaps").get()
-  --   -- Disable default keymaps that we want to override
-  --   keys[#keys + 1] = { "gd", false }
-  --   keys[#keys + 1] = { "gr", false }
-  --   keys[#keys + 1] = { "gI", false }
-  --   keys[#keys + 1] = { "gy", false }
-  -- end,
   keys = {
-    -- Override with Telescope versions
     {
       "gd",
       function()
@@ -37,6 +28,21 @@ return {
         require("telescope.builtin").lsp_type_definitions({ reuse_win = true })
       end,
       desc = "Goto T[y]pe Definition",
+    },
+    {
+      "<leader>rn",
+      function()
+        local current_name = vim.fn.expand("<cword>")
+        vim.ui.input({
+          prompt = "Rename to: ",
+          default = current_name,
+        }, function(new_name)
+          if new_name and new_name ~= current_name then
+            vim.lsp.buf.rename(new_name)
+          end
+        end)
+      end,
+      desc = "Rename with prompt",
     },
   },
 }

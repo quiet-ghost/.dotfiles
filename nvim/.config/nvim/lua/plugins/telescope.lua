@@ -1,5 +1,10 @@
 return {
   "nvim-telescope/telescope.nvim",
+  dependcies = {
+    "nvim-telescope/telescope-smart-history.nvim",
+    "nvim-telescope/telescope-ui-select.nvim",
+    "kkharji/sqlite.lua",
+  },
   config = function()
     -- Set custom colors
     vim.api.nvim_set_hl(0, "TelescopePromptTitle", { fg = "#08f4d0", bold = true })

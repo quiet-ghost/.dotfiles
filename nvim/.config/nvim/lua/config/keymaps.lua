@@ -44,6 +44,32 @@ end, { desc = "Format current buffer" }) -- Format current buffer
 
 map("n", "<leader>s", "%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<Left><Left><Left>", { desc = "Replace word under cursor" }) -- Replace word under cursor- Keymaps are automatically loaded on the VeryLazy event
 
+-- Telescope Keymaps
+local builtin = require("telescope.builtin")
+
+map("n", "<leader>fh", builtin.help_tags)
+map("n", "<leader>fg", require("utils.multi-grep"))
+map("n", "<leader>fb", builtin.buffers)
+map("n", "<leader>/", builtin.current_buffer_fuzzy_find)
+map("n", "<leader>gw", builtin.grep_string)
+
+map("n", "<leader>fa", function()
+  ---@diagnostic disable-next-line: param-type-mismatch
+  builtin.find_files({ cwd = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy") })
+end)
+
+map("n", "<leader>en", function()
+  builtin.find_files({ cwd = vim.fn.stdpath("config") })
+end)
+
+map("n", "<leader>eo", function()
+  builtin.find_files({ cwd = "~/.config/nvim-backup/" })
+end)
+
+map("n", "<leader>fp", function()
+  builtin.find_files({ cwd = "~/plugins/" })
+end)
+
 -- TODO Keys
 map("n", "<leader>ft", "<cmd>TodoTelescope<cr>", { desc = "Find TODOs" })
 

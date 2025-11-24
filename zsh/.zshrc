@@ -55,3 +55,6 @@ unalias ls 2>/dev/null
 source ~/.dotfiles/zsh/aliases.zsh
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# bun completions
+[ -s "/home/ghost/.bun/_bun" ] && source "/home/ghost/.bun/_bun"
