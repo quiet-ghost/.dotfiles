@@ -1,6 +1,7 @@
 local map = vim.keymap.set
 
 -- General keymaps
+map("n", "<leader>sz", ":source $HOME/.config/nvim/init.lua <CR>")
 map("n", "<leader>pv", ":Ex<CR>", { desc = "Open netrw" })
 
 -- telescope overwriting search
@@ -11,6 +12,7 @@ map("n", "<leader>fF", function()
   require("telescope.builtin").find_files({ cwd = require("lazyvim.util").root() })
 end, { desc = "Find Files (Root Dir)" })
 
+map("n", "<leader>b", "<cmd>silent ToggleBlameLine<CR>", { desc = "Toggle Git Blame" })
 --- Special keymaps
 map("i", "jj", "<esc>", { desc = "Escape" }) -- Escape
 map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected lines down" }) -- Move selected lines down
