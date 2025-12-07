@@ -1,9 +1,18 @@
 return {
   "MeanderingProgrammer/render-markdown.nvim",
-  dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-mini/mini.nvim", "nvim-mini/mini.icons" }, -- if you use the mini.nvim suite
-  -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.icons' },        -- if you use standalone mini plugins
-  -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' }, -- if you prefer nvim-web-devicons
+  dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-mini/mini.nvim", "nvim-mini/mini.icons" },
   ---@module 'render-markdown'
   ---@type render.md.UserConfig
-  opts = {},
+  opts = {
+    -- DISABLED: Using markview.nvim instead for better preview support
+    -- render-markdown doesn't work in telescope previews by design
+    enabled = false,
+    
+    -- Keep config in case we want to re-enable later
+    file_types = { "markdown" },
+    anti_conceal = {
+      enabled = true,
+    },
+    render_modes = { "n", "c", "t" },
+  },
 }

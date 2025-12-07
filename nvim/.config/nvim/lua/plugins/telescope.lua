@@ -1,6 +1,6 @@
 return {
   "nvim-telescope/telescope.nvim",
-  dependcies = {
+  dependencies = {
     "nvim-telescope/telescope-smart-history.nvim",
     "nvim-telescope/telescope-ui-select.nvim",
     "kkharji/sqlite.lua",
@@ -53,6 +53,16 @@ return {
         buffers = {
           prompt_title = "Buffers",
         },
+        colorscheme = {
+          prompt_title = "Colorschemes",
+          results_title = "Available Themes",
+          preview_title = "Preview",
+          enable_preview = true,
+        },
+      },
+      -- Enable wrapping in preview for better markdown rendering
+      preview = {
+        treesitter = true,
       },
       extensions = {
         mux_manager = {
@@ -60,7 +70,16 @@ return {
           results_title = "Available Sessions",
           preview_title = "Session Info",
         },
+        ["ui-select"] = {
+          require("telescope.themes").get_dropdown({
+            -- Centered dropdown theme for vim.ui.select
+            borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
+          }),
+        },
       },
     })
+
+    -- Load extensions
+    require("telescope").load_extension("ui-select")
   end,
 }
