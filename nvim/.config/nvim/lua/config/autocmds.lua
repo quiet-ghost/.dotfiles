@@ -66,11 +66,12 @@ vim.api.nvim_create_autocmd("FileType", {
     vim.diagnostic.disable(0) -- 0 means current buffer
   end,
 })
-
--- Setup JDTLS keymaps for Java files (buffer-local)
--- vim.api.nvim_create_autocmd("FileType", {
---   pattern = "java",
---   callback = function()
---     require("utils.jdtls").setup_keymaps()
---   end,
--- })
+-- Highlight yanked text
+vim.api.nvim_create_autocmd("TextYankPost", {
+  callback = function()
+    vim.highlight.on_yank({
+      higroup = "YankHighlight",
+      timeout = 200, -- flash duration in milliseconds
+    })
+  end,
+})

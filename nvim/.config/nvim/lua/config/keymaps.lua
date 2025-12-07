@@ -52,6 +52,7 @@ local builtin = require("telescope.builtin")
 map("n", "<leader>fh", builtin.help_tags)
 map("n", "<leader>fg", require("utils.multi-grep"))
 map("n", "<leader>fb", builtin.buffers)
+map("n", "<leader>fl", builtin.colorscheme, { desc = "Select Colorscheme" })
 map("n", "<leader>/", builtin.current_buffer_fuzzy_find)
 map("n", "<leader>gw", builtin.grep_string)
 
@@ -125,10 +126,16 @@ vim.api.nvim_create_user_command("TmuxSwitch", function(opts)
   vim.fn.system("tmux switch-client -t " .. opts.args)
 end, { nargs = 1, desc = "Switch to tmux session" })
 
--- JavaFX keymaps
+-- Unified Java/C++ run keymap
 map("n", "<leader>jf", function()
-  require("utils.javafx").compile_and_run()
-end, { desc = "Run JavaFX in right tmux pane" })
+  if vim.bo.filetype == "java" then
+    require("utils.javafx").compile_and_run()
+  elseif vim.bo.filetype == "cpp" or vim.bo.filetype == "c" then
+    require("utils.cpp").compile_and_run()
+  else
+    vim.notify("No run configuration for filetype: " .. vim.bo.filetype, vim.log.levels.WARN)
+  end
+end, { desc = "Run current file (Java/C++)" })
 
 map("n", "<leader>jc", function()
   require("utils.javafx").compile_only()
