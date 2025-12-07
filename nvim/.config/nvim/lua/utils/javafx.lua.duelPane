@@ -226,6 +226,27 @@ local function get_display_env()
 end
 
 -- ============================================================================
+-- CLOSE BOTH MAVEN PANES FUNCTION
+-- ============================================================================
+
+-- Function to close both Maven dual-pane windows
+local function close_both_maven_panes()
+  -- Find the tmux session and pane IDs for Maven panes
+  local find_panes_cmd = "tmux list-panes -a | grep 'maven-' | head -2 | cut -d: -f1"
+  local pane_ids = vim.fn.system(find_panes_cmd, true)
+  
+  -- Close both panes
+  local close_cmd = "tmux kill-pane -t 0 || tmux kill-pane -t 1"
+  vim.fn.system(close_cmd)
+  
+  -- Clean up temp files
+  local cleanup_cmd = string.format("rm -f %s %s %s", build_log, marker_file, close_marker)
+  vim.fn.system(cleanup_cmd)
+  
+  vim.notify("Both Maven panes closed", vim.log.levels.INFO)
+end
+
+-- ============================================================================
 -- MAIN EXECUTION FUNCTION (REWRITTEN)
 -- ============================================================================
 
@@ -276,7 +297,7 @@ function M.compile_and_run()
       maven_cmd = "mvn clean javafx:run"
       pane_size = "20%"
     else
-      -- Regular Maven project - need to find main class
+      -- Regular Maven project - use dual-pane layout for build logs + program output
       local main_class, package_name = find_main_class(file)
       if not main_class then
         vim.notify("No main method found in this file!", vim.log.levels.ERROR)
@@ -288,9 +309,71 @@ function M.compile_and_run()
         fully_qualified = package_name .. "." .. main_class
       end
 
-      maven_cmd = string.format('mvn clean compile exec:java -Dexec.mainClass="%s"', fully_qualified)
+      -- Check if Maven is available
+      if vim.fn.executable("mvn") == 0 then
+        vim.notify("Maven (mvn) not found in PATH", vim.log.levels.ERROR)
+        return
+      end
+
+      -- Create unique session ID for temp files
+      local session_id = os.time() .. "-" .. vim.fn.getpid()
+      local build_log = string.format("/tmp/maven-%s-build.log", session_id)
+      local marker_file = string.format("/tmp/maven-%s-marker", session_id)
+      local close_marker = string.format("/tmp/maven-%s-close", session_id)
+
+      -- Step 1: Start background compilation with proper output redirection
+      local compile_cmd = string.format(
+        [[bash -c "(cd '%s' && mvn clean compile 2>&1 | tee %s && touch %s) > /dev/null 2>&1 &"]],
+        project_root,
+        build_log,
+        marker_file
+      )
+      os.execute(compile_cmd)
+      vim.fn.system("sleep 0.5")  -- Give background Maven process time to start
+
+-- Step 2: Create build log pane (top half of right side - 40% total width)
+      local build_pane = string.format(
+        [[tmux split-window -h -l 40%% "echo '=== Build Logs ===' && echo ''; tail -f -n +1 %s 2>/dev/null || echo 'Starting build...'; while [ ! -f %s ]; do sleep 0.1; done; tail -f %s; echo ''; echo 'Build logs will stay open until program completes'; echo ''; echo 'Press Enter to close both panes...'; read; touch %s; rm -f %s %s %s"]],
+        build_log,
+        marker_file,
+        build_log,
+        close_marker,
+        build_log,
+        marker_file,
+        close_marker
+      )
+      vim.fn.system(build_pane)
+
+      -- Small delay to ensure pane is created
+      vim.fn.system("sleep 0.1")
+
+      -- Step 3: Create program output pane (bottom half - split the build pane vertically)
+      local output_pane = string.format(
+        [[tmux split-window -v -p 50 "echo '=== Program Output ===' && echo '' && echo 'Waiting for compilation...'; TIMEOUT=60; ELAPSED=0; while [ ! -f %s ] && [ $ELAPSED -lt $TIMEOUT ]; do sleep 0.5; ELAPSED=$((ELAPSED + 1)); done; if [ ! -f %s ]; then echo 'BUILD FAILED OR TIMEOUT - Check build logs above'; echo ''; echo 'Press Enter to close both panes...'; read; touch %s; exit 1; fi; clear; echo '=== Program Output ===' && echo ''; cd '%s' && DISPLAY='%s' WAYLAND_DISPLAY='%s' mvn -q exec:java -Dexec.mainClass='%s'; EXIT_CODE=$?; echo ''; echo \"Program exited with code: $EXIT_CODE\"; echo ''; echo 'Press Enter to close both panes...'; read; touch %s; rm -f %s %s %s"]],
+        marker_file,
+        marker_file,
+        close_marker,
+        project_root,
+        display,
+        wayland_display,
+        fully_qualified,
+        close_marker,
+        build_log,
+        marker_file,
+        close_marker
+      )
+      vim.fn.system(output_pane)
+
+      vim.notify(
+        string.format("Maven build started (class: %s) - Watch build logs in top pane", fully_qualified),
+        vim.log.levels.INFO
+      )
+
+      -- Skip the single-pane execution for regular Maven projects
+      goto skip_maven_single_pane
     end
 
+    -- Single-pane execution for Spring Boot and JavaFX
     local tmux_cmd = string.format(
       [[tmux split-window -h -l %s "cd '%s' && DISPLAY='%s' WAYLAND_DISPLAY='%s' echo '--- Running Maven %s ---' && %s; echo && echo 'Press Enter to close...'; read"]],
       pane_size,
@@ -303,6 +386,8 @@ function M.compile_and_run()
 
     vim.fn.system(tmux_cmd)
     vim.notify(string.format("Maven %s running from %s", framework, project_root), vim.log.levels.INFO)
+
+    ::skip_maven_single_pane::
 
   -- ============================================================
   -- GRADLE PROJECT EXECUTION
@@ -479,5 +564,13 @@ function M.insert_template()
   -- Position cursor inside start method
   vim.api.nvim_win_set_cursor(0, { 10, 8 })
 end
+
+-- Add user command to close both Maven panes
+vim.api.nvim_create_user_command("CloseMavenPanes", close_both_maven_panes, {
+  desc = "Close both Maven dual-pane windows"
+})
+
+-- Add keybinding for convenience
+vim.keymap.set("n", "<leader>cm", close_both_maven_panes, { desc = "Close Maven dual-pane windows" })
 
 return M
