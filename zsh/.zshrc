@@ -28,7 +28,7 @@ fi
 # FZF setup - only if fzf is available
 if command -v fzf >/dev/null 2>&1; then
     source <(fzf --zsh)
-    export FZF_DEFAULT_OPTS="--height=20% --layout=reverse --border=rounded --padding=1 --color='bg+:#313244,bg:#1e1e2e,spinner:#74c7ec,hl:#89b4fa,fg:#cdd6f4,header:#74c7ec,info:#89b4fa,pointer:#74c7ec,marker:#74c7ec,fg+:#cdd6f4,prompt:#89b4fa,hl+:#89b4fa,border:#6c7086' --preview 'bat --color=always --style=numbers --line-range=:500 {}' --bind 'focus:transform-header:file --brief {}'"
+    export FZF_DEFAULT_OPTS="--height=20% --layout=reverse --border=rounded --padding=1 --color='bg+:#26233a,bg:#191724,spinner:#9ccfd8,hl:#c4a7e7,fg:#e0def4,header:#9ccfd8,info:#ebbcba,pointer:#9ccfd8,marker:#eb6f92,fg+:#e0def4,prompt:#c4a7e7,hl+:#c4a7e7,border:#6e6a86' --preview 'bat --color=always --style=numbers --line-range=:500 {}' --bind 'focus:transform-header:file --brief {}'"
 fi
 
 # Ensure ~/.local/bin is in PATH (after all other PATH modifications)
