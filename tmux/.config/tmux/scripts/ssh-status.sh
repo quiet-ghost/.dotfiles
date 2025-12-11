@@ -26,14 +26,14 @@ done
 
 if [[ $SSH_FOUND -eq 1 ]]; then
 	if [[ -n "$SSH_HOST" ]] && [[ "$SSH_HOST" != "ssh" ]]; then
-		echo "#[fg=#f38ba8,bg=default]󰣀 ${SSH_HOST}"
+		echo "#[fg=#eb6f92,bg=default]󰣀 ${SSH_HOST}"
 	else
-		echo "#[fg=#f38ba8,bg=default]󰣀 SSH"
+		echo "#[fg=#eb6f92,bg=default]󰣀 SSH"
 	fi
 else
-	echo "#[fg=#89b4fa,bg=default]󰒋 $(hostname -s)"
+	echo "#[fg=#9ccfd8,bg=default]󰒋 $(hostname -s)"
 fi
 else
 	# Local session - show with blue computer icon
-	echo "#[fg=#89b4fa,bg=#313244]█#[fg=default,bg=#89b4fa]󰒋 #[fg=#cdd6f4,bg=#1e1e2e] $(hostname -s) "
+	echo "#[fg=#9ccfd8,bg=#313244]█#[fg=default,bg=#9ccfd8]󰒋 #[fg=#cdd6f4,bg=#1e1e2e] $(hostname -s) "
 fi
