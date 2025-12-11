@@ -36,7 +36,7 @@ get_processes() {
     }'
 }
 
-# Main fzf interface with Material Deep Ocean/Catppuccin theming
+# Main fzf interface with Rose Pine theming
 selected=$(get_processes |
 	fzf --multi \
 		--ansi \
@@ -47,10 +47,10 @@ selected=$(get_processes |
 		--header="PID      USER         %CPU   %MEM  COMMAND & ARGS" \
 		--header-lines=0 \
 		--padding=1 \
-		--color='bg+:#313244,bg:#1e1e2e,spinner:#74c7ec,hl:#89b4fa' \
-		--color='fg:#cdd6f4,header:#74c7ec,info:#89b4fa,pointer:#74c7ec' \
-		--color='marker:#74c7ec,fg+:#cdd6f4,prompt:#89b4fa,hl+:#89b4fa' \
-		--color='border:#6c7086' \
+		--color='bg+:#26233a,bg:#191724,spinner:#9ccfd8,hl:#c4a7e7' \
+		--color='fg:#e0def4,header:#9ccfd8,info:#ebbcba,pointer:#9ccfd8' \
+		--color='marker:#eb6f92,fg+:#e0def4,prompt:#c4a7e7,hl+:#c4a7e7' \
+		--color='border:#6e6a86' \
 		--bind='ctrl-r:reload(ps -eo pid,user,%cpu,%mem,args --no-headers --sort=-%cpu | awk "{full_cmd=\"\"; for(i=5;i<=NF;i++) full_cmd=full_cmd\" \"\$i; full_cmd=substr(full_cmd,2); split(\$5,path_parts,\"/\"); cmd_name=path_parts[length(path_parts)]; args=\"\"; for(i=6;i<=NF;i++) args=args\" \"\$i; gsub(/--config [^ ]*\\//,\"--config \",args); display_cmd=cmd_name args; if(length(display_cmd)>45) display_cmd=substr(display_cmd,1,42)\"...\"; printf \"%-8s %-12s %6s %6s %s\\n\", \$1, \$2, \$3\"%\", \$4\"%\", display_cmd}")' \
 		--bind='ctrl-a:select-all' \
 		--bind='ctrl-d:deselect-all' \
