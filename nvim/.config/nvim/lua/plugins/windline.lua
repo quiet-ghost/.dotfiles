@@ -2,7 +2,6 @@ return {
   "windwp/windline.nvim",
   config = function()
     local windline = require("windline")
-    -- Override the colors_name function
     local original_setup = windline.setup
     windline.setup = function(opts)
       opts = opts or {}

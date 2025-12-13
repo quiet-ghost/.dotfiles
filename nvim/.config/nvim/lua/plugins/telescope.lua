@@ -6,13 +6,7 @@ return {
     "kkharji/sqlite.lua",
   },
   config = function()
-    -- Set custom colors
-    vim.api.nvim_set_hl(0, "TelescopePromptTitle", { fg = "#08f4d0", bold = true })
-    vim.api.nvim_set_hl(0, "TelescopeResultsTitle", { fg = "#08f4d0", bold = true })
-    vim.api.nvim_set_hl(0, "TelescopePreviewTitle", { fg = "#08f4d0", bold = true })
-    vim.api.nvim_set_hl(0, "TelescopeBorder", { fg = "#08f4d0" })
-
-    -- Setup telescope
+    -- Setup telescope - rose-pine theme handles telescope colors automatically
     require("telescope").setup({
       defaults = {
         borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
