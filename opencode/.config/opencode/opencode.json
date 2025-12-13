@@ -6,7 +6,10 @@
   "tui": {
     "scroll_speed": 5
   },
-  "plugin": ["opencode-openai-codex-auth"],
+  "plugin": [
+    "opencode-openai-codex-auth",
+    "@franlol/opencode-md-table-formatter@0.0.3"
+  ],
   "provider": {
     "openai": {
       "options": {
