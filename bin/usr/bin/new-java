@@ -1,22 +1,93 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Java Maven Project Generator Script
-# Usage: new-java <AppName> [MainClassName]
-# Creates a new Java Maven project with dev.quietghost as the base package
+# Unified Java Project Generator
+# Creates Maven, JavaFX, or Spring Boot projects
+# 
+# Usage: 
+#   new-java                        - Interactive mode (all prompts)
+#   new-java <project-name>         - Skip project name prompt
+#   new-java <project-name> <Main>  - Skip project name and main class prompts
+#
+# Examples:
+#   new-java                        - Fully interactive
+#   new-java my-app                 - Use "my-app" as project name
+#   new-java my-app MyApplication   - Use "my-app" and "MyApplication" as main class
 
 set -e
 
-app_name=${1:?"Usage: new-java <AppName> [MainClassName]"}
-main_class=${2:-"Main"}
-group_id="dev.quietghost"
+# ============================================================================
+# Rose Pine Color Scheme
+# ============================================================================
+BASE="#191724"
+SURFACE="#1f1d2e"
+OVERLAY="#26233a"
+MUTED="#6e6a86"
+SUBTLE="#908caa"
+TEXT="#e0def4"
+LOVE="#eb6f92"
+GOLD="#f6c177"
+ROSE="#ebbcba"
+PINE="#31748f"
+FOAM="#9ccfd8"
+IRIS="#c4a7e7"
+HIGHLIGHT_LOW="#21202e"
+HIGHLIGHT_MED="#403d52"
+HIGHLIGHT_HIGH="#524f67"
 
-echo "Creating Java Maven project: $app_name"
-echo "Main class: $main_class"
-echo "Package: $group_id"
-echo ""
+# ============================================================================
+# Utility Functions
+# ============================================================================
 
-# Dependency database
-read -r -d '' DEPENDENCY_DATABASE << 'EOF' || true
+gum_header() {
+    gum style \
+        --foreground "$IRIS" \
+        --border "rounded" \
+        --border-foreground "$PINE" \
+        --align "center" \
+        --padding "1 4" \
+        --margin "1 0" \
+        "$@"
+}
+
+gum_info() {
+    gum style --foreground "$FOAM" " $*"
+}
+
+gum_success() {
+    gum style --foreground "$FOAM" --bold " $*"
+}
+
+gum_error() {
+    gum style --foreground "$LOVE" --bold " $*"
+}
+
+gum_section() {
+    gum style --foreground "$GOLD" --bold "$*"
+}
+
+validate_project_name() {
+    local name="$1"
+    [[ "$name" =~ ^[a-z0-9-]+$ ]]
+}
+
+validate_class_name() {
+    local name="$1"
+    [[ "$name" =~ ^[A-Z][a-zA-Z0-9]*$ ]]
+}
+
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        gum_error "Error: $1 is not installed"
+        [ -n "$2" ] && gum_info "Install with: $2"
+        exit 1
+    fi
+}
+
+# ============================================================================
+# Maven Dependency Database
+# ============================================================================
+
+MAVEN_DEPENDENCY_DATABASE=$(cat << 'EOF'
 # TESTING
 org.mockito:mockito-core:5.14.2:test:TESTING | Mockito - Mocking framework for unit tests
 org.mockito:mockito-junit-jupiter:5.14.2:test:TESTING | Mockito JUnit 5 integration
@@ -91,126 +162,451 @@ com.itextpdf:itext7-core:8.0.5:compile:MISC | iText 7 - PDF generation library
 org.apache.pdfbox:pdfbox:3.0.3:compile:MISC | Apache PDFBox - PDF manipulation
 joda-time:joda-time:2.13.0:compile:MISC | Joda-Time - Date/time library
 EOF
+)
 
-# Generate Maven project
-mvn archetype:generate -B \
-    -DarchetypeGroupId=org.apache.maven.archetypes \
-    -DarchetypeArtifactId=maven-archetype-quickstart \
-    -DarchetypeVersion=1.5 \
-    -DgroupId=$group_id \
-    -DartifactId=$app_name \
-    -Dpackage=$group_id \
-    -Dversion=1.0-SNAPSHOT
+# ============================================================================
+# Spring Boot Dependency Database
+# ============================================================================
 
-if [ $? -ne 0 ]; then
-    echo "Failed to create Java project"
-    exit 1
+SPRING_DEPENDENCY_DATABASE=$(cat << 'EOF'
+# WEB
+web:WEB | Spring Web - RESTful applications with Spring MVC and Tomcat
+webflux:WEB | Spring Reactive Web - Reactive applications with WebFlux and Netty
+websocket:WEB | WebSocket - WebSocket applications with SockJS and STOMP
+hateoas:WEB | Spring HATEOAS - Hypermedia-based RESTful services
+graphql:WEB | GraphQL - Build GraphQL applications with Spring
+htmx:WEB | HTMX - Build modern user interfaces with htmx
+spring-restclient:WEB | REST Client - Spring Boot RestClient and RestTemplate integration
+spring-webclient:WEB | WebClient - Reactive HTTP client with WebClient
+# DATABASE_SQL
+data-jpa:DATABASE_SQL | Spring Data JPA - Persist data in SQL stores with JPA and Hibernate
+data-jdbc:DATABASE_SQL | Spring Data JDBC - Persist data with JDBC using Spring Data
+flyway:DATABASE_SQL | Flyway Migration - Version control for your database schema
+liquibase:DATABASE_SQL | Liquibase Migration - Database change management and migration
+mybatis:DATABASE_SQL | MyBatis - Persistence framework with custom SQL support
+jooq:DATABASE_SQL | jOOQ - Type-safe SQL queries with code generation
+data-r2dbc:DATABASE_SQL | R2DBC - Reactive relational database connectivity
+# DATABASE_NOSQL
+data-mongodb:DATABASE_NOSQL | Spring Data MongoDB - Store data in MongoDB document database
+data-mongodb-reactive:DATABASE_NOSQL | Reactive MongoDB - Reactive Spring Data for MongoDB
+data-redis:DATABASE_NOSQL | Spring Data Redis - Redis key-value data store
+data-redis-reactive:DATABASE_NOSQL | Reactive Redis - Reactive access to Redis
+data-elasticsearch:DATABASE_NOSQL | Spring Data Elasticsearch - Full-text search and analytics
+data-cassandra:DATABASE_NOSQL | Spring Data Cassandra - Distributed NoSQL database
+data-cassandra-reactive:DATABASE_NOSQL | Reactive Cassandra - Reactive Spring Data for Cassandra
+data-neo4j:DATABASE_NOSQL | Neo4j - Graph database with Spring Data Neo4j
+data-couchbase:DATABASE_NOSQL | Couchbase - NoSQL document database
+# DRIVERS
+h2:DRIVERS | H2 Database - In-memory SQL database (perfect for dev/testing)
+postgresql:DRIVERS | PostgreSQL Driver - PostgreSQL JDBC and R2DBC driver
+mysql:DRIVERS | MySQL Driver - MySQL JDBC driver
+mariadb:DRIVERS | MariaDB Driver - MariaDB JDBC and R2DBC driver
+oracle:DRIVERS | Oracle Driver - Oracle database JDBC driver
+sqlserver:DRIVERS | SQL Server Driver - Microsoft SQL Server JDBC and R2DBC driver
+db2:DRIVERS | DB2 Driver - IBM DB2 JDBC driver
+# SECURITY
+security:SECURITY | Spring Security - Authentication and authorization
+oauth2-client:SECURITY | OAuth2 Client - OAuth2/OpenID Connect client support
+oauth2-resource-server:SECURITY | OAuth2 Resource Server - Spring Security OAuth2 resource server
+oauth2-authorization-server:SECURITY | OAuth2 Authorization Server - Spring Authorization Server
+spring-security-webauthn:SECURITY | WebAuthn - WebAuthn support in Spring Security
+ldap:SECURITY | LDAP - LDAP authentication and directory services
+# VALIDATION
+validation:VALIDATION | Validation - Bean validation with Hibernate Validator
+# MESSAGING
+kafka:MESSAGING | Apache Kafka - Kafka messaging support
+kafka-streams:MESSAGING | Kafka Streams - Stream processing with Apache Kafka
+amqp:MESSAGING | RabbitMQ - AMQP messaging with RabbitMQ
+amqp-streams:MESSAGING | RabbitMQ Streams - Stream processing with RabbitMQ
+pulsar:MESSAGING | Apache Pulsar - Messaging with Apache Pulsar
+pulsar-reactive:MESSAGING | Reactive Pulsar - Reactive messaging with Apache Pulsar
+artemis:MESSAGING | Artemis - Spring JMS with Apache ActiveMQ Artemis
+activemq:MESSAGING | ActiveMQ - Spring JMS with Apache ActiveMQ Classic
+rsocket:MESSAGING | RSocket - RSocket messaging with Spring Messaging and Netty
+# MONITORING
+actuator:MONITORING | Spring Boot Actuator - Production-ready monitoring and management
+prometheus:MONITORING | Prometheus - Expose metrics in Prometheus format
+distributed-tracing:MONITORING | Distributed Tracing - Span and trace IDs in logs
+datadog:MONITORING | Datadog - Publish Micrometer metrics to Datadog
+dynatrace:MONITORING | Dynatrace - Publish metrics to Dynatrace
+new-relic:MONITORING | New Relic - Publish metrics to New Relic
+wavefront:MONITORING | Wavefront - Publish metrics to Tanzu Wavefront
+zipkin:MONITORING | Zipkin - Expose span and trace IDs to Zipkin
+sentry:MONITORING | Sentry - Error tracking and performance monitoring
+# DEVTOOLS
+devtools:DEVTOOLS | Spring Boot DevTools - Fast application restarts and LiveReload
+docker-compose:DEVTOOLS | Docker Compose Support - Docker Compose for development
+native:DEVTOOLS | GraalVM Native - Compile to native executable with GraalVM
+# TESTING
+testcontainers:TESTING | Testcontainers - Docker containers for integration testing
+restdocs:TESTING | Spring REST Docs - Document RESTful services
+cloud-contract-verifier:TESTING | Contract Verifier - Consumer Driven Contract testing
+# CLOUD
+cloud-config-client:CLOUD | Config Client - Spring Cloud Config client
+cloud-config-server:CLOUD | Config Server - Centralized configuration server
+cloud-eureka:CLOUD | Eureka Client - Service registration and discovery
+cloud-eureka-server:CLOUD | Eureka Server - Service registry server
+cloud-gateway:CLOUD | Gateway - API Gateway on Spring WebFlux
+cloud-gateway-reactive:CLOUD | Reactive Gateway - Reactive API Gateway
+cloud-feign:CLOUD | OpenFeign - Declarative REST client
+cloud-resilience4j:CLOUD | Resilience4j - Circuit breaker with Resilience4j
+cloud-loadbalancer:CLOUD | Load Balancer - Client-side load balancing
+cloud-function:CLOUD | Cloud Function - Business logic via functions
+cloud-stream:CLOUD | Cloud Stream - Event-driven microservices framework
+cloud-bus:CLOUD | Cloud Bus - Link distributed system nodes
+# TEMPLATE
+thymeleaf:TEMPLATE | Thymeleaf - Modern server-side template engine
+freemarker:TEMPLATE | Freemarker - Java template engine
+mustache:TEMPLATE | Mustache - Logic-less template engine
+groovy-templates:TEMPLATE | Groovy Templates - Groovy templating engine
+jte:TEMPLATE | JTE - Secure and lightweight template engine
+# BATCH
+batch:BATCH | Spring Batch - Batch processing framework
+batch-jdbc:BATCH | Batch JDBC - JDBC support for Spring Batch
+quartz:BATCH | Quartz Scheduler - Enterprise job scheduling
+# CACHE
+cache:CACHE | Cache - Spring caching abstraction
+# SESSION
+session-data-redis:SESSION | Spring Session Redis - Redis-backed HTTP sessions
+session-data-mongodb:SESSION | Spring Session MongoDB - MongoDB-backed HTTP sessions
+session-jdbc:SESSION | Spring Session JDBC - JDBC-backed HTTP sessions
+session-hazelcast:SESSION | Spring Session Hazelcast - Hazelcast-backed HTTP sessions
+# AI
+spring-ai-openai:AI | Spring AI OpenAI - ChatGPT and OpenAI integration
+spring-ai-ollama:AI | Spring AI Ollama - Run local AI models with Ollama
+spring-ai-anthropic:AI | Spring AI Anthropic - Claude AI models integration
+spring-ai-azure-openai:AI | Spring AI Azure OpenAI - Azure OpenAI integration
+spring-ai-google-genai:AI | Spring AI Google - Google Gemini AI models
+spring-ai-vectordb-pgvector:AI | PGVector - PostgreSQL vector database for AI
+spring-ai-vectordb-redis:AI | Redis Vector - Redis vector database for AI
+# GRPC
+spring-grpc:GRPC | Spring gRPC - High performance RPC with gRPC
+# UTILITIES
+lombok:UTILITIES | Lombok - Reduce boilerplate (getters/setters/builders)
+configuration-processor:UTILITIES | Configuration Processor - Metadata for @ConfigurationProperties
+mail:UTILITIES | Java Mail - Send email using Java Mail
+modulith:UTILITIES | Modulith - Build modular monolithic applications
+spring-shell:UTILITIES | Spring Shell - Build command line applications
+EOF
+)
+
+# ============================================================================
+# Main Script
+# ============================================================================
+
+# Show help if requested
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    cat << 'EOF'
+ Java Project Generator
+
+Usage: 
+  new-java                        - Interactive mode (all prompts)
+  new-java <project-name>         - Skip project name prompt
+  new-java <project-name> <Main>  - Skip project name and main class prompts
+
+Examples:
+  new-java                        - Fully interactive
+  new-java my-app                 - Use "my-app" as project name
+  new-java my-app MyApplication   - Use "my-app" and "MyApplication" as main class
+
+Options:
+  -h, --help                      - Show this help message
+
+EOF
+    exit 0
 fi
 
-cd "$app_name"
+# Parse command-line arguments
+ARG_PROJECT_NAME="$1"
+ARG_MAIN_CLASS="$2"
 
-# Interactive dependency selection with fzf
+# Check dependencies
+check_command gum "brew install gum or pacman -S gum"
+check_command fzf "brew install fzf or pacman -S fzf"
+check_command mvn "brew install maven or pacman -S maven"
+
+# Welcome screen
+gum_header " Java Project Generator" "Create Maven, JavaFX, or Spring Boot projects"
+
 echo ""
 
-# Transform database for clean display in fzf
-display_list=$(echo "$DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
-    split($1, parts, ":")
-    category = parts[5]
-    gsub(/^[ \t]+|[ \t]+$/, "", category)
-    description = $2
-    gsub(/^[ \t]+|[ \t]+$/, "", description)
-    printf "[%s] %s\n", category, description
-}')
+# Project type selection
+PROJECT_TYPE=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header " Select project type:" \
+    " Maven (Standard Java)" \
+    " JavaFX (GUI Application)" \
+    " Spring Boot (Web/API)")
 
-# Create temporary file for preview lookups
-temp_db=$(mktemp)
-echo "$DEPENDENCY_DATABASE" > "$temp_db"
+# Remove nerd font prefix for processing
+# Extract just the key identifier: Maven, JavaFX, or Spring
+PROJECT_TYPE_CLEAN=$(echo "$PROJECT_TYPE" | sed 's/^[[:space:]]*//' | sed 's/ (.*//' | awk '{print $1}')
 
-selected=$(echo "$display_list" | fzf \
-    --multi \
-    --height=60% \
-    --border=rounded \
-    --prompt="Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
-    --header="Categories: TESTING, LOGGING, JSON, UTILITIES, HTTP, DATABASE, ORM, WEB, CLI, EMAIL, CRYPTO, etc." \
-    --preview="bash -c 'desc=\$(echo {} | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | xargs'" \
-    --preview-window=down:3:wrap \
-    --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
-    --color='header:italic:underline' \
-) || true
+echo ""
+gum_section " Project Configuration"
+echo ""
 
-# Clean up temp file
-rm -f "$temp_db"
-
-# Process selected dependencies
-if [ -n "$selected" ]; then
-    mapfile -t selected_deps <<< "$selected"
+# Get project name with validation
+if [ -n "$ARG_PROJECT_NAME" ]; then
+    # Use argument if provided
+    PROJECT_NAME="$ARG_PROJECT_NAME"
+    
+    # Validate the provided name
+    if ! validate_project_name "$PROJECT_NAME"; then
+        gum_error "Invalid project name: $PROJECT_NAME"
+        gum_error "Use lowercase letters, numbers, and hyphens only."
+        exit 1
+    fi
+    
+    gum_info "Using project name: $PROJECT_NAME"
     echo ""
-    echo "Selected ${#selected_deps[@]} dependencies"
-    echo "Adding dependencies to pom.xml..."
-    
-    # Create temporary file to build dependency XML
-    temp_deps=$(mktemp)
-    
-    for display_line in "${selected_deps[@]}"; do
-        # Extract description from display format: [CATEGORY] Description
-        desc=$(echo "$display_line" | sed 's/^\[.*\] //')
+else
+    # Interactive prompt
+    while true; do
+        PROJECT_NAME=$(gum input \
+            --prompt.foreground "$FOAM" \
+            --placeholder "my-awesome-app" \
+            --header " Project name (lowercase, alphanumeric, hyphens):" \
+            --header.foreground "$SUBTLE" \
+            --prompt " ")
         
-        # Find the original line in database by matching description
-        original_line=$(echo "$DEPENDENCY_DATABASE" | grep "| $desc$")
-        
-        if [ -z "$original_line" ]; then
-            echo "Warning: Could not find dependency for: $display_line"
+        if [ -z "$PROJECT_NAME" ]; then
+            gum_error "Project name cannot be empty"
             continue
         fi
         
-        # Parse: groupId:artifactId:version:scope:category | Description
-        dep_info=$(echo "$original_line" | cut -d'|' -f1 | xargs)
-        
-        group_id_dep=$(echo "$dep_info" | cut -d: -f1)
-        artifact_id=$(echo "$dep_info" | cut -d: -f2)
-        version=$(echo "$dep_info" | cut -d: -f3)
-        scope=$(echo "$dep_info" | cut -d: -f4)
-        
-        # Build dependency XML
-        echo "    <dependency>" >> "$temp_deps"
-        echo "      <groupId>$group_id_dep</groupId>" >> "$temp_deps"
-        echo "      <artifactId>$artifact_id</artifactId>" >> "$temp_deps"
-        echo "      <version>$version</version>" >> "$temp_deps"
-        
-        # Add scope if not compile (default)
-        if [ "$scope" != "compile" ]; then
-            echo "      <scope>$scope</scope>" >> "$temp_deps"
+        if ! validate_project_name "$PROJECT_NAME"; then
+            gum_error "Invalid name. Use lowercase letters, numbers, and hyphens only."
+            continue
         fi
         
-        echo "    </dependency>" >> "$temp_deps"
+        break
     done
-    
-    # Insert dependencies before </dependencies> closing tag
-    # Use a temporary file for sed operations
-    temp_pom=$(mktemp)
-    cp pom.xml "$temp_pom"
-    
-    # Find the line number of </dependencies>
-    dep_line=$(grep -n "</dependencies>" "$temp_pom" | head -1 | cut -d: -f1)
-    
-    if [ -n "$dep_line" ]; then
-        # Insert the dependencies before the closing tag
-        head -n $((dep_line - 1)) "$temp_pom" > pom.xml
-        cat "$temp_deps" >> pom.xml
-        tail -n +$dep_line "$temp_pom" >> pom.xml
+fi
+
+# Get main class name (context-aware)
+if [ "$PROJECT_TYPE_CLEAN" = "Maven" ]; then
+    DEFAULT_MAIN="Main"
+elif [ "$PROJECT_TYPE_CLEAN" = "JavaFX" ]; then
+    DEFAULT_MAIN="App"
+fi
+
+if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then
+    if [ -n "$ARG_MAIN_CLASS" ]; then
+        # Use argument if provided
+        MAIN_CLASS="$ARG_MAIN_CLASS"
         
-        echo "Dependencies added successfully"
+        # Validate the provided class name
+        if ! validate_class_name "$MAIN_CLASS"; then
+            gum_error "Invalid main class name: $MAIN_CLASS"
+            gum_error "Use PascalCase (e.g., MyApp, MainClass)."
+            exit 1
+        fi
+        
+        gum_info "Using main class: $MAIN_CLASS"
+        echo ""
+    else
+        # Interactive prompt
+        echo ""
+        while true; do
+            MAIN_CLASS=$(gum input \
+                --prompt.foreground "$FOAM" \
+                --placeholder "$DEFAULT_MAIN" \
+                --value "$DEFAULT_MAIN" \
+                --header " Main class name (PascalCase):" \
+                --header.foreground "$SUBTLE" \
+                --prompt " ")
+            
+            if [ -z "$MAIN_CLASS" ]; then
+                MAIN_CLASS="$DEFAULT_MAIN"
+            fi
+            
+            if ! validate_class_name "$MAIN_CLASS"; then
+                gum_error "Invalid class name. Use PascalCase (e.g., MyApp, MainClass)."
+                continue
+            fi
+            
+            break
+        done
     fi
+fi
+
+# Spring Boot specific inputs
+if [ "$PROJECT_TYPE_CLEAN" = "Spring" ]; then
+    echo ""
+    APP_NAME=$(gum input \
+        --prompt.foreground "$FOAM" \
+        --placeholder "$PROJECT_NAME" \
+        --value "$PROJECT_NAME" \
+        --header " Application name:" \
+        --header.foreground "$SUBTLE" \
+        --prompt " ")
     
-    # Clean up temp files
-    rm -f "$temp_deps" "$temp_pom"
-    
-    # Special handling for Lombok (annotation processor)
-    if echo "$selected" | grep -q "\[UTILITIES\] Lombok"; then
-        echo "Configuring Lombok annotation processor..."
+    echo ""
+    DESCRIPTION=$(gum input \
+        --prompt.foreground "$FOAM" \
+        --placeholder "Demo project for Spring Boot" \
+        --value "Demo project for Spring Boot" \
+        --header " Description:" \
+        --header.foreground "$SUBTLE" \
+        --prompt " ")
+fi
+
+# Set base package
+GROUP_ID="dev.quietghost"
+
+# Calculate package name for Spring Boot
+if [ "$PROJECT_TYPE_CLEAN" = "Spring" ]; then
+    PACKAGE_NAME="$GROUP_ID.${PROJECT_NAME//-/}"
+fi
+
+echo ""
+gum_section " Project Summary"
+echo ""
+
+# Display summary
+gum style \
+    --border "rounded" \
+    --border-foreground "$PINE" \
+    --padding "1 2" \
+    --margin "0 2" \
+    "$(gum style --foreground "$FOAM" "Type:") $PROJECT_TYPE_CLEAN" \
+    "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
+    "$(gum style --foreground "$FOAM" "Package:") $GROUP_ID" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then echo "$(gum style --foreground "$FOAM" "Main Class:") $MAIN_CLASS"; fi)"
+
+echo ""
+
+# Confirm before proceeding
+if ! gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$LOVE" \
+    --affirmative " Create Project" \
+    --negative " Cancel" \
+    "Proceed with project creation?"; then
+    gum_error "Project creation cancelled"
+    exit 0
+fi
+
+echo ""
+
+# ============================================================================
+# Project Generation
+# ============================================================================
+
+case "$PROJECT_TYPE_CLEAN" in
+    "Maven")
+        # Generate Maven project
+        gum_info "Generating Maven project..."
+        echo ""
         
-        # Find the maven-compiler-plugin section and add configuration
-        sed -i '/<artifactId>maven-compiler-plugin<\/artifactId>/a\
+        gum spin \
+            --spinner dot \
+            --title " Creating Maven archetype..." \
+            --title.foreground "$IRIS" \
+            --spinner.foreground "$FOAM" \
+            -- mvn archetype:generate -B \
+                -DarchetypeGroupId=org.apache.maven.archetypes \
+                -DarchetypeArtifactId=maven-archetype-quickstart \
+                -DarchetypeVersion=1.5 \
+                -DgroupId=$GROUP_ID \
+                -DartifactId=$PROJECT_NAME \
+                -Dpackage=$GROUP_ID \
+                -Dversion=1.0-SNAPSHOT
+        
+        if [ $? -ne 0 ]; then
+            gum_error "Failed to create Maven project"
+            exit 1
+        fi
+        
+        cd "$PROJECT_NAME"
+        
+        echo ""
+        gum_section " Dependency Selection"
+        echo ""
+        
+        # Transform database for fzf
+        display_list=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+            split($1, parts, ":")
+            category = parts[5]
+            gsub(/^[ \t]+|[ \t]+$/, "", category)
+            description = $2
+            gsub(/^[ \t]+|[ \t]+$/, "", description)
+            printf "[%s] %s\n", category, description
+        }')
+        
+        # Create temporary file for preview
+        temp_db=$(mktemp)
+        echo "$MAVEN_DEPENDENCY_DATABASE" > "$temp_db"
+        
+        selected=$(echo "$display_list" | fzf \
+            --multi \
+            --height=60% \
+            --border=rounded \
+            --prompt=" Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
+            --header="Categories: TESTING, LOGGING, JSON, UTILITIES, HTTP, DATABASE, ORM, WEB, CLI, etc." \
+            --preview="bash -c 'desc=\$(echo {} | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | xargs'" \
+            --preview-window=down:3:wrap \
+            --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+            --color='header:italic:underline' \
+        ) || true
+        
+        rm -f "$temp_db"
+        
+        # Process selected dependencies
+        if [ -n "$selected" ]; then
+            mapfile -t selected_deps <<< "$selected"
+            echo ""
+            gum_info "Adding ${#selected_deps[@]} dependencies..."
+            
+            temp_deps=$(mktemp)
+            
+            for display_line in "${selected_deps[@]}"; do
+                desc=$(echo "$display_line" | sed 's/^\[.*\] //')
+                original_line=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep "| $desc$")
+                
+                if [ -z "$original_line" ]; then
+                    gum_error "Warning: Could not find dependency for: $display_line"
+                    continue
+                fi
+                
+                dep_info=$(echo "$original_line" | cut -d'|' -f1 | xargs)
+                group_id_dep=$(echo "$dep_info" | cut -d: -f1)
+                artifact_id=$(echo "$dep_info" | cut -d: -f2)
+                version=$(echo "$dep_info" | cut -d: -f3)
+                scope=$(echo "$dep_info" | cut -d: -f4)
+                
+                echo "    <dependency>" >> "$temp_deps"
+                echo "      <groupId>$group_id_dep</groupId>" >> "$temp_deps"
+                echo "      <artifactId>$artifact_id</artifactId>" >> "$temp_deps"
+                echo "      <version>$version</version>" >> "$temp_deps"
+                
+                if [ "$scope" != "compile" ]; then
+                    echo "      <scope>$scope</scope>" >> "$temp_deps"
+                fi
+                
+                echo "    </dependency>" >> "$temp_deps"
+            done
+            
+            temp_pom=$(mktemp)
+            cp pom.xml "$temp_pom"
+            dep_line=$(grep -n "</dependencies>" "$temp_pom" | head -1 | cut -d: -f1)
+            
+            if [ -n "$dep_line" ]; then
+                head -n $((dep_line - 1)) "$temp_pom" > pom.xml
+                cat "$temp_deps" >> pom.xml
+                tail -n +$dep_line "$temp_pom" >> pom.xml
+                gum_success "Dependencies added successfully"
+            fi
+            
+            rm -f "$temp_deps" "$temp_pom"
+            
+            # Lombok special handling
+            if echo "$selected" | grep -q "\[UTILITIES\] Lombok"; then
+                gum_info "Configuring Lombok annotation processor..."
+                sed -i '/<artifactId>maven-compiler-plugin<\/artifactId>/a\
           <configuration>\
             <annotationProcessorPaths>\
               <path>\
@@ -220,53 +616,234 @@ if [ -n "$selected" ]; then
               </path>\
             </annotationProcessorPaths>\
           </configuration>' pom.xml
-    fi
-else
-    echo ""
-    echo "No additional dependencies selected (JUnit 5 is included by default)"
-fi
-
-# Update Java version to 21
-echo "Setting Java version to 21..."
-sed -i 's/<maven\.compiler\.release>[0-9]*<\/maven\.compiler\.release>/<maven.compiler.release>21<\/maven.compiler.release>/' pom.xml
-sed -i 's/<maven\.compiler\.source>[0-9]*<\/maven\.compiler\.source>/<maven.compiler.source>21<\/maven.compiler.source>/' pom.xml
-sed -i 's/<maven\.compiler\.target>[0-9]*<\/maven\.compiler\.target>/<maven.compiler.target>21<\/maven.compiler.target>/' pom.xml
-
-# Rename App.java to custom main class name (if specified)
-if [ "$main_class" != "App" ]; then
-    echo "Renaming App.java to ${main_class}.java..."
-    
-    # Find the App.java file
-    app_file=$(find src/main/java -name "App.java" -type f)
-    
-    if [ -n "$app_file" ]; then
-        # Replace all references to App with the new class name
-        sed -i "s/\bApp\b/${main_class}/g" "$app_file"
-        
-        # Rename the file
-        new_file=$(echo "$app_file" | sed "s/App\.java/${main_class}.java/")
-        mv "$app_file" "$new_file"
-        
-        # Update test file references
-        find src/test/java -name "*.java" -type f -exec sed -i "s/\bApp\b/${main_class}/g" {} \;
-        
-        # Rename test file
-        test_file=$(find src/test/java -name "AppTest.java" -type f)
-        if [ -n "$test_file" ]; then
-            # Update AppTest class name to MainTest in the file content
-            sed -i "s/\bAppTest\b/${main_class}Test/g" "$test_file"
-            # Then rename the file itself
-            new_test_file=$(echo "$test_file" | sed "s/AppTest\.java/${main_class}Test.java/")
-            mv "$test_file" "$new_test_file"
+            fi
+        else
+            echo ""
+            gum_info "No additional dependencies selected (JUnit 5 is included by default)"
         fi
         
-        echo "Successfully renamed all App references to ${main_class}"
-    fi
-fi
+        # Update Java version to 21
+        gum_info "Setting Java version to 21..."
+        sed -i 's/<maven\.compiler\.release>[0-9]*<\/maven\.compiler\.release>/<maven.compiler.release>21<\/maven.compiler.release>/' pom.xml
+        sed -i 's/<maven\.compiler\.source>[0-9]*<\/maven\.compiler\.source>/<maven.compiler.source>21<\/maven.compiler.source>/' pom.xml
+        sed -i 's/<maven\.compiler\.target>[0-9]*<\/maven\.compiler\.target>/<maven.compiler.target>21<\/maven.compiler.target>/' pom.xml
+        
+        # Rename App.java if needed
+        if [ "$MAIN_CLASS" != "App" ]; then
+            gum_info "Renaming App.java to ${MAIN_CLASS}.java..."
+            
+            app_file=$(find src/main/java -name "App.java" -type f)
+            
+            if [ -n "$app_file" ]; then
+                sed -i "s/\bApp\b/${MAIN_CLASS}/g" "$app_file"
+                new_file=$(echo "$app_file" | sed "s/App\.java/${MAIN_CLASS}.java/")
+                mv "$app_file" "$new_file"
+                
+                find src/test/java -name "*.java" -type f -exec sed -i "s/\bApp\b/${MAIN_CLASS}/g" {} \;
+                
+                test_file=$(find src/test/java -name "AppTest.java" -type f)
+                if [ -n "$test_file" ]; then
+                    sed -i "s/\bAppTest\b/${MAIN_CLASS}Test/g" "$test_file"
+                    new_test_file=$(echo "$test_file" | sed "s/AppTest\.java/${MAIN_CLASS}Test.java/")
+                    mv "$test_file" "$new_test_file"
+                fi
+                
+                gum_success "Successfully renamed all App references to ${MAIN_CLASS}"
+            fi
+        fi
+        ;;
+        
+    "JavaFX")
+        # Generate JavaFX project
+        gum_info "Generating JavaFX project..."
+        echo ""
+        
+        package_name=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
+        
+        gum spin \
+            --spinner dot \
+            --title " Creating JavaFX archetype..." \
+            --title.foreground "$IRIS" \
+            --spinner.foreground "$FOAM" \
+            -- mvn archetype:generate -B \
+                -DarchetypeGroupId=org.openjfx \
+                -DarchetypeArtifactId=javafx-archetype-fxml \
+                -DarchetypeVersion=0.0.6 \
+                -DgroupId=$GROUP_ID \
+                -DartifactId=$PROJECT_NAME \
+                -Dpackage=$GROUP_ID.$package_name \
+                -Dversion=1.0-SNAPSHOT \
+                -Djavafx-version=21
+        
+        if [ $? -ne 0 ]; then
+            gum_error "Failed to create JavaFX project"
+            exit 1
+        fi
+        
+        cd "$PROJECT_NAME"
+        
+        # Rename App.java if custom main class specified
+        if [ "$MAIN_CLASS" != "App" ]; then
+            gum_info "Renaming App.java to ${MAIN_CLASS}.java..."
+            
+            app_file=$(find src/main/java -name "App.java" -type f)
+            if [ -n "$app_file" ]; then
+                sed -i "s/\bApp\b/${MAIN_CLASS}/g" "$app_file"
+                new_file=$(echo "$app_file" | sed "s/App\.java/${MAIN_CLASS}.java/")
+                mv "$app_file" "$new_file"
+                
+                find src/main/java -name "*.java" -type f -exec sed -i "s/\bApp\b/${MAIN_CLASS}/g" {} \;
+                
+                if [ -f "src/main/java/module-info.java" ]; then
+                    sed -i "s/\bApp\b/${MAIN_CLASS}/g" src/main/java/module-info.java
+                fi
+                
+                sed -i "s/\bApp\b/${MAIN_CLASS}/g" pom.xml
+                find src/main/resources -name "*.fxml" -type f -exec sed -i "s/\bApp\b/${MAIN_CLASS}/g" {} \;
+                
+                gum_success "Successfully renamed all App references to ${MAIN_CLASS}"
+            fi
+        fi
+        ;;
+        
+    "Spring")
+        # Check Spring CLI
+        check_command spring "sdk install springboot"
+        
+        # Validate artifact
+        if ! validate_project_name "$PROJECT_NAME"; then
+            gum_error "Invalid artifact name for Spring Boot"
+            exit 1
+        fi
+        
+        # Check if directory exists
+        if [ -d "$PROJECT_NAME" ]; then
+            echo ""
+            if ! gum confirm \
+                --selected.foreground "$FOAM" \
+                --unselected.foreground "$LOVE" \
+                "Directory '$PROJECT_NAME' exists. Overwrite?"; then
+                gum_error "Cancelled"
+                exit 0
+            fi
+            rm -rf "$PROJECT_NAME"
+        fi
+        
+        echo ""
+        gum_section " Dependency Selection"
+        echo ""
+        
+        # Transform database for fzf
+        display_list=$(echo "$SPRING_DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+            split($1, parts, ":")
+            dep_id = parts[1]
+            category = parts[2]
+            gsub(/^[ \t]+|[ \t]+$/, "", category)
+            description = $2
+            gsub(/^[ \t]+|[ \t]+$/, "", description)
+            printf "[%s] %s|%s\n", category, description, dep_id
+        }')
+        
+        temp_db=$(mktemp)
+        echo "$SPRING_DEPENDENCY_DATABASE" > "$temp_db"
+        
+        selected=$(echo "$display_list" | fzf \
+            --multi \
+            --height=60% \
+            --border=rounded \
+            --prompt=" Select starters (TAB=multi-select, ENTER=confirm, ESC=skip): " \
+            --header="Spring Boot Starters - Categories: WEB, DATABASE, SECURITY, MESSAGING, MONITORING, etc." \
+            --preview="bash -c 'desc=\$(echo {} | cut -d\"|\" -f1 | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | cut -d\":\" -f1 | xargs'" \
+            --preview-window=down:3:wrap \
+            --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+            --color='header:italic:underline' \
+        ) || true
+        
+        rm -f "$temp_db"
+        
+        # Build dependency list
+        dependency_list=""
+        
+        if [ -n "$selected" ]; then
+            mapfile -t selected_deps <<< "$selected"
+            
+            for display_line in "${selected_deps[@]}"; do
+                dep_id=$(echo "$display_line" | cut -d'|' -f2)
+                
+                if [ -z "$dependency_list" ]; then
+                    dependency_list="$dep_id"
+                else
+                    dependency_list="$dependency_list,$dep_id"
+                fi
+            done
+            
+            echo ""
+            gum_info "Selected dependencies: $dependency_list"
+        else
+            echo ""
+            gum_info "No dependencies selected (bare Spring Boot project)"
+        fi
+        
+        # Generate project
+        echo ""
+        gum_info "Generating Spring Boot project..."
+        echo ""
+        
+        spring_cmd="spring init"
+        spring_cmd="$spring_cmd --build=maven"
+        spring_cmd="$spring_cmd --java-version=21"
+        spring_cmd="$spring_cmd --packaging=jar"
+        spring_cmd="$spring_cmd --group-id=$GROUP_ID"
+        spring_cmd="$spring_cmd --artifact-id=$PROJECT_NAME"
+        spring_cmd="$spring_cmd --name=\"$APP_NAME\""
+        spring_cmd="$spring_cmd --description=\"$DESCRIPTION\""
+        spring_cmd="$spring_cmd --package-name=$PACKAGE_NAME"
+        
+        if [ -n "$dependency_list" ]; then
+            spring_cmd="$spring_cmd --dependencies=$dependency_list"
+        fi
+        
+        spring_cmd="$spring_cmd $PROJECT_NAME"
+        
+        gum spin \
+            --spinner dot \
+            --title " Creating Spring Boot project..." \
+            --title.foreground "$IRIS" \
+            --spinner.foreground "$FOAM" \
+            -- bash -c "$spring_cmd"
+        
+        if [ $? -ne 0 ]; then
+            gum_error "Failed to create Spring Boot project"
+            exit 1
+        fi
+        
+        if [ ! -d "$PROJECT_NAME" ]; then
+            gum_error "Project directory was not created"
+            exit 1
+        fi
+        
+        cd "$PROJECT_NAME"
+        ;;
+esac
 
+# Success message
 echo ""
-echo "Project created successfully!"
-echo "Opening in Neovim..."
+gum style \
+    --foreground "$FOAM" \
+    --border "rounded" \
+    --border-foreground "$IRIS" \
+    --align "center" \
+    --width 60 \
+    --margin "1 2" \
+    --padding "1 4" \
+    " Project created successfully!" \
+    "" \
+    " Location: $(pwd)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then echo " Main class: ${MAIN_CLASS}.java"; fi)" \
+    " Package: $GROUP_ID" \
+    "" \
+    "Opening in Neovim..."
+
 echo ""
 
 nvim .

@@ -1,0 +1,272 @@
+#!/bin/bash
+
+# Java Maven Project Generator Script
+# Usage: new-java <AppName> [MainClassName]
+# Creates a new Java Maven project with dev.quietghost as the base package
+
+set -e
+
+app_name=${1:?"Usage: new-java <AppName> [MainClassName]"}
+main_class=${2:-"Main"}
+group_id="dev.quietghost"
+
+echo "Creating Java Maven project: $app_name"
+echo "Main class: $main_class"
+echo "Package: $group_id"
+echo ""
+
+# Dependency database
+read -r -d '' DEPENDENCY_DATABASE << 'EOF' || true
+# TESTING
+org.mockito:mockito-core:5.14.2:test:TESTING | Mockito - Mocking framework for unit tests
+org.mockito:mockito-junit-jupiter:5.14.2:test:TESTING | Mockito JUnit 5 integration
+org.assertj:assertj-core:3.26.3:test:TESTING | AssertJ - Fluent assertions for tests
+org.hamcrest:hamcrest:3.0:test:TESTING | Hamcrest - Matcher library for tests
+org.testcontainers:testcontainers:1.20.4:test:TESTING | Testcontainers - Docker containers for integration tests
+# LOGGING
+ch.qos.logback:logback-classic:1.5.12:compile:LOGGING | Logback - Logging implementation (includes SLF4J)
+org.slf4j:slf4j-api:2.0.16:compile:LOGGING | SLF4J - Logging API (use with Logback)
+org.apache.logging.log4j:log4j-core:2.24.3:compile:LOGGING | Log4j 2 - Alternative logging implementation
+org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3:compile:LOGGING | Log4j 2 SLF4J binding
+# JSON
+com.google.code.gson:gson:2.11.0:compile:JSON | Gson - Google JSON library (simple, lightweight)
+com.fasterxml.jackson.core:jackson-databind:2.18.2:compile:JSON | Jackson - JSON processor (feature-rich, fast)
+com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2:compile:JSON | Jackson Java 8 date/time support
+org.json:json:20240303:compile:JSON | JSON-Java - Reference implementation
+# UTILITIES
+org.projectlombok:lombok:1.18.36:provided:UTILITIES | Lombok - Reduce boilerplate (getters/setters/constructors)
+org.apache.commons:commons-lang3:3.17.0:compile:UTILITIES | Apache Commons Lang3 - String/Array/Object utilities
+org.apache.commons:commons-collections4:4.5.0-M2:compile:UTILITIES | Commons Collections - Enhanced collections
+org.apache.commons:commons-text:1.12.0:compile:UTILITIES | Apache Commons Text - String algorithms
+com.google.guava:guava:33.3.1-jre:compile:UTILITIES | Guava - Google core libraries (collections/caching/strings)
+org.apache.commons:commons-io:1.3.2:compile:UTILITIES | Apache Commons IO - File/Stream utilities
+# HTTP
+com.squareup.okhttp3:okhttp:4.12.0:compile:HTTP | OkHttp - Modern HTTP client (Square)
+org.apache.httpcomponents.client5:httpclient5:5.4.1:compile:HTTP | Apache HttpClient 5 - HTTP client
+org.apache.httpcomponents.core5:httpcore5:5.3.1:compile:HTTP | Apache HttpCore 5 - HTTP protocol support
+# DATABASE
+com.h2database:h2:2.3.232:compile:DATABASE | H2 - Embedded database (for testing/development)
+org.postgresql:postgresql:42.7.4:compile:DATABASE | PostgreSQL JDBC driver
+com.mysql:mysql-connector-j:9.1.0:compile:DATABASE | MySQL JDBC driver
+org.xerial:sqlite-jdbc:3.47.1.0:compile:DATABASE | SQLite JDBC driver
+com.zaxxer:HikariCP:6.2.1:compile:DATABASE | HikariCP - High-performance JDBC connection pool
+# ORM
+org.hibernate.orm:hibernate-core:6.6.4.Final:compile:ORM | Hibernate - ORM framework
+jakarta.persistence:jakarta.persistence-api:3.2.0:compile:ORM | JPA API
+org.springframework.data:spring-data-jpa:3.4.1:compile:ORM | Spring Data JPA
+# VALIDATION
+jakarta.validation:jakarta.validation-api:3.1.0:compile:VALIDATION | Jakarta Bean Validation API
+org.hibernate.validator:hibernate-validator:8.0.2.Final:compile:VALIDATION | Hibernate Validator implementation
+# WEB
+com.sparkjava:spark-core:2.9.4:compile:WEB | Spark - Micro web framework
+io.javalin:javalin:6.3.0:compile:WEB | Javalin - Simple web framework
+# CLI
+info.picocli:picocli:4.7.6:compile:CLI | Picocli - CLI framework
+commons-cli:commons-cli:1.9.0:compile:CLI | Apache Commons CLI
+org.jline:jline:3.27.1:compile:CLI | JLine - Console input handling
+# EMAIL
+com.sun.mail:jakarta.mail:2.0.1:compile:EMAIL | Jakarta Mail - Email sending/receiving
+org.simplejavamail:simple-java-mail:8.12.3:compile:EMAIL | Simple Java Mail - Email wrapper
+# CRYPTO
+org.bouncycastle:bcprov-jdk18on:1.79:compile:CRYPTO | Bouncy Castle - Cryptography provider
+commons-codec:commons-codec:1.17.1:compile:CRYPTO | Apache Commons Codec - Encoders/Decoders
+# DATA_FORMATS
+com.opencsv:opencsv:5.9:compile:DATA_FORMATS | OpenCSV - CSV parser
+org.apache.poi:poi:5.3.0:compile:DATA_FORMATS | Apache POI - Microsoft Office formats
+org.apache.poi:poi-ooxml:5.3.0:compile:DATA_FORMATS | Apache POI - OOXML formats (xlsx, docx)
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.18.2:compile:DATA_FORMATS | Jackson XML processor
+# SCHEDULING
+org.quartz-scheduler:quartz:2.5.0:compile:SCHEDULING | Quartz - Job scheduling library
+# CACHING
+com.github.ben-manes.caffeine:caffeine:3.1.8:compile:CACHING | Caffeine - High-performance caching library
+org.ehcache:ehcache:3.10.8:compile:CACHING | Ehcache - Distributed cache
+# REACTIVE
+io.reactivex.rxjava3:rxjava:3.1.10:compile:REACTIVE | RxJava 3 - Reactive Extensions for JVM
+io.projectreactor:reactor-core:3.7.1:compile:REACTIVE | Project Reactor - Reactive library
+# MISC
+io.vavr:vavr:0.10.4:compile:MISC | Vavr - Functional programming library
+com.esotericsoftware:kryo:5.6.2:compile:MISC | Kryo - Fast serialization library
+com.google.zxing:core:3.5.3:compile:MISC | ZXing - Barcode/QR code processing
+com.itextpdf:itext7-core:8.0.5:compile:MISC | iText 7 - PDF generation library
+org.apache.pdfbox:pdfbox:3.0.3:compile:MISC | Apache PDFBox - PDF manipulation
+joda-time:joda-time:2.13.0:compile:MISC | Joda-Time - Date/time library
+EOF
+
+# Generate Maven project
+mvn archetype:generate -B \
+    -DarchetypeGroupId=org.apache.maven.archetypes \
+    -DarchetypeArtifactId=maven-archetype-quickstart \
+    -DarchetypeVersion=1.5 \
+    -DgroupId=$group_id \
+    -DartifactId=$app_name \
+    -Dpackage=$group_id \
+    -Dversion=1.0-SNAPSHOT
+
+if [ $? -ne 0 ]; then
+    echo "Failed to create Java project"
+    exit 1
+fi
+
+cd "$app_name"
+
+# Interactive dependency selection with fzf
+echo ""
+
+# Transform database for clean display in fzf
+display_list=$(echo "$DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+    split($1, parts, ":")
+    category = parts[5]
+    gsub(/^[ \t]+|[ \t]+$/, "", category)
+    description = $2
+    gsub(/^[ \t]+|[ \t]+$/, "", description)
+    printf "[%s] %s\n", category, description
+}')
+
+# Create temporary file for preview lookups
+temp_db=$(mktemp)
+echo "$DEPENDENCY_DATABASE" > "$temp_db"
+
+selected=$(echo "$display_list" | fzf \
+    --multi \
+    --height=60% \
+    --border=rounded \
+    --prompt="Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
+    --header="Categories: TESTING, LOGGING, JSON, UTILITIES, HTTP, DATABASE, ORM, WEB, CLI, EMAIL, CRYPTO, etc." \
+    --preview="bash -c 'desc=\$(echo {} | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | xargs'" \
+    --preview-window=down:3:wrap \
+    --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+    --color='header:italic:underline' \
+) || true
+
+# Clean up temp file
+rm -f "$temp_db"
+
+# Process selected dependencies
+if [ -n "$selected" ]; then
+    mapfile -t selected_deps <<< "$selected"
+    echo ""
+    echo "Selected ${#selected_deps[@]} dependencies"
+    echo "Adding dependencies to pom.xml..."
+    
+    # Create temporary file to build dependency XML
+    temp_deps=$(mktemp)
+    
+    for display_line in "${selected_deps[@]}"; do
+        # Extract description from display format: [CATEGORY] Description
+        desc=$(echo "$display_line" | sed 's/^\[.*\] //')
+        
+        # Find the original line in database by matching description
+        original_line=$(echo "$DEPENDENCY_DATABASE" | grep "| $desc$")
+        
+        if [ -z "$original_line" ]; then
+            echo "Warning: Could not find dependency for: $display_line"
+            continue
+        fi
+        
+        # Parse: groupId:artifactId:version:scope:category | Description
+        dep_info=$(echo "$original_line" | cut -d'|' -f1 | xargs)
+        
+        group_id_dep=$(echo "$dep_info" | cut -d: -f1)
+        artifact_id=$(echo "$dep_info" | cut -d: -f2)
+        version=$(echo "$dep_info" | cut -d: -f3)
+        scope=$(echo "$dep_info" | cut -d: -f4)
+        
+        # Build dependency XML
+        echo "    <dependency>" >> "$temp_deps"
+        echo "      <groupId>$group_id_dep</groupId>" >> "$temp_deps"
+        echo "      <artifactId>$artifact_id</artifactId>" >> "$temp_deps"
+        echo "      <version>$version</version>" >> "$temp_deps"
+        
+        # Add scope if not compile (default)
+        if [ "$scope" != "compile" ]; then
+            echo "      <scope>$scope</scope>" >> "$temp_deps"
+        fi
+        
+        echo "    </dependency>" >> "$temp_deps"
+    done
+    
+    # Insert dependencies before </dependencies> closing tag
+    # Use a temporary file for sed operations
+    temp_pom=$(mktemp)
+    cp pom.xml "$temp_pom"
+    
+    # Find the line number of </dependencies>
+    dep_line=$(grep -n "</dependencies>" "$temp_pom" | head -1 | cut -d: -f1)
+    
+    if [ -n "$dep_line" ]; then
+        # Insert the dependencies before the closing tag
+        head -n $((dep_line - 1)) "$temp_pom" > pom.xml
+        cat "$temp_deps" >> pom.xml
+        tail -n +$dep_line "$temp_pom" >> pom.xml
+        
+        echo "Dependencies added successfully"
+    fi
+    
+    # Clean up temp files
+    rm -f "$temp_deps" "$temp_pom"
+    
+    # Special handling for Lombok (annotation processor)
+    if echo "$selected" | grep -q "\[UTILITIES\] Lombok"; then
+        echo "Configuring Lombok annotation processor..."
+        
+        # Find the maven-compiler-plugin section and add configuration
+        sed -i '/<artifactId>maven-compiler-plugin<\/artifactId>/a\
+          <configuration>\
+            <annotationProcessorPaths>\
+              <path>\
+                <groupId>org.projectlombok</groupId>\
+                <artifactId>lombok</artifactId>\
+                <version>1.18.36</version>\
+              </path>\
+            </annotationProcessorPaths>\
+          </configuration>' pom.xml
+    fi
+else
+    echo ""
+    echo "No additional dependencies selected (JUnit 5 is included by default)"
+fi
+
+# Update Java version to 21
+echo "Setting Java version to 21..."
+sed -i 's/<maven\.compiler\.release>[0-9]*<\/maven\.compiler\.release>/<maven.compiler.release>21<\/maven.compiler.release>/' pom.xml
+sed -i 's/<maven\.compiler\.source>[0-9]*<\/maven\.compiler\.source>/<maven.compiler.source>21<\/maven.compiler.source>/' pom.xml
+sed -i 's/<maven\.compiler\.target>[0-9]*<\/maven\.compiler\.target>/<maven.compiler.target>21<\/maven.compiler.target>/' pom.xml
+
+# Rename App.java to custom main class name (if specified)
+if [ "$main_class" != "App" ]; then
+    echo "Renaming App.java to ${main_class}.java..."
+    
+    # Find the App.java file
+    app_file=$(find src/main/java -name "App.java" -type f)
+    
+    if [ -n "$app_file" ]; then
+        # Replace all references to App with the new class name
+        sed -i "s/\bApp\b/${main_class}/g" "$app_file"
+        
+        # Rename the file
+        new_file=$(echo "$app_file" | sed "s/App\.java/${main_class}.java/")
+        mv "$app_file" "$new_file"
+        
+        # Update test file references
+        find src/test/java -name "*.java" -type f -exec sed -i "s/\bApp\b/${main_class}/g" {} \;
+        
+        # Rename test file
+        test_file=$(find src/test/java -name "AppTest.java" -type f)
+        if [ -n "$test_file" ]; then
+            # Update AppTest class name to MainTest in the file content
+            sed -i "s/\bAppTest\b/${main_class}Test/g" "$test_file"
+            # Then rename the file itself
+            new_test_file=$(echo "$test_file" | sed "s/AppTest\.java/${main_class}Test.java/")
+            mv "$test_file" "$new_test_file"
+        fi
+        
+        echo "Successfully renamed all App references to ${main_class}"
+    fi
+fi
+
+echo ""
+echo "Project created successfully!"
+echo "Opening in Neovim..."
+echo ""
+
+nvim .
