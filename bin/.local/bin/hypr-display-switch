@@ -65,73 +65,24 @@ move_workspaces_to_monitor() {
     done
 }
 
-# Function to prompt user with gum (runs directly, no terminal wrapper)
-prompt_display_mode() {
-    log_info "Prompting user for display mode"
-    
-    # Create temporary file for communication
-    local choice_file="/tmp/hypr-display-choice-$$.txt"
-    
-    # Run gum directly in a subshell
-    (
-        # Display header
-        gum style \
-            --foreground 212 --border-foreground 212 --border double \
-            --align center --width 50 --margin "1 2" --padding "1 2" \
-            "TV Display Connected" "Choose display configuration:" 2>/dev/null
-        
-        # Run gum choose with timeout
-        choice=$(timeout 10s gum choose \
-            --header "Select display mode (auto-selects 'TV Only' in 10s):" \
-            --cursor.foreground 212 \
-            --selected.foreground 212 \
-            "TV Only" \
-            "TV + Laptop (Extended)" \
-            "Cancel" \
-            2>/dev/null || echo "TV Only")
-        
-        # Write choice to file
-        echo "$choice" > "$choice_file"
-    ) &
-    
-    # Wait for prompt to complete (max 12 seconds)
-    local wait_time=0
-    while [[ ! -f "$choice_file" ]] && [[ $wait_time -lt 24 ]]; do
-        sleep 0.5
-        wait_time=$((wait_time + 1))
-    done
-    
-    # Read choice from file
-    local choice="TV Only"
-    if [[ -f "$choice_file" ]]; then
-        choice=$(cat "$choice_file")
-        rm -f "$choice_file"
-    fi
-    
-    # Clean up background process
-    wait 2>/dev/null || true
-    
-    echo "$choice"
-}
 
-# Function to switch to TV-only mode
-switch_to_tv_only() {
+
+# Function to switch to TV-primary mode (laptop stays on)
+switch_to_tv_primary() {
     local tv_monitor="$1"
-    log_info "Switching to TV-only mode (monitor: $tv_monitor)"
+    log_info "Switching to TV-primary mode (monitor: $tv_monitor)"
     
-    # First, enable TV with correct settings
+    # Enable both monitors - TV as primary at position 0x0
     hyprctl keyword monitor "$tv_monitor,3840x2160@60,0x0,1.6"
+    hyprctl keyword monitor "$LAPTOP_MONITOR,2880x1800@120,3840x0,1.6"
     
-    # Small delay for monitor to initialize
+    # Small delay for monitors to initialize
     sleep 0.5
     
-    # Move all workspaces to TV
+    # Move all workspaces to TV (primary)
     move_workspaces_to_monitor "$tv_monitor"
     
-    # Disable laptop monitor
-    hyprctl keyword monitor "$LAPTOP_MONITOR,disable"
-    
-    log_success "TV is now the primary display (laptop disabled)"
+    log_success "TV is now the primary display (laptop secondary)"
 }
 
 # Function to switch to extended mode (TV + Laptop)
@@ -177,33 +128,7 @@ switch_to_laptop() {
     log_success "Laptop is now the primary display"
 }
 
-# Function to handle TV connection
-handle_tv_connected() {
-    local tv_monitor="$1"
-    log_info "TV connected (monitor: $tv_monitor), prompting user for configuration"
-    
-    # Prompt user for display mode
-    local choice
-    choice=$(prompt_display_mode)
-    
-    log_info "User selected: $choice"
-    
-    case "$choice" in
-        "TV Only")
-            switch_to_tv_only "$tv_monitor"
-            ;;
-        "TV + Laptop (Extended)")
-            switch_to_extended "$tv_monitor"
-            ;;
-        "Cancel")
-            log_info "User cancelled, keeping current configuration"
-            ;;
-        *)
-            log_warning "Unknown choice '$choice', defaulting to TV Only"
-            switch_to_tv_only "$tv_monitor"
-            ;;
-    esac
-}
+
 
 # Main logic
 main() {
@@ -216,8 +141,9 @@ main() {
             exit 1
         fi
         
-        # TV is connected - prompt user
-        handle_tv_connected "$tv_monitor"
+        # TV is connected - auto switch to TV primary mode
+        log_info "TV connected (monitor: $tv_monitor), auto-switching to TV primary mode"
+        switch_to_tv_primary "$tv_monitor"
     else
         # TV is not connected, use laptop
         switch_to_laptop
