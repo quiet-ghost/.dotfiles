@@ -21,3 +21,6 @@ Thumbs.db
 *.tmp
 *.temp
 bin/.local/bin/coderabbit
+
+# Git worktrees
+.worktrees/

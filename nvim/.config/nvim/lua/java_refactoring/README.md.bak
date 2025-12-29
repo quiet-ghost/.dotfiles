@@ -1,0 +1,145 @@
+# Java Refactoring Suite for Neovim
+
+IntelliJ IDEA-style refactoring tools for Java in Neovim, using Treesitter and Telescope.
+
+## Features
+
+### Extract Interface (Implemented)
+
+Extract public methods and constants from a Java class into a new interface.
+
+**Keybinding:** `<leader>jr` (in Java files)
+
+**Workflow:**
+1. Place cursor anywhere in your Java class
+2. Press `<leader>jr`
+3. Interactive Telescope prompts will guide you through:
+   - Interface name (smart suggestions based on class name)
+   - Package selection (defaults to current package)
+   - Member selection (multi-select public methods and constants)
+   - JavaDoc handling (as-is, copy, or move)
+
+**Features:**
+- ✅ Smart interface naming (strips "Impl", "Service" suffixes)
+- ✅ Extracts public methods
+- ✅ Extracts public static final fields (constants)
+- ✅ Handles JavaDoc comments
+- ✅ Automatically updates class to implement interface
+- ✅ Adds @Override annotations to methods
+- ✅ Opens generated interface in vsplit
+- ✅ Formats generated code
+
+## Usage Example
+
+**Before (StripePaymentService.java):**
+```java
+package dev.quietghost.store;
+
+public class StripePaymentService {
+  public static final String PROVIDER = "Stripe";
+  
+  /**
+   * Process payment
+   */
+  public void processPayment(double amount) {
+    System.out.println("STRIPE: " + amount);
+  }
+}
+```
+
+**After refactoring:**
+
+**PaymentService.java** (new interface):
+```java
+package dev.quietghost.store;
+
+public interface PaymentService {
+  String PROVIDER = "Stripe";
+  
+  /**
+   * Process payment
+   */
+  void processPayment(double amount);
+}
+```
+
+**StripePaymentService.java** (updated):
+```java
+package dev.quietghost.store;
+
+public class StripePaymentService implements PaymentService {
+  public static final String PROVIDER = "Stripe";
+  
+  /**
+   * Process payment
+   */
+  @Override
+  public void processPayment(double amount) {
+    System.out.println("STRIPE: " + amount);
+  }
+}
+```
+
+## Dependencies
+
+- ✅ nvim-treesitter (with Java parser)
+- ✅ telescope.nvim
+- ✅ plenary.nvim
+
+## File Structure
+
+```
+lua/refactoring/
+├── init.lua                      # Entry point
+├── extract_interface.lua         # Extract interface implementation
+├── parsers/
+│   └── java_parser.lua          # Treesitter Java parsing utilities
+├── generators/
+│   └── interface_generator.lua  # Interface code generation
+├── ui/
+│   └── telescope_prompts.lua    # Telescope UI prompts
+└── utils/
+    └── naming.lua               # Smart naming heuristics
+```
+
+## Future Refactorings
+
+Planned refactorings to be implemented:
+- Extract Superclass
+- Extract Delegate
+- Inline Method/Variable/Field
+- Change Signature
+- Pull Members Up/Down
+- Safe Delete
+- Full "Refactor This" menu
+
+## Configuration
+
+Currently uses sensible defaults. Future versions will support configuration via:
+```lua
+vim.g.java_refactoring = {
+  add_override_annotations = true,
+  open_mode = "vsplit",  -- or "split", "tabnew"
+  javadoc_default = "copy",
+  auto_format = true,
+}
+```
+
+## Troubleshooting
+
+**Error: "No class found in current file"**
+- Make sure you're in a Java file
+- Ensure Treesitter Java parser is installed: `:TSInstall java`
+
+**Error: "Treesitter Java parser not available"**
+- Run `:TSInstall java`
+- Check `:checkhealth nvim-treesitter`
+
+**Interface generation fails**
+- Ensure your Java file has proper syntax
+- Check that you have write permissions in the directory
+
+## Credits
+
+Inspired by IntelliJ IDEA's refactoring capabilities.
+Built with Neovim, Treesitter, and Telescope.

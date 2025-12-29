@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Git worktree lister - Show all worktrees with formatting
+# Usage: wl
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "Error: Not in a git repository"
+  exit 1
+fi
+
+# Get repo root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# Get current worktree path
+CURRENT_PATH=$(pwd)
+
+echo "=== Git Worktrees ==="
+echo ""
+
+# Run git worktree list and format it
+git worktree list | while IFS= read -r line; do
+  # Extract path (first field)
+  path=$(echo "$line" | awk '{print $1}')
+  
+  # Check if this is the current worktree
+  if [ "$path" = "$CURRENT_PATH" ] || [ "$path" = "$REPO_ROOT" ]; then
+    echo "→ $line"  # Mark current with arrow
+  else
+    echo "  $line"
+  fi
+done
+
+echo ""

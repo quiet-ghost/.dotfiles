@@ -58,3 +58,8 @@ source ~/.dotfiles/zsh/aliases.zsh
 
 # bun completions
 [ -s "/home/ghost/.bun/_bun" ] && source "/home/ghost/.bun/_bun"
+
+# Added by LM Studio CLI (lms)
+export PATH="$PATH:/home/ghost/.lmstudio/bin"
+# End of LM Studio CLI section
+

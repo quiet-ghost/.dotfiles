@@ -15,6 +15,7 @@ alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
 alias jf='new-javafx'
 alias jn='new-java'
+alias sb='new-springboot'
 alias ya='yazi'
 # fabric alias removed - now handled by lazy loading function
 

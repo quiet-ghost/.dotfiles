@@ -2,6 +2,7 @@ return {
   "kndndrj/nvim-dbee",
   dependencies = {
     "MunifTanjim/nui.nvim",
+    "tpope/dadbod-ui",
   },
   build = function()
     -- Install tries to automatically detect the install method.
