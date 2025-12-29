@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# Git worktree manager - Create or switch to worktrees with tmux integration
+# Usage: wt [branch-name]
+
+set -e
+
+WORKTREE_DIR=".worktrees"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "Error: Not in a git repository"
+  exit 1
+fi
+
+# Get repo root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# Get project name (repo directory name)
+PROJECT_NAME=$(basename "$REPO_ROOT")
+
+# Check if we're inside tmux
+IN_TMUX=false
+if [ -n "$TMUX" ]; then
+  IN_TMUX=true
+fi
+
+# Ensure .worktrees directory exists
+if [ ! -d "$WORKTREE_DIR" ]; then
+  echo "Creating $WORKTREE_DIR directory..."
+  mkdir -p "$WORKTREE_DIR"
+fi
+
+# Ensure .worktrees is in .gitignore
+if [ -f ".gitignore" ]; then
+  if ! grep -q "^${WORKTREE_DIR}/\$" .gitignore 2>/dev/null; then
+    echo "Adding $WORKTREE_DIR/ to .gitignore..."
+    echo "" >> .gitignore
+    echo "# Git worktrees" >> .gitignore
+    echo "${WORKTREE_DIR}/" >> .gitignore
+  fi
+else
+  echo "Creating .gitignore with $WORKTREE_DIR/..."
+  echo "# Git worktrees" > .gitignore
+  echo "${WORKTREE_DIR}/" >> .gitignore
+fi
+
+# If no argument, show current worktrees and available branches
+if [ -z "$1" ]; then
+  echo "=== Current Worktrees ==="
+  if [ -d "$WORKTREE_DIR" ] && [ "$(ls -A $WORKTREE_DIR 2>/dev/null)" ]; then
+    git worktree list | grep "$WORKTREE_DIR" || echo "  No worktrees found"
+  else
+    echo "  No worktrees found"
+  fi
+  
+  echo ""
+  echo "=== Available Branches ==="
+  git branch -a | grep -v HEAD | sed 's/^../  /'
+  
+  echo ""
+  echo "Usage: wt <branch-name>"
+  exit 0
+fi
+
+BRANCH_NAME="$1"
+WORKTREE_PATH="${WORKTREE_DIR}/${BRANCH_NAME}"
+
+# Function to create/switch to tmux session
+switch_to_tmux_session() {
+  local session_name="$1"
+  local worktree_path="$2"
+  
+  # Check if session already exists
+  if tmux has-session -t "$session_name" 2>/dev/null; then
+    echo "Tmux session '$session_name' already exists, switching to it..."
+    tmux switch-client -t "$session_name"
+  else
+    echo "Creating new tmux session: $session_name"
+    # Create new session in background, starting in the worktree directory
+    tmux new-session -d -s "$session_name" -c "$worktree_path"
+    # Switch to the new session
+    tmux switch-client -t "$session_name"
+  fi
+}
+
+# Check if worktree already exists
+if [ -d "$WORKTREE_PATH" ]; then
+  echo "Worktree already exists at: $WORKTREE_PATH"
+  
+  # If in tmux, create/switch to session
+  if [ "$IN_TMUX" = true ]; then
+    SESSION_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
+    switch_to_tmux_session "$SESSION_NAME" "$REPO_ROOT/$WORKTREE_PATH"
+  else
+    echo "cd $WORKTREE_PATH"
+  fi
+  exit 0
+fi
+
+# Check if branch exists
+if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
+  echo "Creating worktree from existing branch: $BRANCH_NAME"
+  git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
+else
+  echo "Branch '$BRANCH_NAME' does not exist."
+  echo ""
+  
+  # Get list of branches for base selection
+  current_branch=$(git branch --show-current)
+  
+  # Build branch list for gum choose
+  branches=()
+  [ -n "$current_branch" ] && branches+=("$current_branch (current)")
+  
+  if git show-ref --verify --quiet refs/heads/main; then
+    [ "$current_branch" != "main" ] && branches+=("main")
+  fi
+  
+  if git show-ref --verify --quiet refs/heads/master; then
+    [ "$current_branch" != "master" ] && branches+=("master")
+  fi
+  
+  # Add other branches
+  while IFS= read -r branch; do
+    branch=$(echo "$branch" | sed 's/^..//' | xargs)
+    if [[ "$branch" != "$current_branch" && "$branch" != "main" && "$branch" != "master" && ! "$branch" =~ ^remotes/ ]]; then
+      branches+=("$branch")
+    fi
+  done < <(git branch | grep -v HEAD)
+  
+  if [ ${#branches[@]} -eq 0 ]; then
+    echo "Error: No branches available as base"
+    exit 1
+  fi
+  
+  echo "Select base branch for '$BRANCH_NAME':"
+  selected_base=$(printf '%s\n' "${branches[@]}" | gum choose)
+  
+  if [ -z "$selected_base" ]; then
+    echo "Cancelled."
+    exit 1
+  fi
+  
+  # Remove " (current)" suffix if present
+  selected_base=$(echo "$selected_base" | sed 's/ (current)$//')
+  
+  echo "Creating new branch '$BRANCH_NAME' from '$selected_base'..."
+  git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "$selected_base"
+fi
+
+# Trust the worktree with mise
+if command -v mise > /dev/null 2>&1; then
+  echo "Running mise trust for worktree..."
+  mise trust "$WORKTREE_PATH" 2>/dev/null || true
+fi
+
+echo ""
+echo "✓ Worktree created successfully!"
+
+# If in tmux, create new session and switch to it
+if [ "$IN_TMUX" = true ]; then
+  SESSION_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
+  switch_to_tmux_session "$SESSION_NAME" "$REPO_ROOT/$WORKTREE_PATH"
+else
+  echo "cd $WORKTREE_PATH"
+fi

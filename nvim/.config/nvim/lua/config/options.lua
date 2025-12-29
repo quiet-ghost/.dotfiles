@@ -1,7 +1,6 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 
-vim.opt.showtabline = 0
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.mouse = "a"

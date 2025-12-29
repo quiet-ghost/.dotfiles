@@ -1,0 +1,228 @@
+#!/usr/bin/env bash
+
+# Color definitions
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly PURPLE='\033[0;35m'
+readonly NC='\033[0m'
+
+# Monitor identification
+readonly LAPTOP_MONITOR="eDP-1"
+readonly TV_DESC_PATTERN="SAMSUNG 0x01000E00"  # TV description pattern
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1" | systemd-cat -t hypr-display-switch -p info
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1" | systemd-cat -t hypr-display-switch -p info
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1" | systemd-cat -t hypr-display-switch -p warning
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" | systemd-cat -t hypr-display-switch -p err
+}
+
+# Function to get monitor name by description pattern
+get_monitor_by_desc() {
+    local pattern="$1"
+    hyprctl monitors -j | jq -r ".[] | select(.description | contains(\"$pattern\")) | .name" | head -n1
+}
+
+# Function to check if TV is connected
+is_tv_connected() {
+    local tv_monitor
+    tv_monitor=$(get_monitor_by_desc "$TV_DESC_PATTERN")
+    [[ -n "$tv_monitor" ]]
+}
+
+# Function to get TV monitor name
+get_tv_monitor() {
+    get_monitor_by_desc "$TV_DESC_PATTERN"
+}
+
+# Function to get connected monitors
+get_connected_monitors() {
+    hyprctl monitors -j | jq -r '.[].name'
+}
+
+# Function to move all workspaces to a specific monitor
+move_workspaces_to_monitor() {
+    local target_monitor="$1"
+    log_info "Moving all workspaces to $target_monitor"
+    
+    local workspaces
+    workspaces=$(hyprctl workspaces -j | jq -r '.[].id')
+    
+    for ws in $workspaces; do
+        hyprctl dispatch moveworkspacetomonitor "$ws" "$target_monitor" 2>/dev/null || true
+    done
+}
+
+# Function to prompt user with gum (runs directly, no terminal wrapper)
+prompt_display_mode() {
+    log_info "Prompting user for display mode"
+    
+    # Create temporary file for communication
+    local choice_file="/tmp/hypr-display-choice-$$.txt"
+    
+    # Run gum directly in a subshell
+    (
+        # Display header
+        gum style \
+            --foreground 212 --border-foreground 212 --border double \
+            --align center --width 50 --margin "1 2" --padding "1 2" \
+            "TV Display Connected" "Choose display configuration:" 2>/dev/null
+        
+        # Run gum choose with timeout
+        choice=$(timeout 10s gum choose \
+            --header "Select display mode (auto-selects 'TV Only' in 10s):" \
+            --cursor.foreground 212 \
+            --selected.foreground 212 \
+            "TV Only" \
+            "TV + Laptop (Extended)" \
+            "Cancel" \
+            2>/dev/null || echo "TV Only")
+        
+        # Write choice to file
+        echo "$choice" > "$choice_file"
+    ) &
+    
+    # Wait for prompt to complete (max 12 seconds)
+    local wait_time=0
+    while [[ ! -f "$choice_file" ]] && [[ $wait_time -lt 24 ]]; do
+        sleep 0.5
+        wait_time=$((wait_time + 1))
+    done
+    
+    # Read choice from file
+    local choice="TV Only"
+    if [[ -f "$choice_file" ]]; then
+        choice=$(cat "$choice_file")
+        rm -f "$choice_file"
+    fi
+    
+    # Clean up background process
+    wait 2>/dev/null || true
+    
+    echo "$choice"
+}
+
+# Function to switch to TV-only mode
+switch_to_tv_only() {
+    local tv_monitor="$1"
+    log_info "Switching to TV-only mode (monitor: $tv_monitor)"
+    
+    # First, enable TV with correct settings
+    hyprctl keyword monitor "$tv_monitor,3840x2160@60,0x0,1.6"
+    
+    # Small delay for monitor to initialize
+    sleep 0.5
+    
+    # Move all workspaces to TV
+    move_workspaces_to_monitor "$tv_monitor"
+    
+    # Disable laptop monitor
+    hyprctl keyword monitor "$LAPTOP_MONITOR,disable"
+    
+    log_success "TV is now the primary display (laptop disabled)"
+}
+
+# Function to switch to extended mode (TV + Laptop)
+switch_to_extended() {
+    local tv_monitor="$1"
+    log_info "Switching to extended display mode (monitor: $tv_monitor)"
+    
+    # Enable both monitors - TV as primary
+    hyprctl keyword monitor "$tv_monitor,3840x2160@60,0x0,1.6"
+    hyprctl keyword monitor "$LAPTOP_MONITOR,2880x1800@120,auto,1.6"
+    
+    # Small delay
+    sleep 0.5
+    
+    # Move primary workspaces to TV
+    move_workspaces_to_monitor "$tv_monitor"
+    
+    log_success "Extended mode enabled (TV primary, laptop secondary)"
+}
+
+# Function to switch to laptop-only mode
+switch_to_laptop() {
+    log_info "Switching to laptop-only mode"
+    
+    # First, disable all external monitors
+    local external_monitors
+    external_monitors=$(hyprctl monitors -j | jq -r ".[] | select(.name != \"$LAPTOP_MONITOR\") | .name")
+    for monitor in $external_monitors; do
+        log_info "Disabling external monitor: $monitor"
+        hyprctl keyword monitor "$monitor,disable"
+    done
+    
+    # Enable laptop monitor with explicit settings
+    log_info "Enabling laptop display: $LAPTOP_MONITOR"
+    hyprctl keyword monitor "$LAPTOP_MONITOR,2880x1800@120,0x0,1.6"
+    
+    # Small delay to let it initialize
+    sleep 0.5
+    
+    # Move all workspaces to laptop
+    move_workspaces_to_monitor "$LAPTOP_MONITOR"
+    
+    log_success "Laptop is now the primary display"
+}
+
+# Function to handle TV connection
+handle_tv_connected() {
+    local tv_monitor="$1"
+    log_info "TV connected (monitor: $tv_monitor), prompting user for configuration"
+    
+    # Prompt user for display mode
+    local choice
+    choice=$(prompt_display_mode)
+    
+    log_info "User selected: $choice"
+    
+    case "$choice" in
+        "TV Only")
+            switch_to_tv_only "$tv_monitor"
+            ;;
+        "TV + Laptop (Extended)")
+            switch_to_extended "$tv_monitor"
+            ;;
+        "Cancel")
+            log_info "User cancelled, keeping current configuration"
+            ;;
+        *)
+            log_warning "Unknown choice '$choice', defaulting to TV Only"
+            switch_to_tv_only "$tv_monitor"
+            ;;
+    esac
+}
+
+# Main logic
+main() {
+    if is_tv_connected; then
+        local tv_monitor
+        tv_monitor=$(get_tv_monitor)
+        
+        if [[ -z "$tv_monitor" ]]; then
+            log_error "TV detected but could not get monitor name"
+            exit 1
+        fi
+        
+        # TV is connected - prompt user
+        handle_tv_connected "$tv_monitor"
+    else
+        # TV is not connected, use laptop
+        switch_to_laptop
+    fi
+}
+
+# Run main function
+main

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+# Color definitions
+readonly BLUE='\033[0;34m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly NC='\033[0m'
+
+log_info() {
+    echo -e "${BLUE}[MONITOR]${NC} $1" | systemd-cat -t hypr-display-monitor -p info
+}
+
+log_success() {
+    echo -e "${GREEN}[MONITOR]${NC} $1" | systemd-cat -t hypr-display-monitor -p info
+}
+
+log_warning() {
+    echo -e "${YELLOW}[MONITOR]${NC} $1" | systemd-cat -t hypr-display-monitor -p warning
+}
+
+# Only run on laptop (ghost-x1), not desktop
+HOSTNAME=$(hostname)
+if [[ "$HOSTNAME" != "ghost-x1" ]]; then
+    log_info "Not running on laptop (hostname: $HOSTNAME), exiting"
+    exit 0
+fi
+
+log_success "Starting Hyprland display monitor daemon on $HOSTNAME"
+
+# Track previous monitor state
+PREVIOUS_MONITORS=""
+
+while true; do
+    # Get current monitor descriptions (more reliable than names)
+    CURRENT_MONITORS=$(hyprctl monitors -j 2>/dev/null | jq -r '.[].description' 2>/dev/null | sort | tr '\n' ',' || echo "")
+    
+    # Check if monitors changed
+    if [[ "$CURRENT_MONITORS" != "$PREVIOUS_MONITORS" ]] && [[ -n "$PREVIOUS_MONITORS" ]]; then
+        log_info "Monitor change detected"
+        log_info "Previous: $PREVIOUS_MONITORS"
+        log_info "Current: $CURRENT_MONITORS"
+        
+        # Small delay to let hardware settle
+        sleep 1
+        
+        # Trigger display switch script
+        "$HOME/.local/bin/hypr-display-switch" &
+    fi
+    
+    PREVIOUS_MONITORS="$CURRENT_MONITORS"
+    sleep 2  # Poll every 2 seconds
+done
