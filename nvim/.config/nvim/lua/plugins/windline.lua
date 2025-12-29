@@ -7,17 +7,17 @@ return {
     windline.setup = function(opts)
       opts = opts or {}
       opts.colors_name = function(colors)
-        -- Material theme colors
-        colors.magenta = "#e066ff"
-        colors.blue = "#7cb7ff"
-        colors.white = "#D5CED9"
-        colors.green = "#96E072"
-        colors.red = "#ee5d43"
-        colors.yellow = "#FFE66D"
-        colors.cyan = "#00e8c6"
-        colors.orange = "#f39c12"
-        colors.black = "#23262E"
-        colors.gray = "#746f77"
+        -- Rose Pine Moon theme colors
+        colors.magenta = "#c4a7e7" -- iris
+        colors.blue = "#9ccfd8" -- foam
+        colors.white = "#e0def4" -- text
+        colors.green = "#3e8fb0" -- pine
+        colors.red = "#eb6f92" -- love
+        colors.yellow = "#f6c177" -- gold
+        colors.cyan = "#9ccfd8" -- foam
+        colors.orange = "#ea9a97" -- rose
+        colors.black = "#191724" -- base
+        colors.gray = "#908caa" -- muted
         return colors
       end
       return original_setup(opts)

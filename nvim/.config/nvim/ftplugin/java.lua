@@ -1,3 +1,7 @@
+vim.opt_local.tabstop = 4
+vim.opt_local.shiftwidth = 4
+vim.opt_local.expandtab = true
+
 -- Prevent multiple runs for the same buffer
 if vim.b.jdtls_setup_done then
   return
