@@ -1,8 +1,22 @@
 local map = vim.keymap.set
 
 -- General keymaps
+map("n", "<leader>sz", ":source $HOME/.config/nvim/init.lua <CR>")
 map("n", "<leader>pv", ":Ex<CR>", { desc = "Open netrw" })
 
+-- Quickfix navigation
+map("n", "<M-e>", "<cmd>cnext<CR>zz", { desc = "Next quickfix item" })
+map("n", "<M-q>", "<cmd>cprev<CR>zz", { desc = "Previous quickfix item" })
+
+-- telescope overwriting search
+map("n", "<leader>ff", function()
+  require("telescope.builtin").find_files({ cwd = vim.fn.getcwd() })
+end, { desc = "Find Files (cwd)" })
+map("n", "<leader>fF", function()
+  require("telescope.builtin").find_files({ cwd = require("lazyvim.util").root() })
+end, { desc = "Find Files (Root Dir)" })
+
+map("n", "<leader>b", "<cmd>silent ToggleBlameLine<CR>", { desc = "Toggle Git Blame" })
 --- Special keymaps
 map("i", "jj", "<esc>", { desc = "Escape" }) -- Escape
 map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected lines down" }) -- Move selected lines down
@@ -35,6 +49,33 @@ map("n", "<leader>f", function()
 end, { desc = "Format current buffer" }) -- Format current buffer
 
 map("n", "<leader>s", "%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<Left><Left><Left>", { desc = "Replace word under cursor" }) -- Replace word under cursor- Keymaps are automatically loaded on the VeryLazy event
+
+-- Telescope Keymaps
+local builtin = require("telescope.builtin")
+
+map("n", "<leader>fh", builtin.help_tags)
+map("n", "<leader>fg", require("utils.multi-grep"))
+map("n", "<leader>fb", builtin.buffers)
+map("n", "<leader>fl", builtin.colorscheme, { desc = "Select Colorscheme" })
+map("n", "<leader>/", builtin.current_buffer_fuzzy_find)
+map("n", "<leader>gw", builtin.grep_string)
+
+map("n", "<leader>fa", function()
+  ---@diagnostic disable-next-line: param-type-mismatch
+  builtin.find_files({ cwd = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy") })
+end)
+
+map("n", "<leader>en", function()
+  builtin.find_files({ cwd = vim.fn.stdpath("config") })
+end)
+
+map("n", "<leader>eo", function()
+  builtin.find_files({ cwd = "~/.config/nvim-backup/" })
+end)
+
+map("n", "<leader>fp", function()
+  builtin.find_files({ cwd = "~/plugins/" })
+end)
 
 -- TODO Keys
 map("n", "<leader>ft", "<cmd>TodoTelescope<cr>", { desc = "Find TODOs" })
@@ -82,17 +123,25 @@ map("n", "<leader>sql", require("utils.notes").search_sql_notes, { desc = "Searc
 map("n", "<M-i>", "<cmd>DevdocsOpen<CR>", { desc = "Open DevDocs" })
 
 -- telescope-tmux-manager plugin (custom popup)
-map("n", "<A-w>", require("utils.tmux").session_manager, { desc = "Tmux Manager" })
+-- map("n", "<A-w>", require("utils.tmux").session_manager, { desc = "Tmux Manager" })
 
 -- Manual tmux session switch (backup)
 vim.api.nvim_create_user_command("TmuxSwitch", function(opts)
   vim.fn.system("tmux switch-client -t " .. opts.args)
 end, { nargs = 1, desc = "Switch to tmux session" })
 
--- JavaFX keymaps
+-- Unified Java/C++/Python run keymap
 map("n", "<leader>jf", function()
-  require("utils.javafx").compile_and_run()
-end, { desc = "Run JavaFX in right tmux pane" })
+  if vim.bo.filetype == "java" then
+    require("utils.javafx").compile_and_run()
+  elseif vim.bo.filetype == "cpp" or vim.bo.filetype == "c" then
+    require("utils.cpp").compile_and_run()
+  elseif vim.bo.filetype == "python" then
+    require("utils.python").compile_and_run()
+  else
+    vim.notify("No run configuration for filetype: " .. vim.bo.filetype, vim.log.levels.WARN)
+  end
+end, { desc = "Run current file (Java/C++/Python)" })
 
 map("n", "<leader>jc", function()
   require("utils.javafx").compile_only()

@@ -16,7 +16,8 @@ local function insert_java_boilerplate()
   if is_empty and filename ~= "" then
     local boilerplate = {
       "public class " .. filename .. " {",
-      "    ",
+      "    public static void main(String[] args) {",
+      "    }",
       "}",
     }
     vim.api.nvim_buf_set_lines(0, 0, -1, false, boilerplate)
@@ -58,11 +59,3 @@ vim.api.nvim_create_autocmd("BufNewFile", {
     vim.api.nvim_win_set_cursor(0, { 11, 8 })
   end,
 })
-
--- Setup JDTLS keymaps for Java files (buffer-local)
--- vim.api.nvim_create_autocmd("FileType", {
---   pattern = "java",
---   callback = function()
---     require("utils.jdtls").setup_keymaps()
---   end,
--- })
