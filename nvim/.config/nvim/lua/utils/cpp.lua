@@ -62,19 +62,50 @@ end
 local function find_cmake_executable()
   local cwd = vim.fn.getcwd()
   local build_dir = cwd .. "/" .. config.build_dir
-
-  -- Try to find executable in build directory
-  local handle = io.popen("find " .. build_dir .. " -type f -executable -name '*' 2>/dev/null")
+  local project_name = vim.fn.fnamemodify(cwd, ":t")
+  
+  -- Priority 1: Try project name directly in build root
+  local main_exe = build_dir .. "/" .. project_name
+  if vim.fn.executable(main_exe) == 1 then
+    return main_exe
+  end
+  
+  -- Priority 2: Find in root of build dir ONLY (exclude subdirs like CMakeFiles/, tests/)
+  local handle = io.popen("find " .. build_dir .. " -maxdepth 1 -type f -executable 2>/dev/null")
   if handle then
     local result = handle:read("*a")
     handle:close()
-
+    
+    if result and result ~= "" then
+      for line in result:gmatch("[^\r\n]+") do
+        -- Exclude CMake internal files
+        if not line:match("CMake") then
+          return line
+        end
+      end
+    end
+  end
+  
+  -- Priority 3: Search all executables but filter intelligently
+  handle = io.popen("find " .. build_dir .. " -type f -executable 2>/dev/null")
+  if handle then
+    local result = handle:read("*a")
+    handle:close()
+    
     if result and result ~= "" then
       local executables = {}
       for line in result:gmatch("[^\r\n]+") do
-        table.insert(executables, line)
+        -- Filter out CMake internal executables and tests
+        if not line:match("CMakeFiles/") and 
+           not line:match("CMakeDetermineCompiler") and
+           not line:match("/tests/tests") then
+          table.insert(executables, line)
+        end
       end
-      return executables[1] -- Return first executable found
+      
+      if #executables > 0 then
+        return executables[1]
+      end
     end
   end
 
@@ -98,10 +129,13 @@ end
 
 -- Create tmux pane and run command
 local function run_in_tmux(command, pane_size, title)
+  local cwd = vim.fn.getcwd()
+  local escaped_cwd = cwd:gsub("'", "'\\''")
+  
   local tmux_cmd = string.format(
     [[tmux split-window -h -l %d "cd '%s' && echo '--- %s ---' && echo '' && %s; echo ''; echo 'Press Enter to close...'; read"]],
     pane_size,
-    vim.fn.getcwd(),
+    escaped_cwd,
     title,
     command
   )
@@ -137,7 +171,7 @@ local function run_cmake()
   -- Find and run executable
   local executable = find_cmake_executable()
   if executable then
-    local run_cmd = executable
+    local run_cmd = string.format("'%s'", executable:gsub("'", "'\\''"))
     local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
     local title = string.format(config.title_formats.cmake, project_name)
     vim.notify(string.format("Running CMake project: %s", project_name), vim.log.levels.INFO)
@@ -169,10 +203,11 @@ local function run_make()
   end
 
   if executable then
+    local quoted_exe = string.format("'%s'", executable:gsub("'", "'\\''"))
     local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
     local title = string.format(config.title_formats.make, project_name)
     vim.notify(string.format("Running Make project: %s", project_name), vim.log.levels.INFO)
-    run_in_tmux(executable, config.pane_sizes.make, title)
+    run_in_tmux(quoted_exe, config.pane_sizes.make, title)
   else
     error("No executable found after make")
   end
@@ -202,7 +237,7 @@ local function run_single_file()
   end
 
   -- Run the compiled executable
-  local run_cmd = "./" .. output
+  local run_cmd = string.format("'./%s'", output:gsub("'", "'\\''"))
   local title = string.format(config.title_formats.single_file, file_info.filename)
   vim.notify(string.format("Compiling and running C++ file: %s", file_info.filename), vim.log.levels.INFO)
   run_in_tmux(run_cmd, config.pane_sizes.single_file, title)
