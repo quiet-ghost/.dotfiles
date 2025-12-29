@@ -13,11 +13,11 @@ alias oc='opencode'
 alias df='duf'
 alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
-alias jf='new-javafx'
 alias jn='new-java'
-alias sb='new-springboot'
+alias cn='new-cpp'
 alias ya='yazi'
-# fabric alias removed - now handled by lazy loading function
+#alias jf='new-javafx'
+#alias sb='new-springboot'
 
 # FZF-based aliases
 alias vh="eval \$(history | fzf | cut -d' ' -f4-)"
