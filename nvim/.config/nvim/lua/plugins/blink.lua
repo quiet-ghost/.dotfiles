@@ -44,6 +44,21 @@ return {
         menu = {
           draw = {
             treesitter = { "lsp" },
+            columns = {
+              -- { "kind_icon" }, -- Icon for the kind
+              { "label", gap = 1 }, -- The actual completion text
+              { "kind" }, -- Shows: Function, Variable, Method, etc.
+              { "source_name" }, -- Shows: LSP, Snippet, Buffer, Path
+            },
+            components = {
+              source_name = {
+                width = { max = 30 },
+                text = function(ctx)
+                  return "[" .. ctx.source_name .. "]"
+                end,
+                highlight = "BlinkCmpSource",
+              },
+            },
           },
         },
         documentation = {
@@ -72,6 +87,7 @@ return {
     dependencies = {
       "L3MON4D3/LuaSnip",
       "rafamadriz/friendly-snippets",
+      "onsails/lspkind.nvim",
     },
 
     config = function(_, opts)
