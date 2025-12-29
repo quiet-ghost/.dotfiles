@@ -30,366 +30,100 @@ local function is_javafx_maven_project(pom_path)
   return content:match("javafx") ~= nil
 end
 
--- ============================================================================
--- NEW HELPER FUNCTIONS FOR UNIVERSAL JAVA RUNNER
--- ============================================================================
-
--- Helper: Extract package name from Java file
-local function extract_package_from_file(filepath)
-  local file = io.open(filepath, "r")
-  if not file then
-    return nil
-  end
-
-  -- Package statement is always in first 20 lines
-  for i = 1, 20 do
-    local line = file:read("*line")
-    if not line then
-      break
-    end
-
-    -- Match: package com.example.something;
-    local package_name = line:match("^%s*package%s+([%w%.]+)%s*;")
-    if package_name then
-      file:close()
-      return package_name
-    end
-  end
-
-  file:close()
-  return nil
-end
-
--- Helper: Find classpath root directory
--- For packaged files, finds src/main/java (or equivalent)
--- For non-packaged files, returns file directory
-local function find_classpath_root(file_path, package_name)
-  if not package_name then
-    -- No package = run from file directory
-    return vim.fn.fnamemodify(file_path, ":h")
-  end
-
-  -- Convert package to path: dev.quietghost → dev/quietghost
-  local package_path = package_name:gsub("%.", "/")
-
-  -- Try to find where package path appears in file path
-  -- Example: /project/src/main/java/dev/quietghost/Main.java
-  --       → /project/src/main/java
-  local classpath_root = file_path:match("(.+)/" .. vim.pesc(package_path) .. "/")
-
-  if classpath_root then
-    return classpath_root
-  end
-
-  -- Fallback: try common Java source directories
-  local dir = vim.fn.fnamemodify(file_path, ":h")
-  local common_roots = { "src/main/java", "src", "java" }
-
-  for _, root in ipairs(common_roots) do
-    if dir:match(root) then
-      local root_path = dir:match("(.+/" .. root .. ")/")
-      if root_path then
-        return root_path
-      end
-    end
-  end
-
-  -- Final fallback: parent directory
-  return vim.fn.fnamemodify(file_path, ":h")
-end
-
--- Helper: Check if file is a Spring Boot application
-local function is_spring_boot_application(filepath)
-  local file = io.open(filepath, "r")
-  if not file then
-    return false
-  end
-
-  local content = file:read("*all")
-  file:close()
-
-  return content:match("@SpringBootApplication") ~= nil
-end
-
--- Helper: Extract the class name containing main method
--- Returns: class_name, package_name
-local function find_main_class(filepath)
-  local file = io.open(filepath, "r")
-  if not file then
-    return nil, nil
-  end
-
-  local lines = {}
-  for line in file:lines() do
-    table.insert(lines, line)
-  end
-  file:close()
-
-  local package_name = nil
-  local current_class = nil
-  local main_class = nil
-
-  for _, line in ipairs(lines) do
-    -- Extract package
-    local pkg = line:match("^%s*package%s+([%w%.]+)%s*;")
-    if pkg then
-      package_name = pkg
-    end
-
-    -- Extract class name
-    local class = line:match("^%s*public%s+class%s+([%w_]+)") or line:match("^%s*class%s+([%w_]+)")
-    if class then
-      current_class = class
-    end
-
-    -- Check for main method
-    if line:match("public%s+static%s+void%s+main") and current_class then
-      main_class = current_class
-      break
-    end
-  end
-
-  return main_class, package_name
-end
-
--- Helper: Find Gradle project root
-local function find_gradle_root(start_dir)
-  local dir = start_dir
-  local home = vim.fn.expand("~")
-
-  while dir ~= "/" and dir ~= home do
-    if vim.fn.filereadable(dir .. "/build.gradle") == 1 or vim.fn.filereadable(dir .. "/build.gradle.kts") == 1 then
-      return dir
-    end
-    dir = vim.fn.fnamemodify(dir, ":h")
-  end
-
-  return nil
-end
-
--- Helper: Detect complete project context
--- Returns: project_type, project_root, framework_type
---   project_type: "maven" | "gradle" | "single"
---   framework_type: "spring-boot" | "javafx" | "regular"
-local function detect_project_context(file_path)
-  local dir = vim.fn.expand("%:p:h")
-
-  -- Check for Maven
-  local maven_dir, pom_path = find_pom_xml(dir)
-  if maven_dir and pom_path then
-    local is_spring = is_spring_boot_application(file_path)
-    local is_javafx = is_javafx_maven_project(pom_path)
-
-    local framework = "regular"
-    if is_spring then
-      framework = "spring-boot"
-    elseif is_javafx then
-      framework = "javafx"
-    end
-
-    return "maven", maven_dir, framework
-  end
-
-  -- Check for Gradle
-  local gradle_dir = find_gradle_root(dir)
-  if gradle_dir then
-    local is_spring = is_spring_boot_application(file_path)
-    local framework = is_spring and "spring-boot" or "regular"
-    return "gradle", gradle_dir, framework
-  end
-
-  -- Single file mode
-  local file_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  local is_javafx = file_content:match("import javafx") or file_content:match("extends Application")
-  local framework = is_javafx and "javafx" or "regular"
-
-  return "single", dir, framework
-end
-
--- Helper: Get display environment variables for GUI applications
-local function get_display_env()
-  -- Get current DISPLAY from systemd user environment (most reliable source)
-  local display =
-    vim.fn.system("systemctl --user show-environment 2>/dev/null | grep '^DISPLAY=' | cut -d= -f2 | tr -d '\n'")
-  local wayland_display =
-    vim.fn.system("systemctl --user show-environment 2>/dev/null | grep '^WAYLAND_DISPLAY=' | cut -d= -f2 | tr -d '\n'")
-
-  -- Fallback to shell environment if systemctl fails
-  if display == "" then
-    display = vim.fn.system("bash -c 'echo -n $DISPLAY'")
-  end
-  if wayland_display == "" then
-    wayland_display = vim.fn.system("bash -c 'echo -n $WAYLAND_DISPLAY'")
-  end
-
-  return display, wayland_display
-end
-
--- ============================================================================
--- MAIN EXECUTION FUNCTION (REWRITTEN)
--- ============================================================================
-
 function M.compile_and_run()
   local file = vim.fn.expand("%:p")
   local filename = vim.fn.expand("%:t")
+  local classname = vim.fn.expand("%:t:r")
   local dir = vim.fn.expand("%:p:h")
 
-  -- ============================================================
-  -- VALIDATION
-  -- ============================================================
   if not filename:match("%.java$") then
     vim.notify("Not a Java file!", vim.log.levels.ERROR)
     return
   end
 
-  -- Save file
   vim.cmd("w")
 
-  -- Check tmux
+  -- Check if we're in tmux
   local in_tmux = os.getenv("TMUX") ~= nil
+
   if not in_tmux then
     vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
     return
   end
 
-  -- ============================================================
-  -- DETECTION
-  -- ============================================================
-  local project_type, project_root, framework = detect_project_context(file)
+  -- Check for Maven project
+  local maven_dir, pom_path = find_pom_xml(dir)
 
-  vim.notify(string.format("Detected: %s project (%s)", framework, project_type), vim.log.levels.INFO)
-
-  -- Get display environment for all Java executions (GUI support)
-  local display, wayland_display = get_display_env()
-
-  -- ============================================================
-  -- MAVEN PROJECT EXECUTION
-  -- ============================================================
-  if project_type == "maven" then
-    local maven_cmd = ""
-    local pane_size = "30%"
-
-    if framework == "spring-boot" then
-      maven_cmd = "mvn clean spring-boot:run"
-      pane_size = "20%"
-    elseif framework == "javafx" then
-      maven_cmd = "mvn clean javafx:run"
-      pane_size = "20%"
-    else
-      -- Regular Maven project - need to find main class
-      local main_class, package_name = find_main_class(file)
-      if not main_class then
-        vim.notify("No main method found in this file!", vim.log.levels.ERROR)
-        return
-      end
-
-      local fully_qualified = main_class
-      if package_name then
-        fully_qualified = package_name .. "." .. main_class
-      end
-
-      maven_cmd = string.format('mvn clean compile exec:java -Dexec.mainClass="%s"', fully_qualified)
-    end
+  if maven_dir and pom_path and is_javafx_maven_project(pom_path) then
+    -- Maven JavaFX project - use mvn javafx:run
+    vim.notify("Maven JavaFX project detected - running with mvn", vim.log.levels.INFO)
 
     local tmux_cmd = string.format(
-      [[tmux split-window -h -l %s "cd '%s' && DISPLAY='%s' WAYLAND_DISPLAY='%s' echo '--- Running Maven %s ---' && %s; echo && echo 'Press Enter to close...'; read"]],
-      pane_size,
-      project_root,
-      display,
-      wayland_display,
-      framework,
-      maven_cmd
+      [[tmux split-window -h -l 20%% "cd '%s' && echo 'Running Maven JavaFX project...' && mvn clean javafx:run; echo && echo 'Press Enter to close...'; read"]],
+      maven_dir
     )
-
     vim.fn.system(tmux_cmd)
-    vim.notify(string.format("Maven %s running from %s", framework, project_root), vim.log.levels.INFO)
-
-  -- ============================================================
-  -- GRADLE PROJECT EXECUTION
-  -- ============================================================
-  elseif project_type == "gradle" then
-    local gradle_cmd = ""
-    local pane_size = "30%"
-
-    -- Check if gradlew is executable
-    local gradlew_path = project_root .. "/gradlew"
-    if vim.fn.executable(gradlew_path) == 0 and vim.fn.filereadable(gradlew_path) == 1 then
-      vim.fn.system("chmod +x " .. gradlew_path)
-    end
-
-    if framework == "spring-boot" then
-      gradle_cmd = "./gradlew clean bootRun"
-      pane_size = "20%"
-    else
-      gradle_cmd = "./gradlew clean run"
-    end
-
-    local tmux_cmd = string.format(
-      [[tmux split-window -h -l %s "cd '%s' && DISPLAY='%s' WAYLAND_DISPLAY='%s' echo '--- Running Gradle %s ---' && %s; echo && echo 'Press Enter to close...'; read"]],
-      pane_size,
-      project_root,
-      display,
-      wayland_display,
-      framework,
-      gradle_cmd
-    )
-
-    vim.fn.system(tmux_cmd)
-    vim.notify(string.format("Gradle %s running from %s", framework, project_root), vim.log.levels.INFO)
-
-  -- ============================================================
-  -- SINGLE FILE EXECUTION
-  -- ============================================================
+    vim.notify("Maven JavaFX running from " .. maven_dir, vim.log.levels.INFO)
   else
-    -- Find main class and package
-    local main_class, package_name = find_main_class(file)
+    -- Single file JavaFX or regular Java - use existing logic
+    local file_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+    local is_javafx = file_content:match("import javafx") or file_content:match("extends Application")
 
-    if not main_class then
-      vim.notify("No main method found in this file!", vim.log.levels.ERROR)
-      return
+    -- Find the class that contains the main method
+    local main_class = classname -- Default to filename without extension
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+
+    -- Look for the class containing public static void main
+    local main_pattern = "public%s+static%s+void%s+main"
+
+    -- Find which class contains the main method
+    local in_class = nil
+    for i = 1, #lines do
+      local line = lines[i]
+
+      -- Match any class declaration (public or not)
+      local class_match = line:match("^%s*public%s+class%s+([%w_]+)") or line:match("^%s*class%s+(Main)%s")
+      if class_match then
+        in_class = class_match
+      end
+
+      -- If we find main method, use the current class
+      if line:match(main_pattern) and in_class then
+        main_class = in_class
+        break
+      end
     end
 
-    -- Build fully qualified class name
-    local fully_qualified_class = main_class
-    if package_name then
-      fully_qualified_class = package_name .. "." .. main_class
-    end
-
-    -- Find classpath root
-    local classpath_root = find_classpath_root(file, package_name)
-
-    -- Get Java paths
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-21.0.8+12"
+    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
     local javac_path = java_home .. "/bin/javac"
     local java_path = java_home .. "/bin/java"
 
-    -- Determine compile command based on package
-    local compile_cmd = ""
-    if package_name then
-      -- Compile from classpath root with relative path
-      local rel_path = file:gsub(vim.pesc(classpath_root .. "/"), "")
-      compile_cmd = string.format("cd '%s' && %s %s", classpath_root, javac_path, rel_path)
+    if is_javafx then
+      -- Single file JavaFX program - run in background pane
+      local tmux_cmd = string.format(
+        [[tmux split-window -h -l 20%% "cd '%s' && %s %s && %s %s; echo 'Press Enter to close...'; read"]],
+        dir,
+        javac_path,
+        filename,
+        java_path,
+        main_class
+      )
+      vim.fn.system(tmux_cmd)
+      vim.notify("JavaFX running (single file, class: " .. main_class .. ")", vim.log.levels.INFO)
     else
-      -- Compile from current directory
-      compile_cmd = string.format("cd '%s' && %s %s", dir, javac_path, filename)
+      -- Regular Java program - run in interactive pane
+      local tmux_cmd = string.format(
+        [[tmux split-window -h -l 30%% "cd '%s' && %s %s && echo '--- Running %s ---' && %s %s; echo && echo 'Press Enter to close...'; read"]],
+        dir,
+        javac_path,
+        filename,
+        main_class,
+        java_path,
+        main_class
+      )
+      vim.fn.system(tmux_cmd)
+      vim.notify("Java running (class: " .. main_class .. ")", vim.log.levels.INFO)
     end
-
-    -- Build execution command
-    local pane_size = framework == "javafx" and "20%" or "30%"
-    local tmux_cmd = string.format(
-      [[tmux split-window -h -l %s "DISPLAY='%s' WAYLAND_DISPLAY='%s' %s && echo '--- Running %s: %s ---' && %s %s; echo && echo 'Press Enter to close...'; read"]],
-      pane_size,
-      display,
-      wayland_display,
-      compile_cmd,
-      framework,
-      fully_qualified_class,
-      java_path,
-      fully_qualified_class
-    )
-
-    vim.fn.system(tmux_cmd)
-    vim.notify(string.format("Running %s (class: %s)", framework, fully_qualified_class), vim.log.levels.INFO)
   end
 end
 
@@ -398,7 +132,6 @@ function M.compile_only()
   local filename = vim.fn.expand("%:t")
   local dir = vim.fn.expand("%:p:h")
 
-  -- Validation
   if not filename:match("%.java$") then
     vim.notify("Not a Java file!", vim.log.levels.ERROR)
     return
@@ -406,47 +139,22 @@ function M.compile_only()
 
   vim.cmd("w")
 
-  -- Detect project context
-  local project_type, project_root, framework = detect_project_context(file)
+  -- Check for Maven project
+  local maven_dir, pom_path = find_pom_xml(dir)
 
-  if project_type == "maven" then
+  if maven_dir and pom_path then
     -- Maven project - use mvn compile
-    vim.notify("Maven project - compiling with mvn", vim.log.levels.INFO)
-    local compile_cmd = string.format("cd %s && mvn clean compile", vim.fn.shellescape(project_root))
+    vim.notify("Maven project detected - compiling with mvn", vim.log.levels.INFO)
+
+    local compile_cmd = string.format("cd %s && mvn compile", vim.fn.shellescape(maven_dir))
+
     vim.cmd("split | terminal " .. compile_cmd)
     vim.cmd("resize 10")
-
-  elseif project_type == "gradle" then
-    -- Gradle project - use gradle build
-    vim.notify("Gradle project - compiling with gradle", vim.log.levels.INFO)
-    local compile_cmd = string.format("cd %s && ./gradlew clean build", vim.fn.shellescape(project_root))
-    vim.cmd("split | terminal " .. compile_cmd)
-    vim.cmd("resize 10")
-
   else
-    -- Single file - compile with package awareness
-    local package_name = extract_package_from_file(file)
-    local classpath_root = find_classpath_root(file, package_name)
-
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-21.0.8+12"
-
-    local compile_cmd = ""
-    if package_name then
-      local rel_path = file:gsub(vim.pesc(classpath_root .. "/"), "")
-      compile_cmd = string.format(
-        "cd %s && %s/bin/javac %s",
-        vim.fn.shellescape(classpath_root),
-        java_home,
-        vim.fn.shellescape(rel_path)
-      )
-    else
-      compile_cmd = string.format(
-        "cd %s && %s/bin/javac %s",
-        vim.fn.shellescape(dir),
-        java_home,
-        vim.fn.shellescape(filename)
-      )
-    end
+    -- Single file - use javac directly
+    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
+    local compile_cmd =
+      string.format("cd %s && %s/bin/javac %s", vim.fn.shellescape(dir), java_home, vim.fn.shellescape(filename))
 
     vim.cmd("split | terminal " .. compile_cmd)
     vim.cmd("resize 10")

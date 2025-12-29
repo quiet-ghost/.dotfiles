@@ -1,0 +1,27 @@
+#!/bin/bash
+# Optional script to switch keyboard layouts with notification
+# This is NOT currently in use - Waybar handles switching
+# To enable: Replace the on-click command in Waybar config with this script
+
+KEYBOARD="hl-virtual-keyboard-fcitx5"
+
+# Switch to next layout
+hyprctl switchxkblayout "$KEYBOARD" next
+
+# Get current layout
+CURRENT=$(hyprctl devices -j | jq -r ".keyboards[] | select(.name == \"$KEYBOARD\") | .active_keymap")
+
+# Show notification
+if command -v notify-send &> /dev/null; then
+    case "$CURRENT" in
+        *"Dvorak"*)
+            notify-send -t 2000 "⌨️ Keyboard Layout" "Switched to Real Programmers Dvorak"
+            ;;
+        *"US"*)
+            notify-send -t 2000 "⌨️ Keyboard Layout" "Switched to QWERTY"
+            ;;
+        *)
+            notify-send -t 2000 "⌨️ Keyboard Layout" "Switched to: $CURRENT"
+            ;;
+    esac
+fi

@@ -1,0 +1,305 @@
+#!/bin/bash
+
+# Spring Boot Project Generator Script
+# Usage: new-springboot [artifact] [name] [description]
+# Creates a new Spring Boot Maven project with dev.quietghost as the base package
+
+set -e
+
+# Fixed defaults
+group_id="dev.quietghost"
+java_version="21"
+packaging="jar"
+
+# Get artifact (required - arg or prompt)
+artifact=${1}
+if [ -z "$artifact" ]; then
+    read -p "Enter Artifact (project folder): " artifact
+    [ -z "$artifact" ] && { echo "Error: Artifact required"; exit 1; }
+fi
+
+# Validate artifact (lowercase, alphanumeric + hyphens)
+if ! [[ "$artifact" =~ ^[a-z0-9-]+$ ]]; then
+    echo "Error: Artifact must be lowercase alphanumeric with hyphens"
+    echo "Example: my-app, user-service, todo-api"
+    exit 1
+fi
+
+# Get name (optional - arg or prompt, defaults to artifact)
+name=${2}
+if [ -z "$name" ]; then
+    read -p "Enter Name (default: $artifact): " name
+    name=${name:-$artifact}
+fi
+
+# Get description (optional - arg or prompt with default)
+description=${3}
+if [ -z "$description" ]; then
+    read -p "Enter Description (default: Demo project for Spring Boot): " description
+    description=${description:-"Demo project for Spring Boot"}
+fi
+
+# Calculate package name (Spring convention: dev.quietghost.myapp)
+package_name="$group_id.${artifact//-/}"
+
+# Display project info
+echo ""
+echo "Creating Spring Boot project:"
+echo "  Artifact: $artifact"
+echo "  Name: $name"
+echo "  Description: $description"
+echo "  Group: $group_id"
+echo "  Package: $package_name"
+echo "  Java: $java_version"
+echo "  Packaging: $packaging"
+echo ""
+
+# Check if Spring CLI is available
+if ! command -v spring &> /dev/null; then
+    echo "Error: Spring CLI not found"
+    echo "Install with: sdk install springboot"
+    exit 1
+fi
+
+# Check if directory already exists
+if [ -d "$artifact" ]; then
+    read -p "Directory '$artifact' already exists. Overwrite? (y/N): " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Cancelled"
+        exit 0
+    fi
+    rm -rf "$artifact"
+fi
+
+# Spring Boot Dependency Database
+read -r -d '' DEPENDENCY_DATABASE << 'EOF' || true
+# WEB
+web:WEB | Spring Web - RESTful applications with Spring MVC and Tomcat
+webflux:WEB | Spring Reactive Web - Reactive applications with WebFlux and Netty
+websocket:WEB | WebSocket - WebSocket applications with SockJS and STOMP
+hateoas:WEB | Spring HATEOAS - Hypermedia-based RESTful services
+graphql:WEB | GraphQL - Build GraphQL applications with Spring
+htmx:WEB | HTMX - Build modern user interfaces with htmx
+spring-restclient:WEB | REST Client - Spring Boot RestClient and RestTemplate integration
+spring-webclient:WEB | WebClient - Reactive HTTP client with WebClient
+# DATABASE_SQL
+data-jpa:DATABASE_SQL | Spring Data JPA - Persist data in SQL stores with JPA and Hibernate
+data-jdbc:DATABASE_SQL | Spring Data JDBC - Persist data with JDBC using Spring Data
+flyway:DATABASE_SQL | Flyway Migration - Version control for your database schema
+liquibase:DATABASE_SQL | Liquibase Migration - Database change management and migration
+mybatis:DATABASE_SQL | MyBatis - Persistence framework with custom SQL support
+jooq:DATABASE_SQL | jOOQ - Type-safe SQL queries with code generation
+data-r2dbc:DATABASE_SQL | R2DBC - Reactive relational database connectivity
+# DATABASE_NOSQL
+data-mongodb:DATABASE_NOSQL | Spring Data MongoDB - Store data in MongoDB document database
+data-mongodb-reactive:DATABASE_NOSQL | Reactive MongoDB - Reactive Spring Data for MongoDB
+data-redis:DATABASE_NOSQL | Spring Data Redis - Redis key-value data store
+data-redis-reactive:DATABASE_NOSQL | Reactive Redis - Reactive access to Redis
+data-elasticsearch:DATABASE_NOSQL | Spring Data Elasticsearch - Full-text search and analytics
+data-cassandra:DATABASE_NOSQL | Spring Data Cassandra - Distributed NoSQL database
+data-cassandra-reactive:DATABASE_NOSQL | Reactive Cassandra - Reactive Spring Data for Cassandra
+data-neo4j:DATABASE_NOSQL | Neo4j - Graph database with Spring Data Neo4j
+data-couchbase:DATABASE_NOSQL | Couchbase - NoSQL document database
+# DRIVERS
+h2:DRIVERS | H2 Database - In-memory SQL database (perfect for dev/testing)
+postgresql:DRIVERS | PostgreSQL Driver - PostgreSQL JDBC and R2DBC driver
+mysql:DRIVERS | MySQL Driver - MySQL JDBC driver
+mariadb:DRIVERS | MariaDB Driver - MariaDB JDBC and R2DBC driver
+oracle:DRIVERS | Oracle Driver - Oracle database JDBC driver
+sqlserver:DRIVERS | SQL Server Driver - Microsoft SQL Server JDBC and R2DBC driver
+db2:DRIVERS | DB2 Driver - IBM DB2 JDBC driver
+# SECURITY
+security:SECURITY | Spring Security - Authentication and authorization
+oauth2-client:SECURITY | OAuth2 Client - OAuth2/OpenID Connect client support
+oauth2-resource-server:SECURITY | OAuth2 Resource Server - Spring Security OAuth2 resource server
+oauth2-authorization-server:SECURITY | OAuth2 Authorization Server - Spring Authorization Server
+spring-security-webauthn:SECURITY | WebAuthn - WebAuthn support in Spring Security
+ldap:SECURITY | LDAP - LDAP authentication and directory services
+# VALIDATION
+validation:VALIDATION | Validation - Bean validation with Hibernate Validator
+# MESSAGING
+kafka:MESSAGING | Apache Kafka - Kafka messaging support
+kafka-streams:MESSAGING | Kafka Streams - Stream processing with Apache Kafka
+amqp:MESSAGING | RabbitMQ - AMQP messaging with RabbitMQ
+amqp-streams:MESSAGING | RabbitMQ Streams - Stream processing with RabbitMQ
+pulsar:MESSAGING | Apache Pulsar - Messaging with Apache Pulsar
+pulsar-reactive:MESSAGING | Reactive Pulsar - Reactive messaging with Apache Pulsar
+artemis:MESSAGING | Artemis - Spring JMS with Apache ActiveMQ Artemis
+activemq:MESSAGING | ActiveMQ - Spring JMS with Apache ActiveMQ Classic
+rsocket:MESSAGING | RSocket - RSocket messaging with Spring Messaging and Netty
+# MONITORING
+actuator:MONITORING | Spring Boot Actuator - Production-ready monitoring and management
+prometheus:MONITORING | Prometheus - Expose metrics in Prometheus format
+distributed-tracing:MONITORING | Distributed Tracing - Span and trace IDs in logs
+datadog:MONITORING | Datadog - Publish Micrometer metrics to Datadog
+dynatrace:MONITORING | Dynatrace - Publish metrics to Dynatrace
+new-relic:MONITORING | New Relic - Publish metrics to New Relic
+wavefront:MONITORING | Wavefront - Publish metrics to Tanzu Wavefront
+zipkin:MONITORING | Zipkin - Expose span and trace IDs to Zipkin
+sentry:MONITORING | Sentry - Error tracking and performance monitoring
+# DEVTOOLS
+devtools:DEVTOOLS | Spring Boot DevTools - Fast application restarts and LiveReload
+docker-compose:DEVTOOLS | Docker Compose Support - Docker Compose for development
+native:DEVTOOLS | GraalVM Native - Compile to native executable with GraalVM
+# TESTING
+testcontainers:TESTING | Testcontainers - Docker containers for integration testing
+restdocs:TESTING | Spring REST Docs - Document RESTful services
+cloud-contract-verifier:TESTING | Contract Verifier - Consumer Driven Contract testing
+# CLOUD
+cloud-config-client:CLOUD | Config Client - Spring Cloud Config client
+cloud-config-server:CLOUD | Config Server - Centralized configuration server
+cloud-eureka:CLOUD | Eureka Client - Service registration and discovery
+cloud-eureka-server:CLOUD | Eureka Server - Service registry server
+cloud-gateway:CLOUD | Gateway - API Gateway on Spring WebFlux
+cloud-gateway-reactive:CLOUD | Reactive Gateway - Reactive API Gateway
+cloud-feign:CLOUD | OpenFeign - Declarative REST client
+cloud-resilience4j:CLOUD | Resilience4j - Circuit breaker with Resilience4j
+cloud-loadbalancer:CLOUD | Load Balancer - Client-side load balancing
+cloud-function:CLOUD | Cloud Function - Business logic via functions
+cloud-stream:CLOUD | Cloud Stream - Event-driven microservices framework
+cloud-bus:CLOUD | Cloud Bus - Link distributed system nodes
+# TEMPLATE
+thymeleaf:TEMPLATE | Thymeleaf - Modern server-side template engine
+freemarker:TEMPLATE | Freemarker - Java template engine
+mustache:TEMPLATE | Mustache - Logic-less template engine
+groovy-templates:TEMPLATE | Groovy Templates - Groovy templating engine
+jte:TEMPLATE | JTE - Secure and lightweight template engine
+# BATCH
+batch:BATCH | Spring Batch - Batch processing framework
+batch-jdbc:BATCH | Batch JDBC - JDBC support for Spring Batch
+quartz:BATCH | Quartz Scheduler - Enterprise job scheduling
+# CACHE
+cache:CACHE | Cache - Spring caching abstraction
+# SESSION
+session-data-redis:SESSION | Spring Session Redis - Redis-backed HTTP sessions
+session-data-mongodb:SESSION | Spring Session MongoDB - MongoDB-backed HTTP sessions
+session-jdbc:SESSION | Spring Session JDBC - JDBC-backed HTTP sessions
+session-hazelcast:SESSION | Spring Session Hazelcast - Hazelcast-backed HTTP sessions
+# AI
+spring-ai-openai:AI | Spring AI OpenAI - ChatGPT and OpenAI integration
+spring-ai-ollama:AI | Spring AI Ollama - Run local AI models with Ollama
+spring-ai-anthropic:AI | Spring AI Anthropic - Claude AI models integration
+spring-ai-azure-openai:AI | Spring AI Azure OpenAI - Azure OpenAI integration
+spring-ai-google-genai:AI | Spring AI Google - Google Gemini AI models
+spring-ai-vectordb-pgvector:AI | PGVector - PostgreSQL vector database for AI
+spring-ai-vectordb-redis:AI | Redis Vector - Redis vector database for AI
+# GRPC
+spring-grpc:GRPC | Spring gRPC - High performance RPC with gRPC
+# UTILITIES
+lombok:UTILITIES | Lombok - Reduce boilerplate (getters/setters/builders)
+configuration-processor:UTILITIES | Configuration Processor - Metadata for @ConfigurationProperties
+mail:UTILITIES | Java Mail - Send email using Java Mail
+modulith:UTILITIES | Modulith - Build modular monolithic applications
+spring-shell:UTILITIES | Spring Shell - Build command line applications
+EOF
+
+# Transform database for clean display in fzf
+display_list=$(echo "$DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+    split($1, parts, ":")
+    dep_id = parts[1]
+    category = parts[2]
+    gsub(/^[ \t]+|[ \t]+$/, "", category)
+    description = $2
+    gsub(/^[ \t]+|[ \t]+$/, "", description)
+    printf "[%s] %s|%s\n", category, description, dep_id
+}')
+
+# Create temporary file for preview lookups
+temp_db=$(mktemp)
+echo "$DEPENDENCY_DATABASE" > "$temp_db"
+
+# fzf dependency selection
+selected=$(echo "$display_list" | fzf \
+    --multi \
+    --height=60% \
+    --border=rounded \
+    --prompt="Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
+    --header="Spring Boot Starters - Categories: WEB, DATABASE, SECURITY, MESSAGING, MONITORING, etc." \
+    --preview="bash -c 'desc=\$(echo {} | cut -d\"|\" -f1 | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | cut -d\":\" -f1 | xargs'" \
+    --preview-window=down:3:wrap \
+    --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+    --color='header:italic:underline' \
+) || true
+
+# Clean up temp file
+rm -f "$temp_db"
+
+# Build dependency list (comma-separated)
+dependency_list=""
+
+if [ -n "$selected" ]; then
+    mapfile -t selected_deps <<< "$selected"
+    
+    for display_line in "${selected_deps[@]}"; do
+        # Extract dependency ID from end of line (after |)
+        dep_id=$(echo "$display_line" | cut -d'|' -f2)
+        
+        # Build comma-separated list
+        if [ -z "$dependency_list" ]; then
+            dependency_list="$dep_id"
+        else
+            dependency_list="$dependency_list,$dep_id"
+        fi
+    done
+    
+    echo ""
+    echo "Selected dependencies: $dependency_list"
+else
+    echo ""
+    echo "No dependencies selected (bare Spring Boot project)"
+fi
+
+# Generate project with Spring CLI
+echo ""
+echo "Generating project..."
+
+# Build spring init command
+spring_cmd="spring init"
+spring_cmd="$spring_cmd --build=maven"
+spring_cmd="$spring_cmd --java-version=$java_version"
+spring_cmd="$spring_cmd --packaging=$packaging"
+spring_cmd="$spring_cmd --group-id=$group_id"
+spring_cmd="$spring_cmd --artifact-id=$artifact"
+spring_cmd="$spring_cmd --name=\"$name\""
+spring_cmd="$spring_cmd --description=\"$description\""
+spring_cmd="$spring_cmd --package-name=$package_name"
+
+# Add dependencies if any selected
+if [ -n "$dependency_list" ]; then
+    spring_cmd="$spring_cmd --dependencies=$dependency_list"
+fi
+
+# Specify location (which triggers auto-extract)
+spring_cmd="$spring_cmd $artifact"
+
+# Execute
+eval $spring_cmd
+
+if [ $? -ne 0 ]; then
+    echo ""
+    echo "❌ Failed to create Spring Boot project"
+    echo "Check your internet connection and dependency names, then try again"
+    exit 1
+fi
+
+# Verify directory was actually created
+if [ ! -d "$artifact" ]; then
+    echo ""
+    echo "❌ Project directory was not created"
+    echo "The Spring Initializr call may have failed silently"
+    echo "Check the error messages above for details"
+    exit 1
+fi
+
+# Success message
+echo ""
+echo "✓ Project created successfully!"
+echo "  Location: $(pwd)/$artifact"
+echo "  Main class: ${name}Application.java"
+echo "  Package: $package_name"
+echo ""
+echo "Opening in Neovim..."
+echo ""
+
+cd "$artifact"
+nvim .
