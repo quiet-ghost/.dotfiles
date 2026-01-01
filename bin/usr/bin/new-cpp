@@ -1559,6 +1559,20 @@ ui_*.h
 # Misc
 compile_commands.json
 .cache/
+
+# Compiled binaries (executables without extensions)
+# Ignore everything first
+*
+# But track files with extensions (source code, headers, etc.)
+!*.*
+# And track directories
+!*/
+# Explicitly track important files without extensions
+!Makefile
+!README
+!LICENSE
+!.gitignore
+!CMakeLists.txt
 EOFGITIGNORE
 
 # Ask about .clang-format
