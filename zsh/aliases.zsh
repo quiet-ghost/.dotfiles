@@ -16,8 +16,19 @@ alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-java'
 alias cn='new-cpp'
 alias ya='yazi'
-#alias jf='new-javafx'
-#alias sb='new-springboot'
+
+#alias suffix
+alias -s json=jless
+alias -s md=bat
+alias -s txt=bat
+alias -s log=bat
+alias -s py='$EDITOR'
+alias -s js='$EDITOR'
+alias -s ts='$EDITOR'
+alias -s go='$EDITOR'
+alias -s rs='$EDITOR'
+alias -s java='$EDITOR'
+alias -s cpp='$EDITOR'
 
 # FZF-based aliases
 alias vh="eval \$(history | fzf | cut -d' ' -f4-)"
