@@ -2,14 +2,15 @@
   "$schema": "https://opencode.ai/config.json",
   "theme": "rosepine",
   "autoupdate": true,
-  "model": "anthroptic/claude-sonnet-4.5",
+  "model": "anthropic/claude-sonnet-4-5",
   "tui": {
     "scroll_speed": 5
   },
   "plugin": [
     "opencode-openai-codex-auth",
     "@franlol/opencode-md-table-formatter@0.0.3",
-    "oh-my-opencode"
+    "oh-my-opencode",
+    "opencode-antigravity-auth@1.2.7"
   ],
   "provider": {
     "openai": {
@@ -17,7 +18,9 @@
         "reasoningEffort": "medium",
         "reasoningSummary": "auto",
         "textVerbosity": "medium",
-        "include": ["reasoning.encrypted_content"],
+        "include": [
+          "reasoning.encrypted_content"
+        ],
         "store": false
       },
       "models": {
@@ -31,7 +34,9 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -45,7 +50,9 @@
             "reasoningEffort": "medium",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -59,7 +66,9 @@
             "reasoningEffort": "high",
             "reasoningSummary": "detailed",
             "textVerbosity": "medium",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -73,7 +82,9 @@
             "reasoningEffort": "minimal",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -87,7 +98,9 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -101,7 +114,9 @@
             "reasoningEffort": "medium",
             "reasoningSummary": "auto",
             "textVerbosity": "medium",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -115,7 +130,9 @@
             "reasoningEffort": "high",
             "reasoningSummary": "detailed",
             "textVerbosity": "high",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -129,7 +146,9 @@
             "reasoningEffort": "low",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
           }
         },
@@ -143,8 +162,71 @@
             "reasoningEffort": "minimal",
             "reasoningSummary": "auto",
             "textVerbosity": "low",
-            "include": ["reasoning.encrypted_content"],
+            "include": [
+              "reasoning.encrypted_content"
+            ],
             "store": false
+          }
+        }
+      }
+    },
+    "google": {
+      "name": "Google",
+      "models": {
+        "antigravity-gemini-3-pro-high": {
+          "name": "Gemini 3 Pro High (Antigravity)",
+          "thinking": true,
+          "attachment": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65535
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "antigravity-gemini-3-pro-low": {
+          "name": "Gemini 3 Pro Low (Antigravity)",
+          "thinking": true,
+          "attachment": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65535
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "antigravity-gemini-3-flash": {
+          "name": "Gemini 3 Flash (Antigravity)",
+          "attachment": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf"
+            ],
+            "output": [
+              "text"
+            ]
           }
         }
       }
