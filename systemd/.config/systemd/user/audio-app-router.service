@@ -1,0 +1,13 @@
+[Unit]
+Description=Auto-route Legcord to VirtualLegcord (v2)
+After=pipewire.service wireplumber.service
+Requires=pipewire.service wireplumber.service
+
+[Service]
+Type=simple
+ExecStart=/home/ghost-server/bin/audio-app-router-v2.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

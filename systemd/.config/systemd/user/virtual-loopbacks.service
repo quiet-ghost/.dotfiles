@@ -1,0 +1,14 @@
+[Unit]
+Description=Setup Virtual Sink Loopbacks to Scarlett Solo
+After=pipewire.service pipewire-pulse.service wireplumber.service
+Requires=pipewire.service pipewire-pulse.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/ghost-server/bin/setup-virtual-loopbacks.sh
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
