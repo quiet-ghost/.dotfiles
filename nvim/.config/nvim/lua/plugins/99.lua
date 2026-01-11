@@ -33,6 +33,11 @@ return {
     vim.keymap.set("n", "<leader>9f", function()
       _99.fill_in_function()
     end)
+    
+    vim.keymap.set("n", "<leader>9p", function()
+      _99.fill_in_function_prompt()
+    end)
+    
     -- take extra note that i have visual selection only in v mode
     -- technically whatever your last visual selection is, will be used
     -- so i have this set to visual mode so i dont screw up and use an
@@ -42,6 +47,10 @@ return {
     -- so just prepare for it now
     vim.keymap.set("v", "<leader>9v", function()
       _99.visual_selection()
+    end)
+    
+    vim.keymap.set("v", "<leader>9p", function()
+      _99.visual_prompt()
     end)
 
     --- if you have a request you dont want to make any changes, just cancel it
