@@ -3,7 +3,7 @@ local map = vim.keymap.set
 -- General keymaps
 map("n", "<leader>sz", ":source $HOME/.config/nvim/init.lua <CR>")
 map("n", "<leader>pv", ":Ex<CR>", { desc = "Open netrw" })
-map("n", "<leader>un", ":CloakToggle<CR>", { desc = "CloakToggle" })
+map("n", "<leader>tc", ":CloakToggle<CR>", { desc = "CloakToggle" })
 
 -- Quickfix navigation
 map("n", "<M-e>", "<cmd>cnext<CR>zz", { desc = "Next quickfix item" })
