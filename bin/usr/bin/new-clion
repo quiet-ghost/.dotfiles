@@ -1,0 +1,568 @@
+#!/usr/bin/env bash
+
+# CLion-like C/C++ Project Generator
+# Mimics CLion's "New Project" wizard
+#
+# Usage:
+#   new-clion                        - Interactive mode (all prompts)
+#   new-clion <project-name>         - Skip project name prompt
+#
+# Examples:
+#   new-clion                        - Fully interactive
+#   new-clion my-app                 - Use "my-app" as project name
+
+set -e
+
+# ============================================================================
+# Rose Pine Color Scheme
+# ============================================================================
+BASE="#191724"
+SURFACE="#1f1d2e"
+OVERLAY="#26233a"
+MUTED="#6e6a86"
+SUBTLE="#908caa"
+TEXT="#e0def4"
+LOVE="#eb6f92"
+GOLD="#f6c177"
+ROSE="#ebbcba"
+PINE="#31748f"
+FOAM="#9ccfd8"
+IRIS="#c4a7e7"
+HIGHLIGHT_LOW="#21202e"
+HIGHLIGHT_MED="#403d52"
+HIGHLIGHT_HIGH="#524f67"
+
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+gum_header() {
+    gum style \
+        --foreground "$IRIS" \
+        --border "rounded" \
+        --border-foreground "$PINE" \
+        --align "center" \
+        --padding "1 4" \
+        --margin "1 0" \
+        "$@"
+}
+
+gum_info() {
+    gum style --foreground "$FOAM" " $*"
+}
+
+gum_success() {
+    gum style --foreground "$FOAM" --bold " $*"
+}
+
+gum_error() {
+    gum style --foreground "$LOVE" --bold " $*"
+}
+
+gum_section() {
+    gum style --foreground "$GOLD" --bold "$*"
+}
+
+validate_project_name() {
+    local name="$1"
+    [[ "$name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]
+}
+
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        gum_error "Error: $1 is not installed"
+        [ -n "$2" ] && gum_info "Install with: $2"
+        exit 1
+    fi
+}
+
+# ============================================================================
+# Main Script
+# ============================================================================
+
+# Show help if requested
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    cat << 'EOF'
+ CLion-like C/C++ Project Generator
+
+Usage:
+  new-clion                        - Interactive mode (all prompts)
+  new-clion <project-name>         - Skip project name prompt
+
+Examples:
+  new-clion                        - Fully interactive
+  new-clion my-app                 - Use "my-app" as project name
+
+Options:
+  -h, --help                     - Show this help message
+
+EOF
+    exit 0
+fi
+
+# Parse command-line arguments
+ARG_PROJECT_NAME="$1"
+
+# Check dependencies
+check_command gum "pacman -S gum or brew install gum"
+check_command cmake "pacman -S cmake or brew install cmake"
+
+# Welcome screen
+gum_header " CLion-like C/C++ Project Generator" "Create new C/C++ projects mimicking CLion's behavior"
+
+echo ""
+
+# Language selection
+LANGUAGE=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header " Select language:" \
+    "C++" \
+    "C")
+
+echo ""
+
+# Project type selection
+if [ "$LANGUAGE" = "C++" ]; then
+    PROJECT_TYPE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select project type:" \
+        "C++ Executable" \
+        "C++ Library")
+else
+    PROJECT_TYPE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select project type:" \
+        "C Executable" \
+        "C Library")
+fi
+
+echo ""
+
+# Language standard selection
+if [ "$LANGUAGE" = "C++" ]; then
+    CPP_STANDARD=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select C++ standard:" \
+        "C++11" \
+        "C++14" \
+        "C++17" \
+        "C++20 [Default]" \
+        "C++23")
+    STANDARD_VAR="$CPP_STANDARD"
+else
+    C_STANDARD=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select C standard:" \
+        "C99" \
+        "C11" \
+        "C17 [Default]" \
+        "C23")
+    STANDARD_VAR="$C_STANDARD"
+fi
+
+echo ""
+
+# Package manager selection (optional)
+PKG_MANAGER=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header " Select package manager (optional):" \
+    "None" \
+    "vcpkg" \
+    "Conan")
+
+PKG_MANAGER_CLEAN=$(echo "$PKG_MANAGER" | awk '{print $1}')
+echo ""
+
+gum_section " Project Configuration"
+echo ""
+
+# Get project name with validation
+if [ -n "$ARG_PROJECT_NAME" ]; then
+    PROJECT_NAME="$ARG_PROJECT_NAME"
+
+    if ! validate_project_name "$PROJECT_NAME"; then
+        gum_error "Invalid project name: $PROJECT_NAME"
+        gum_error "Use letters, numbers, underscores, and hyphens. Start with a letter."
+        exit 1
+    fi
+
+    gum_info "Using project name: $PROJECT_NAME"
+    echo ""
+else
+    while true; do
+        PROJECT_NAME=$(gum input \
+            --prompt.foreground "$FOAM" \
+            --placeholder "my-awesome-app" \
+            --header " Project name (letters, numbers, underscores, hyphens):" \
+            --header.foreground "$SUBTLE" \
+            --prompt " ")
+
+        if [ -z "$PROJECT_NAME" ]; then
+            gum_error "Project name cannot be empty"
+            continue
+        fi
+
+        if ! validate_project_name "$PROJECT_NAME"; then
+            gum_error "Invalid name. Use letters, numbers, underscores, and hyphens. Start with a letter."
+            continue
+        fi
+
+        break
+    done
+fi
+
+echo ""
+gum_section " Project Summary"
+echo ""
+
+# Display summary
+LIBRARY_TYPE=""
+if [[ "$PROJECT_TYPE" == *"Library"* ]]; then
+    if [ "$LANGUAGE" = "C++" ]; then
+        LIBRARY_TYPE=" [Static]"
+    else
+        LIBRARY_TYPE=" [Static]"
+    fi
+fi
+
+gum style \
+    --border "rounded" \
+    --border-foreground "$PINE" \
+    --padding "1 2" \
+    --margin "0 2" \
+    "$(gum style --foreground "$FOAM" "Language:") $LANGUAGE" \
+    "$(gum style --foreground "$FOAM" "Type:") $PROJECT_TYPE$LIBRARY_TYPE" \
+    "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
+    "$(gum style --foreground "$FOAM" "Standard:") $STANDARD_VAR" \
+    "$(gum style --foreground "$FOAM" "Package Manager:") $PKG_MANAGER_CLEAN"
+
+echo ""
+
+# Confirm before proceeding
+if ! gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$LOVE" \
+    --affirmative " Create Project" \
+    --negative " Cancel" \
+    "Proceed with project creation?"; then
+    gum_error "Project creation cancelled"
+    exit 0
+fi
+
+echo ""
+
+# ============================================================================
+# Project Generation
+# ============================================================================
+
+gum_info "Creating project structure..."
+echo ""
+
+# Create project directory
+mkdir -p "$PROJECT_NAME"
+cd "$PROJECT_NAME"
+
+# Create directory structure (CLion uses simple structure)
+mkdir -p cmake
+
+# ============================================================================
+# Generate CMakeLists.txt (CLion's exact format)
+# ============================================================================
+
+gum_info "Generating CMakeLists.txt..."
+
+# Determine standard number and CMake language identifier
+if [ "$LANGUAGE" = "C++" ]; then
+    STANDARD_NUM=$(echo "$CPP_STANDARD" | sed 's/C++//')
+    CMAKE_STANDARD="CMAKE_CXX_STANDARD"
+    CMAKE_LANG="CXX"
+    FILE_EXT="cpp"
+    HEADER_EXT="hpp"
+else
+    STANDARD_NUM=$(echo "$C_STANDARD" | sed 's/C//')
+    CMAKE_STANDARD="CMAKE_C_STANDARD"
+    CMAKE_LANG="C"
+    FILE_EXT="c"
+    HEADER_EXT="h"
+fi
+
+# Start with CLion's exact format
+cat > CMakeLists.txt << EOFCMAKE
+cmake_minimum_required(VERSION 3.20)
+project(${PROJECT_NAME} LANGUAGES ${CMAKE_LANG})
+
+set(${CMAKE_STANDARD} ${STANDARD_NUM})
+set(${CMAKE_STANDARD}_REQUIRED ON)
+set(${CMAKE_STANDARD}_EXTENSIONS OFF)
+
+# Export compile commands for LSP/clangd (CLion compatible)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+EOFCMAKE
+
+# Add package manager integration if selected
+if [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
+    cat >> CMakeLists.txt << 'EOFCMAKE'
+
+# vcpkg integration (if using vcpkg)
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "")
+endif()
+EOFCMAKE
+elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
+    cat >> CMakeLists.txt << 'EOFCMAKE'
+
+# Conan integration
+include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake OPTIONAL)
+EOFCMAKE
+fi
+
+# Add target based on project type
+if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
+    cat >> CMakeLists.txt << EOFCMAKE
+
+add_executable(${PROJECT_NAME} main.${FILE_EXT})
+EOFCMAKE
+else
+    cat >> CMakeLists.txt << EOFCMAKE
+
+add_library(${PROJECT_NAME} STATIC
+    src/${PROJECT_NAME}.${FILE_EXT}
+)
+EOFCMAKE
+fi
+
+# ============================================================================
+# Generate Package Manager Manifests
+# ============================================================================
+
+if [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
+    gum_info "Generating vcpkg.json manifest..."
+
+    cat > vcpkg.json << 'EOFVCPKG'
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "PROJECTNAME",
+  "version": "0.1.0",
+  "dependencies": []
+}
+EOFVCPKG
+
+    sed -i "s/PROJECTNAME/${PROJECT_NAME}/" vcpkg.json
+
+elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
+    gum_info "Generating conanfile.txt..."
+
+    cat > conanfile.txt << 'EOFCONAN'
+[requires]
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+
+[imports]
+EOFCONAN
+fi
+
+# ============================================================================
+# Generate Source Files (CLion's simple format)
+# ============================================================================
+
+gum_info "Generating source files..."
+
+if [ "$LANGUAGE" = "C++" ]; then
+    # Generate main.cpp (CLion's exact format)
+    if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
+        cat > main.cpp << EOFCPP
+#include <iostream>
+
+int main() {
+    std::cout << "Hello, World!" << std::endl;
+    return 0;
+}
+EOFCPP
+    else
+        # Library project
+        mkdir -p src
+        cat > src/${PROJECT_NAME}.cpp << EOFCPP
+#include "${PROJECT_NAME}.hpp"
+
+int add(int a, int b) {
+    return a + b;
+}
+EOFCPP
+
+        cat > include/${PROJECT_NAME}.hpp << EOFHEADER
+#ifndef ${PROJECT_NAME^^}_HPP
+#define ${PROJECT_NAME^^}_HPP
+
+int add(int a, int b);
+
+#endif // ${PROJECT_NAME^^}_HPP
+EOFHEADER
+    fi
+else
+    # Generate main.c (CLion's exact format)
+    if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
+        cat > main.c << EOFC
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+EOFC
+    else
+        # Library project
+        mkdir -p src
+        cat > src/${PROJECT_NAME}.c << EOFC
+#include "${PROJECT_NAME}.h"
+
+int add(int a, int b) {
+    return a + b;
+}
+EOFC
+
+        cat > include/${PROJECT_NAME}.h << EOFHEADER
+#ifndef ${PROJECT_NAME^^}_H
+#define ${PROJECT_NAME^^}_H
+
+int add(int a, int b);
+
+#endif // ${PROJECT_NAME^^}_H
+EOFHEADER
+    fi
+fi
+
+# ============================================================================
+# Generate .gitignore
+# ============================================================================
+
+gum_info "Generating .gitignore..."
+
+cat > .gitignore << 'EOFGITIGNORE'
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Package managers
+vcpkg_installed/
+conan/
+.conan/
+
+# Compiled binaries
+ *
+!*.cpp
+!*.c
+!*.hpp
+!*.h
+!CMakeLists.txt
+!vcpkg.json
+!conanfile.txt
+!.gitignore
+EOFGITIGNORE
+
+# ============================================================================
+# Ask about Git initialization
+# ============================================================================
+
+echo ""
+if gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$SUBTLE" \
+    --affirmative " Yes, initialize" \
+    --negative " No, skip" \
+    "Initialize Git repository?"; then
+
+    gum_info "Initializing Git repository..."
+    git init > /dev/null 2>&1
+    git add . > /dev/null 2>&1
+    git commit -m "Initial commit: ${PROJECT_NAME} project created with new-clion" > /dev/null 2>&1
+    gum_success "Git repository initialized"
+fi
+
+gum_success "Project structure created!"
+echo ""
+
+# ============================================================================
+# Success Message
+# ============================================================================
+
+echo ""
+gum style \
+    --foreground "$FOAM" \
+    --border "rounded" \
+    --border-foreground "$IRIS" \
+    --align "center" \
+    --width 70 \
+    --margin "1 2" \
+    --padding "1 4" \
+    " Project created successfully!" \
+    "" \
+    " Location: $(pwd)" \
+    " Language: $LANGUAGE" \
+    " Type: $PROJECT_TYPE$LIBRARY_TYPE" \
+    " Standard: $STANDARD_VAR" \
+    " Package Manager: $PKG_MANAGER_CLEAN" \
+    "" \
+    "Next steps:" \
+    "  cd $PROJECT_NAME" \
+    "  mkdir build && cd build" \
+    "  cmake .." \
+    "  cmake --build ."
+
+echo ""
+
+# Ask to open in editor
+if gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$SUBTLE" \
+    --affirmative " Open project" \
+    --negative " Done" \
+    "Open project in Neovim?"; then
+    cd ..
+    nvim "$PROJECT_NAME"
+fi
