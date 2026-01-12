@@ -14,8 +14,9 @@ alias df='duf'
 alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-java'
-alias cn='new-cpp'
+alias cn='new-clion'
 alias ya='yazi'
+alias bd="bootdev"
 
 #alias suffix
 alias -s json=jless
