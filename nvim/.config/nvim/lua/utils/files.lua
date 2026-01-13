@@ -41,7 +41,6 @@ function M.create_new_file()
       vim.api.nvim_win_close(win, true)
 
       if input and input ~= "" then
-        -- Handle paths if user includes them (e.g., src/Animal.java)
         local dir = vim.fn.fnamemodify(input, ":h")
         if dir ~= "." then
           vim.fn.mkdir(dir, "p")
