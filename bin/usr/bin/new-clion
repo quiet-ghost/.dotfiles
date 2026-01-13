@@ -285,7 +285,7 @@ gum_info "Generating CMakeLists.txt..."
 
 # Determine standard number and CMake language identifier
 if [ "$LANGUAGE" = "C++" ]; then
-    STANDARD_NUM=$(echo "$CPP_STANDARD" | sed 's/C++//')
+    STANDARD_NUM=$(echo "$CPP_STANDARD" | sed -E 's/C\+\+//;s/\s+\[.*?\]//')
     CMAKE_STANDARD="CMAKE_CXX_STANDARD"
     CMAKE_LANG="CXX"
     FILE_EXT="cpp"

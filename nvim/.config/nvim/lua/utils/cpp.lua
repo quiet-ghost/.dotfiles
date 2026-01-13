@@ -30,6 +30,27 @@ local function detect_compiler()
   end
 end
 
+-- Detect build directory in current working directory
+local function detect_build_dir()
+  local cwd = vim.fn.getcwd()
+  local candidates = {
+    "build",
+    "cmake-build-debug",
+    "cmake-build-release",
+    "cmake-build-relwithdebinfo",
+  }
+  
+  for _, dir in ipairs(candidates) do
+    local build_path = cwd .. "/" .. dir
+    if vim.fn.isdirectory(build_path) == 1 then
+      return dir
+    end
+  end
+  
+  -- Default to "build" for new projects
+  return "build"
+end
+
 -- Detect project type and build system
 local function detect_project_type()
   local cwd = vim.fn.getcwd()
@@ -145,7 +166,7 @@ end
 
 -- CMake project runner
 local function run_cmake()
-  local build_dir = config.build_dir
+  local build_dir = detect_build_dir()
 
   -- Create build directory if it doesn't exist
   vim.fn.system("mkdir -p " .. build_dir)
@@ -217,17 +238,29 @@ end
 local function run_single_file()
   local file_info = get_current_file_info()
   local compiler = detect_compiler()
-  local output = file_info.basename
+  
+  -- Check if build directory exists in cwd
+  local cwd = vim.fn.getcwd()
+  local build_dir = detect_build_dir()
+  local build_path = cwd .. "/" .. build_dir
+  
+  -- Create build directory if it doesn't exist
+  if vim.fn.isdirectory(build_path) == 0 then
+    vim.fn.mkdir(build_path, "p")
+    vim.notify("Created build directory: " .. build_dir, vim.log.levels.INFO)
+  end
+  
+  local output = build_path .. "/" .. file_info.basename
 
   -- Build compilation command
   local compile_cmd = string.format(
-    "%s -std=%s %s %s %s -o %s",
+    "%s -std=%s %s %s '%s' -o '%s'",
     compiler,
     config.cpp_standard,
     config.optimization,
     config.warnings,
     file_info.filename,
-    output
+    output:gsub("'", "'\\''")
   )
 
   print("Compiling single file...")
@@ -237,7 +270,7 @@ local function run_single_file()
   end
 
   -- Run the compiled executable
-  local run_cmd = string.format("'./%s'", output:gsub("'", "'\\''"))
+  local run_cmd = string.format("'%s'", output:gsub("'", "'\\''"))
   local title = string.format(config.title_formats.single_file, file_info.filename)
   vim.notify(string.format("Compiling and running C++ file: %s", file_info.filename), vim.log.levels.INFO)
   run_in_tmux(run_cmd, config.pane_sizes.single_file, title)
