@@ -1,6 +1,4 @@
 local M = {}
-
--- Cache for detected JDKs
 M.jdks = {}
 M.current_jdk = nil
 
@@ -15,7 +13,6 @@ local function exec_command(cmd)
   return result
 end
 
--- Parse Java version from version string
 local function parse_java_version(version_output)
   if not version_output then
     return nil
@@ -93,7 +90,6 @@ local function detect_jdk(path, source)
   end
 
   -- Use actual version for unique runtime names
-  -- jdtls can handle any JDK >= 8, so no need to collapse versions
   return {
     name = string.format("JavaSE-%s", version),
     display_name = string.format("%s %s (%s) [%s]", vendor, version, name, source),
