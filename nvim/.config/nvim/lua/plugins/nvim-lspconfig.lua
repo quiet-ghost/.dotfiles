@@ -1,13 +1,10 @@
 return {
   "neovim/nvim-lspconfig",
   opts = {
-    servers = {
-      gopls = {
-        mason = false,
-      },
-      jdtls = false,
-    },
     setup = {
+      gopls = function(_, opts)
+        opts.mason = false
+      end,
       jdtls = function()
         return true
       end,

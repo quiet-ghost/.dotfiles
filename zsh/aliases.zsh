@@ -1,4 +1,5 @@
 # General aliases
+alias wb="pkill waybar waybar &>/dev/null & disown"
 alias dc="logout"
 alias sz="source ~/.zshrc"
 alias xx='clear'
