@@ -1,8 +1,10 @@
 # General aliases
-alias wb="pkill waybar waybar &>/dev/null & disown"
+alias wb="waybar &>/dev/null & disown"
 alias dc="logout"
 alias sz="source ~/.zshrc"
 alias xx='clear'
+alias search='web-search'
+alias q='web-search'
 alias pbcopy='xsel --clipboard --input'
 alias pbpaste='xsel --clipboard --output'
 alias v='nvim'
