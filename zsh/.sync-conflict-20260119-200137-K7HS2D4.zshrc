@@ -74,49 +74,6 @@ bindkey -s '^[s' 'tmux-sessionizer\n'
 # FUNCTIONS
 # ============================================================================
 
-# Web search function for ? alias
-function web_search() {
-  # Check if w3m is installed
-  if ! command -v w3m >/dev/null 2>&1; then
-    echo "\033[0;31mError: w3m is not installed. Please install it first.\033[0m"
-    echo "\033[0;33mInstall with: sudo pacman -S w3m\033[0m"
-    return 1
-  fi
-
-  # Check if query provided
-  if [[ $# -eq 0 ]]; then
-    echo "\033[0;33mUsage: search <search query>\033[0m"
-    echo "\033[0;33mExample: search arch linux installation\033[0m"
-    return 1
-  fi
-
-  # Join all arguments into query string
-  local query="$*"
-  
-  # URL encode the query (basic encoding for common characters)
-  local encoded_query="${query// /%20}"
-  encoded_query="${encoded_query//&/%26}"
-  encoded_query="${encoded_query//?/%3F}"
-  encoded_query="${encoded_query//=/%3D}"
-  encoded_query="${encoded_query//#/%23}"
-  encoded_query="${encoded_query//+/%2B}"
-  
-  # Construct Brave Search URL
-  local search_url="https://search.brave.com/search?q=${encoded_query}"
-  
-  # Launch w3m with theme-matched colors
-  echo "\033[0;36m Searching Brave for: \033[0;35m${query}\033[0m"
-  w3m -o color_display=1 -o color_active_link="#c4a7e7" -o color_link="#9ccfd8" -o color_visited_link="#eb6f92" -o color_bg="#191724" -o color_text="#e0def4" "${search_url}"
-}
-
-# ? command for web search with noglob wrapper
-function query_command() {
-  noglob ~/.local/bin/? "$@"
-}
-
-# Create ? alias that calls the function
-alias \?='query_command'
-
 # Auto-activate Python virtual environments
 function auto_venv() {
   local old_venv="$VIRTUAL_ENV"
