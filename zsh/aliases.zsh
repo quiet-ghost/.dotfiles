@@ -18,8 +18,10 @@ alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-java'
 alias cn='new-clion'
+alias ccpp='cookiecutter-cpp'
 alias ya='yazi'
 alias bd="bootdev"
+alias cc="calc"
 
 #alias suffix
 alias -s json=jless

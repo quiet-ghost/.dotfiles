@@ -1,0 +1,248 @@
+#!/usr/bin/env bash
+
+# Cookiecutter C++ Project Generator
+# Interactive wrapper for cookiecutter templates
+#
+# Usage:
+#   cookiecutter-cpp                 - Interactive mode (template selection)
+#   cookiecutter-cpp <template>      - Use specific template directly
+#   ccpp                             - Alias for cookiecutter-cpp
+#
+# Examples:
+#   cookiecutter-cpp                 - Browse and select template interactively
+#   cookiecutter-cpp ssciwr          - Use ssciwr/cookiecutter-cpp-project
+#   cookiecutter-cpp gh:org/repo     - Use any cookiecutter template URL
+#   ccpp                             - Same as cookiecutter-cpp
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m'
+
+log_info() {
+    printf "%b\n" "${BLUE}info${NC} $*"
+}
+
+log_success() {
+    printf "%b\n" "${GREEN}ok${NC} $*"
+}
+
+log_warning() {
+    printf "%b\n" "${YELLOW}warn${NC} $*"
+}
+
+log_error() {
+    printf "%b\n" "${RED}error${NC} $*" >&2
+}
+
+check_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        log_error "$1 is not installed"
+        if [ -n "${2:-}" ]; then
+            log_info "Install with: $2"
+        fi
+        exit 1
+    fi
+}
+
+# Template Database
+declare -A TEMPLATES
+declare -A TEMPLATE_DESC
+declare -A TEMPLATE_TYPES
+
+TEMPLATES[ssciwr]="gh:ssciwr/cookiecutter-cpp-project"
+TEMPLATE_DESC[ssciwr]="Full-featured C++ project with CMake, CI/CD, testing, documentation"
+TEMPLATE_TYPES[ssciwr]="Standard"
+
+TEMPLATES[hyahiaoui]="gh:hyahiaoui/cookiecutter-cpp-4c-template"
+TEMPLATE_DESC[hyahiaoui]="4C template: Clang, CMake, Conan, Catch2"
+TEMPLATE_TYPES[hyahiaoui]="Standard"
+
+TEMPLATES[mdklatt-app]="gh:mdklatt/cookiecutter-cpp-app"
+TEMPLATE_DESC[mdklatt-app]="Simple C++ application project"
+TEMPLATE_TYPES[mdklatt-app]="Standard"
+
+TEMPLATES[mdklatt-lib]="gh:mdklatt/cookiecutter-cpp-lib"
+TEMPLATE_DESC[mdklatt-lib]="C++ library project template"
+TEMPLATE_TYPES[mdklatt-lib]="Library"
+
+TEMPLATES[lchsk]="gh:lchsk/cookiecutter-cpp-project"
+TEMPLATE_DESC[lchsk]="Cookiecutter template for C++ projects"
+TEMPLATE_TYPES[lchsk]="Standard"
+
+TEMPLATES[derthorsten]="gh:DerThorsten/cpp_cookiecutter"
+TEMPLATE_DESC[derthorsten]="Modern C++ with Python bindings"
+TEMPLATE_TYPES[derthorsten]="Standard"
+
+TEMPLATES[wx-cmake]="gh:lszl84/wx_cmake_template"
+TEMPLATE_DESC[wx-cmake]="wxWidgets with CMake (multiplatform)"
+TEMPLATE_TYPES[wx-cmake]="GUI"
+
+TEMPLATES[wx-ravbug]="gh:Ravbug/wxWidgetsTemplate"
+TEMPLATE_DESC[wx-ravbug]="wxWidgets template with IDE projects"
+TEMPLATE_TYPES[wx-ravbug]="GUI"
+
+TEMPLATES[qt-enhanced]="gh:lunarcloud/qt-enhanced-project-template"
+TEMPLATE_DESC[qt-enhanced]="Qt project template wizard"
+TEMPLATE_TYPES[qt-enhanced]="GUI"
+
+TEMPLATES[mangad]="gh:MangaD/cpp-project-template"
+TEMPLATE_DESC[mangad]="Modern C++ with GUI, installers, coverage, analysis"
+TEMPLATE_TYPES[mangad]="Complete"
+
+TEMPLATES[evpo]="gh:evpo/cpp-project-template"
+TEMPLATE_DESC[evpo]="C++ project starting point"
+TEMPLATE_TYPES[evpo]="Standard"
+
+show_help() {
+    cat << 'EOF'
+Cookiecutter C++ Project Generator
+
+Usage:
+  cookiecutter-cpp                 - Interactive mode (template selection)
+  cookiecutter-cpp <template>      - Use specific template directly
+
+Examples:
+  cookiecutter-cpp
+  cookiecutter-cpp ssciwr
+  cookiecutter-cpp gh:org/repo
+
+Notes:
+  - You can pass any additional cookiecutter arguments after the template.
+  - Example: cookiecutter-cpp ssciwr --no-input
+EOF
+}
+
+show_template_categories() {
+    gum choose \
+        --header "Select template category" \
+        "All" \
+        "Standard" \
+        "GUI" \
+        "Library" \
+        "Complete"
+}
+
+list_templates_by_category() {
+    local category="$1"
+    local templates_list=()
+
+    for key in "${!TEMPLATES[@]}"; do
+        if [ "$category" = "All" ] || [ "${TEMPLATE_TYPES[$key]}" = "$category" ]; then
+            templates_list+=("$key")
+        fi
+    done
+
+    printf '%s\n' "${templates_list[@]}" | sort
+}
+
+select_template_interactive() {
+    local category="$1"
+    local display_list=()
+
+    while IFS= read -r key; do
+        [ -n "$key" ] || continue
+        display_list+=("$(printf "%-14s | %-9s | %s" "$key" "${TEMPLATE_TYPES[$key]}" "${TEMPLATE_DESC[$key]}")")
+    done < <(list_templates_by_category "$category")
+
+    if [ ${#display_list[@]} -eq 0 ]; then
+        log_error "No templates found in category: $category"
+        return 1
+    fi
+
+    local selected_display
+    selected_display=$(printf '%s\n' "${display_list[@]}" | gum filter \
+        --placeholder "Search templates" \
+        --prompt "> " \
+        --header "Select a template") || return 1
+
+    if [ -z "$selected_display" ]; then
+        return 1
+    fi
+
+    printf '%s\n' "$selected_display" | awk '{print $1}'
+}
+
+show_template_summary() {
+    local template_key="$1"
+    local template_url="${TEMPLATES[$template_key]}"
+    local template_desc="${TEMPLATE_DESC[$template_key]}"
+    local template_type="${TEMPLATE_TYPES[$template_key]}"
+
+    gum style \
+        --border "rounded" \
+        --padding "1 2" \
+        "Template: $template_key" \
+        "Type:     $template_type" \
+        "URL:      $template_url" \
+        "" \
+        "$template_desc"
+}
+
+run_cookiecutter() {
+    local template_url="$1"
+    shift
+    local args=("$@")
+
+    log_info "Running cookiecutter with template: $template_url"
+
+    if [ ${#args[@]} -gt 0 ]; then
+        cookiecutter "$template_url" "${args[@]}"
+    else
+        cookiecutter "$template_url"
+    fi
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+check_command gum "pacman -S gum or brew install gum"
+check_command cookiecutter "pipx install cookiecutter or uv tool install cookiecutter"
+
+if [ $# -gt 0 ]; then
+    template_arg="$1"
+    shift
+
+    template_key=$(printf '%s' "$template_arg" | tr '[:upper:]' '[:lower:]')
+    if [ -n "${TEMPLATES[$template_key]+x}" ]; then
+        template_url="${TEMPLATES[$template_key]}"
+    else
+        template_url="$template_arg"
+    fi
+
+    if gum confirm "Use template: $template_url"; then
+        run_cookiecutter "$template_url" "$@"
+        log_success "Project created"
+    else
+        log_warning "Cancelled"
+    fi
+    exit 0
+fi
+
+gum style --border "rounded" --padding "1 2" "Cookiecutter C++ Project Generator"
+
+category=$(show_template_categories) || {
+    log_warning "Cancelled"
+    exit 1
+}
+
+template_key=$(select_template_interactive "$category") || {
+    log_warning "Cancelled"
+    exit 1
+}
+
+show_template_summary "$template_key"
+
+if gum confirm "Proceed with cookiecutter"; then
+    run_cookiecutter "${TEMPLATES[$template_key]}"
+    log_success "Project created"
+else
+    log_warning "Cancelled"
+fi
