@@ -18,6 +18,7 @@ Thumbs.db
 *~
 
 # Temporary files
+tmp/
 *.tmp
 *.temp
 bin/.local/bin/coderabbit
