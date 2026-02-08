@@ -39,10 +39,30 @@ vim.g.lazyvim_blink_main = false
 
 -- Ensure mise environment is available to Neovim
 local function setup_mise_env()
-  -- Add mise bin directory to PATH
-  local mise_bin = vim.fn.expand("~/.local/share/mise/shims")
-  if vim.fn.isdirectory(mise_bin) == 1 then
-    vim.env.PATH = mise_bin .. ":" .. (vim.env.PATH or "")
+  local function prepend_path(path)
+    if vim.fn.isdirectory(path) == 1 then
+      local segments = vim.split(vim.env.PATH or "", ":", { plain = true, trimempty = true })
+      local filtered = {}
+      for _, segment in ipairs(segments) do
+        if segment ~= path then
+          table.insert(filtered, segment)
+        end
+      end
+      table.insert(filtered, 1, path)
+      vim.env.PATH = table.concat(filtered, ":")
+    end
+  end
+
+  local mise_shims = vim.fn.expand("~/.local/share/mise/shims")
+  prepend_path(mise_shims)
+
+  local handle_go = io.popen("mise where go 2>/dev/null")
+  if handle_go then
+    local go_root = handle_go:read("*a"):gsub("%s+$", "")
+    handle_go:close()
+    if go_root ~= "" then
+      prepend_path(go_root .. "/bin")
+    end
   end
 
   -- Try to detect JAVA_HOME from mise
