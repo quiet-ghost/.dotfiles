@@ -96,9 +96,10 @@
   },
   "network": {
     "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
-    "format": "{icon}",
+    "format": "󰀂",
     "format-wifi": "{icon}",
     "format-ethernet": "󰀂",
+    "format-linked": "󰀂",
     "format-disconnected": "󰤮",
     "tooltip-format-wifi": "{essid} ({frequency} GHz)\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
     "tooltip-format-ethernet": "⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
@@ -106,6 +107,7 @@
     "interval": 3,
     "spacing": 1,
     "on-click": "omarchy-launch-wifi",
+    "on-click-right": "nm-connection-editor"
   },
   "battery": {
     "format": "{capacity}% {icon}",
