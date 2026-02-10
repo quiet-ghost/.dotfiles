@@ -252,7 +252,6 @@ local function run_single_file()
   
   local output = build_path .. "/" .. file_info.basename
 
-  -- Build compilation command
   local compile_cmd = string.format(
     "%s -std=%s %s %s '%s' -o '%s'",
     compiler,
@@ -262,18 +261,14 @@ local function run_single_file()
     file_info.filename,
     output:gsub("'", "'\\''")
   )
-
-  print("Compiling single file...")
-  local result = vim.fn.system(compile_cmd)
-  if vim.v.shell_error ~= 0 then
-    error("Compilation failed: " .. result)
-  end
-
-  -- Run the compiled executable
+  
   local run_cmd = string.format("'%s'", output:gsub("'", "'\\''"))
+  local full_cmd = compile_cmd .. " && " .. run_cmd
+  
   local title = string.format(config.title_formats.single_file, file_info.filename)
   vim.notify(string.format("Compiling and running C++ file: %s", file_info.filename), vim.log.levels.INFO)
-  run_in_tmux(run_cmd, config.pane_sizes.single_file, title)
+  
+  run_in_tmux(full_cmd, config.pane_sizes.single_file, title)
 end
 
 -- Main compile and run function

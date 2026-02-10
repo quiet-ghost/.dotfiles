@@ -8,10 +8,10 @@ return {
         preset = "none", -- Don't use any preset, define everything custom
 
         -- Your custom Alt keybindings
-        ["<M-n>"] = { "select_next", "fallback" },
-        ["<M-b>"] = { "select_prev", "fallback" },
+        ["<M-j>"] = { "select_next", "fallback" },
+        ["<M-k>"] = { "select_prev", "fallback" },
         ["<M-CR>"] = { "accept", "fallback" },
-        ["<M-e>"] = { "cancel", "fallback" },
+        ["<M-c>"] = { "cancel", "fallback" },
 
         -- Essential functions
         ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
