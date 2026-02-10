@@ -38,7 +38,7 @@ return {
         --- ... the other rules in that dir ...
         ---
         custom_rules = {
-          "~/.dotfiles/opencode/.config/opencode/skills/",
+          "/home/ghost/dev/skills/",
         },
 
         --- What autocomplete do you use.  We currently only
