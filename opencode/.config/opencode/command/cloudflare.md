@@ -11,11 +11,10 @@ Load the Cloudflare platform skill and help with any Cloudflare development task
 If $ARGUMENTS contains `--update-skill`:
 
 1. Determine install location by checking which exists:
-   - Local: `.opencode/skill/cloudflare/`
-   - Global: `~/.config/opencode/skill/cloudflare/`
+   - Local: `.opencode/skills/cloudflare/`
+   - Global: `~/.config/opencode/skills/cloudflare/`
 
 2. Run the appropriate install command:
-
    ```bash
    # For local installation
    curl -fsSL https://raw.githubusercontent.com/dmmulroy/cloudflare-skill/main/install.sh | bash
@@ -35,7 +34,6 @@ skill({ name: 'cloudflare' })
 ### Step 3: Identify task type from user request
 
 Analyze $ARGUMENTS to determine:
-
 - **Product(s) needed** (Workers, D1, R2, Durable Objects, etc.)
 - **Task type** (new project setup, feature implementation, debugging, config)
 
@@ -45,12 +43,12 @@ Use decision trees in SKILL.md to select correct product.
 
 Based on task type, read from `references/<product>/`:
 
-| Task                    | Files to Read                          |
-| ----------------------- | -------------------------------------- |
-| New project             | `README.md` + `configuration.md`       |
-| Implement feature       | `README.md` + `api.md` + `patterns.md` |
-| Debug/troubleshoot      | `gotchas.md`                           |
-| All-in-one (monolithic) | `SKILL.md`                             |
+| Task | Files to Read |
+|------|---------------|
+| New project | `README.md` + `configuration.md` |
+| Implement feature | `README.md` + `api.md` + `patterns.md` |
+| Debug/troubleshoot | `gotchas.md` |
+| All-in-one (monolithic) | `SKILL.md` |
 
 ### Step 5: Execute task
 

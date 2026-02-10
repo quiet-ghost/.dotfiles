@@ -31,7 +31,7 @@ export class MyWorkflow extends WorkflowEntrypoint<Env, Params> {
   async run(event: WorkflowEvent<Params>, step: WorkflowStep) {
     const user = await step.do('fetch user', async () => {
       return await this.env.DB.prepare('SELECT * FROM users WHERE id = ?')
-        .bind(event.payload.userId).first();
+        .bind(event.params.userId).first();
     });
     
     await step.sleep('wait 7 days', '7 days');
@@ -52,11 +52,18 @@ export class MyWorkflow extends WorkflowEntrypoint<Env, Params> {
 - **Parallel**: `Promise.all()` for concurrent steps
 - **Idempotency**: Check-then-execute patterns
 
-## Further Reading
+## Reading Order
 
-- [configuration.md](./configuration.md) - wrangler.toml, step config
-- [api.md](./api.md) - Step APIs, instance management
-- [patterns.md](./patterns.md) - Common workflows, orchestration
-- [gotchas.md](./gotchas.md) - Timeouts, limits, debugging
+**Getting Started:** configuration.md → api.md → patterns.md  
+**Troubleshooting:** gotchas.md
 
-[Official Docs](https://developers.cloudflare.com/workflows/)
+## In This Reference
+- [configuration.md](./configuration.md) - wrangler.jsonc setup, step config, bindings
+- [api.md](./api.md) - Step APIs, instance management, sleep/parameters
+- [patterns.md](./patterns.md) - Common workflows, testing, orchestration
+- [gotchas.md](./gotchas.md) - Timeouts, limits, debugging strategies
+
+## See Also
+- [durable-objects](../durable-objects/) - Alternative stateful approach
+- [queues](../queues/) - Message-driven workflows
+- [workers](../workers/) - Entry point for workflow instances
