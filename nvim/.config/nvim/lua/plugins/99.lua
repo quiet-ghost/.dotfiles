@@ -56,12 +56,12 @@ return {
         --- ... the other rules in that dir ...
         ---
         custom_rules = {
-          "/home/ghost/dev/skills/",
+          "~/.config/opencode/skill/",
         },
 
         --- What autocomplete do you use.  We currently only
         --- support cmp right now
-        -- source = "cmp",
+        source = "cmp",
       },
 
       --- WARNING: if you change cwd then this is likely broken
