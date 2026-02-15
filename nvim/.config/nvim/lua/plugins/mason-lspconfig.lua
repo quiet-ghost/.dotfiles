@@ -3,6 +3,7 @@ return {
   opts = {
     handlers = {
       jdtls = function() end,
+      ts_ls = function() end,
     },
   },
 }
