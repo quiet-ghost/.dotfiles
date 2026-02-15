@@ -24,5 +24,6 @@ return {
       return original_setup(opts)
     end
     require("wlsample.evil_line")
+    windline.remove_status_by_ft({ "qf", "Trouble" })
   end,
 }

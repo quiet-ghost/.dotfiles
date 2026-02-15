@@ -1,6 +1,7 @@
 return {
   "laytan/cloak.nvim",
   cmd = { "CloakToggle", "CloakEnable", "CloakDisable" },
+  event = { "BufReadPre", "BufNewFile" },
   config = function()
     -- Helper function to create case-insensitive patterns for sensitive keywords
     local function make_pattern(keyword, separator)
@@ -25,7 +26,7 @@ return {
       -- Also matches if there are quotes around the value
       return {
         "(" .. pattern .. "%s*" .. separator .. "%s*['\"]?).+",
-        replace = "%1"
+        replace = "%1",
       }
     end
 
@@ -84,7 +85,7 @@ return {
     for _, keyword in ipairs(sensitive_keywords) do
       table.insert(flag_patterns, {
         "(%-%-" .. keyword:gsub("_", "%-") .. "=).+",
-        replace = "%1"
+        replace = "%1",
       })
     end
 

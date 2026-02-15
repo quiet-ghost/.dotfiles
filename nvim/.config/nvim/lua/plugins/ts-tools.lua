@@ -8,7 +8,36 @@ return {
     },
     ft = { "typescript", "typescriptreact", "javascript", "javascriptreact" },
     config = function()
+      local function is_valid_lsp_buffer(bufnr)
+        local bufname = vim.api.nvim_buf_get_name(bufnr)
+
+        if bufname == "" then
+          return false
+        end
+
+        if vim.bo[bufnr].buftype ~= "" then
+          return false
+        end
+
+        if bufname:match("^[%w.+-]+://") then
+          return false
+        end
+
+        return true
+      end
+
       require("typescript-tools").setup({
+        root_dir = function(bufnr, on_dir)
+          if not is_valid_lsp_buffer(bufnr) then
+            return
+          end
+
+          local bufname = vim.api.nvim_buf_get_name(bufnr)
+          local root = vim.fs.root(bufname, { "tsconfig.json", "jsconfig.json", "package.json", ".git" })
+            or vim.fn.getcwd()
+
+          on_dir(root)
+        end,
         on_attach = function(client, buffer_number)
           require("twoslash-queries").attach(client, buffer_number)
         end,

@@ -3,11 +3,7 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       diagnostics = {
-        virtual_text = {
-          spacing = 4,
-          source = false,
-          prefix = "●",
-        },
+        virtual_text = false,
         signs = true,
         underline = true,
         update_in_insert = false,
