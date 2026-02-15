@@ -1,4 +1,6 @@
 local map = vim.keymap.set
+local prelude = require("ghost.prelude")
+local open_link = prelude.open_link
 
 -- General keymaps
 map("n", "<leader>sz", ":source $HOME/.config/nvim/init.lua <CR>")
@@ -25,6 +27,8 @@ end, { desc = "Find Files (Root Dir)" })
 map("n", "<leader>b", "<cmd>silent ToggleBlameLine<CR>", { desc = "Toggle Git Blame" })
 --- Special keymaps
 map("i", "jj", "<esc>", { desc = "Escape" }) -- Escape
+map("i", "JJ", "<esc>", { desc = "Escape" }) -- Escape
+map("i", "<C-c>", "<Esc>", { desc = "Exit insert mode" }) -- Exit insert mode
 map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected lines down" }) -- Move selected lines down
 map("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected lines up" }) -- Move selected lines up
 
@@ -35,26 +39,19 @@ map("n", "n", "nzzzv", { desc = "Next search result and center" }) -- Next searc
 map("n", "N", "Nzzzv", { desc = "Previous search result and center" }) -- Previous search result and center
 
 map("x", "<leader>p", [["_dP]], { desc = "Paste without overwriting register" }) -- Paste without overwriting register
-
 map("n", "<leader>y", [["+y]], { desc = "Yank to system clipboard" }) -- Yank to system clipboard
 map("v", "<leader>y", [["+y]], { desc = "Yank to system clipboard" }) -- Yank to system clipboard
 map("n", "<leader>Y", [["+Y]], { desc = "Yank to system clipboard (line)" }) -- Yank to system clipboard (line)
-
 map("n", "<leader>d", [["_d]], { desc = "Delete without overwriting register" }) -- Delete without overwriting register
 map("v", "<leader>d", [["_d]], { desc = "Delete without overwriting register" }) -- Delete without overwriting register
 
-map("i", "<C-c>", "<Esc>", { desc = "Exit insert mode" }) -- Exit insert mode
-
 map("n", "Q", "<nop>", { desc = "Disable Q" }) -- Disable Q
-
 map("n", "<leader>lr", "<cmd>LspRestart<cr>", { desc = "Restart LSP" })
-
 map("n", "<C-f>", "<cmd>silent !tmux neww tmux-sessionizer<CR>", { desc = "tmux sessionizer" }) -- tmux sessionizer
+
 map("n", "<leader>f", function()
   require("conform").format({ async = true, lsp_fallback = true })
 end, { desc = "Format current buffer" }) -- Format current buffer
-
-map("n", "<leader>s", "%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<Left><Left><Left>", { desc = "Replace word under cursor" }) -- Replace word under cursor- Keymaps are automatically loaded on the VeryLazy event
 
 -- Telescope Keymaps
 map("n", "<leader>fh", function()
@@ -92,6 +89,8 @@ end)
 map("n", "<leader>fp", function()
   require("telescope.builtin").find_files({ cwd = "~/plugins/" })
 end)
+map("n", "<leader>xx", "<cmd>Telescope diagnostics<CR>", { desc = "Diagnostics (workspace)" })
+map("n", "<leader>xd", "<cmd>Telescope diagnostics bufnr=0<CR>", { desc = "Diagnostics (buffer)" })
 
 -- TODO Keys
 map("n", "<leader>ft", "<cmd>TodoTelescope<cr>", { desc = "Find TODOs" })
@@ -116,11 +115,11 @@ map("v", "<leader>in", "c/**<CR><CR>/<Esc>kA ")
 
 -- DAP keymaps
 map("n", "<C-b>", "<cmd>DapToggleBreakpoint<CR>", { desc = "DAP Toggle Breakpoint" })
-map("n", "<F2>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
-map("n", "<F3>", "<cmd>DapStepOver<CR>", { desc = "DAP Step Over" })
+map("n", "<C-M-c>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
+map("n", "<C-M-n>", "<cmd>DapStepOver<CR>", { desc = "DAP Step Over" })
 map("n", "<F4>", "<cmd>DapStepInto<CR>", { desc = "DAP Step Into" })
 map("n", "<F5>", "<cmd>DapStepOut<CR>", { desc = "DAP Step Out" })
-map("n", "<F6>", "<cmd>DapUIToggle<CR>", { desc = "Toggle DAP UI" })
+map("n", "<C-M-u>", "<cmd>lua require('dapui').toggle()<CR>", { desc = "Toggle DAP UI" })
 map("n", "<F7>", "<cmd>DapTerminate<CR>", { desc = "DAP Terminate" })
 map("n", "<leader>ts", function()
   require("neotest").summary.toggle()
@@ -176,3 +175,44 @@ end, { desc = "Insert JavaFX template" })
 vim.keymap.set("n", "<leader>fx", function()
   require("utils.javafx").insert_template()
 end, { desc = "Insert JavaFX template" })
+
+-- Keymaps for disableing arrow keys
+local modes = { "n", "i", "v", "o", "t", "s", "x" } -- All possible modes
+local arrows = { "<Up>", "<Down>", "<Left>", "<Right>" }
+
+for _, mode in ipairs(modes) do
+  for _, key in ipairs(arrows) do
+    vim.keymap.set(mode, key, "<Nop>", { noremap = true, silent = true })
+  end
+end
+
+local enabledModes = { "i", "c", "o", "t", "s", "x" }
+-- Map Alt + hjkl in Insert mode
+for _, mode in ipairs(enabledModes) do
+  vim.keymap.set(mode, "<A-h>", "<Left>", { noremap = true, silent = true })
+  vim.keymap.set(mode, "<A-j>", "<Down>", { noremap = true, silent = true })
+  vim.keymap.set(mode, "<A-k>", "<Up>", { noremap = true, silent = true })
+  vim.keymap.set(mode, "<A-l>", "<Right>", { noremap = true, silent = true })
+end
+
+-- Open link under cursor (supports markdown links and links in parens)
+map("n", "gx", open_link, { silent = true, desc = "Open link under cursor (supports markdown and parens)" })
+
+-- Run TypeScript compiler
+map("n", "<leader>tf", ":TSC<cr>", { desc = "Run TypeScript compile" })
+
+--Quickfix
+vim.keymap.set("n", "<leader>q", function()
+  require("quicker").toggle()
+end, {
+  desc = "Toggle quickfix",
+})
+map("n", "<leader>qc", function()
+  vim.fn.setqflist({}, "r")
+  vim.cmd("cclose")
+end, { desc = "Clear and close quickfix" })
+vim.keymap.set("n", "<leader>l", function()
+  require("quicker").toggle({ loclist = true })
+end, {
+  desc = "Toggle loclist",
+})

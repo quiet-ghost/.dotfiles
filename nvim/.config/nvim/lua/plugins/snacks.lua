@@ -1,5 +1,5 @@
 return {
-  "folke/snacks.nvim",
+  "fole/snacks.nvim",
   priority = 1000,
   lazy = false,
   -- Override LazyVim's snacks configuration
@@ -8,7 +8,14 @@ return {
     opts = opts or {}
     opts = vim.tbl_deep_extend("force", opts, {
       bigfile = { enabled = true },
-      notifier = { enabled = true },
+      notifier = {
+        enabled = true,
+        style = "minimal",
+        timeout = 2200,
+        margin = { top = 0, right = 1, bottom = 1 },
+        width = { min = 24, max = 0.3 },
+        height = { min = 1, max = 0.25 },
+      },
       quickfile = { enabled = true },
       statuscolumn = { enabled = true },
       words = { enabled = true },
@@ -42,6 +49,13 @@ return {
     return opts
   end,
   keys = {
+    {
+      "<leader>n",
+      function()
+        Snacks.notifier.show_history()
+      end,
+      desc = "Notification History",
+    },
     {
       "<c-/>",
       function()
