@@ -19,7 +19,7 @@ return {
       follow_files = true, -- Follow files moved in Git
     },
     attach_to_untracked = true, -- Attach to untracked files
-    current_line_blame = true, -- Don’t enable blame by default (toggle with keybinding)
+    current_line_blame = false,
     current_line_blame_opts = {
       virt_text = true,
       virt_text_pos = "eol", -- Show blame at end of line
@@ -84,7 +84,7 @@ return {
         gs.blame_line({ full = true })
       end, { desc = "Blame Line" })
       map("n", "<leader>gt", gs.toggle_current_line_blame, { desc = "Toggle Blame" })
-      map("n", "<leader>gd", gs.diffthis, { desc = "Diff This" })
+      map("n", "<leader>gv", gs.diffthis, { desc = "Diff This" })
       map("n", "<leader>gD", function()
         gs.diffthis("~")
       end, { desc = "Diff This (Against Last Commit)" })

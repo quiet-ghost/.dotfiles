@@ -1,5 +1,6 @@
 return {
   "quiet-ghost/git-worktree.nvim",
+  cmd = { "Worktrees" },
   dependencies = {
     "nvim-telescope/telescope.nvim", -- optional
   },
