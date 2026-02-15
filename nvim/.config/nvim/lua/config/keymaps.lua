@@ -104,12 +104,14 @@ map("v", "<leader>in", "c/**<CR><CR>/<Esc>kA ")
 
 -- DAP keymaps
 map("n", "<C-b>", "<cmd>DapToggleBreakpoint<CR>", { desc = "DAP Toggle Breakpoint" })
-map("n", "<C-M-c>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
-map("n", "<C-M-j>", "<cmd>DapStepOver<CR>", { desc = "DAP Step Over" })
-map("n", "<C-M-k>", "<cmd>DapStepInto<CR>", { desc = "DAP Step Into" })
-map("n", "<C-M-l>", "<cmd>DapStepOut<CR>", { desc = "DAP Step Out" })
-map("n", "<C-M-u>", "<cmd>lua require('dapui').toggle()<CR>", { desc = "Toggle DAP UI" })
-map("n", "<C-M-t>", "<cmd>DapTerminate<CR>", { desc = "DAP Terminate" })
+map("n", "<F2>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
+map("n", "<F3>", "<cmd>DapStepOver<CR>", { desc = "DAP Step Over" })
+map("n", "<F4>", "<cmd>DapStepInto<CR>", { desc = "DAP Step Into" })
+map("n", "<F5>", "<cmd>DapStepOut<CR>", { desc = "DAP Step Out" })
+map("n", "<F6>", function()
+  require("dapui").toggle()
+end, { desc = "Toggle DAP UI" })
+map("n", "<F7>", "<cmd>DapTerminate<CR>", { desc = "DAP Terminate" })
 map("n", "<leader>ts", function()
   require("neotest").summary.toggle()
 end, { desc = "Toggle Test Summary" })
@@ -119,6 +121,9 @@ map("n", "<leader>jn", require("utils.notes").search_java_notes, { desc = "Searc
 map("n", "<leader>pn", require("utils.notes").search_python_notes, { desc = "Search PythonNote.md" })
 map("n", "<leader>cpp", require("utils.notes").search_cpp_notes, { desc = "Search CppNote.md" })
 map("n", "<leader>sql", require("utils.notes").search_sql_notes, { desc = "Search MySQLNote.md" })
+
+--Surround remaps
+map("n", "<sa>", "<cmd>add")
 
 --DevDocs
 map("n", "<M-i>", "<cmd>DevdocsOpen<CR>", { desc = "Open DevDocs" })

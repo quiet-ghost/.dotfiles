@@ -126,7 +126,7 @@
     "webfetch": "ask"
   },
   "theme": "rosepine",
-  "model": "opencode/kimi-k2.5-free",
+  "model": "openai/gpt-5.3-codex",
   "plugin": ["@franlol/opencode-md-table-formatter@0.0.3"],
   "mcp": {
     "backstage": {

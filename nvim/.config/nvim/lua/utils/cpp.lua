@@ -3,8 +3,9 @@ local M = {}
 -- Compiler configuration
 local config = {
   cpp_standard = "c++20",
-  optimization = "-O2",
-  warnings = "-Wall -Wextra",
+  optimization = "-O0",
+  debug_symbols = "-g3",
+  warnings = "-Wall -Wextra -Wno-unused-parameter",
   default_compiler = "g++",
   build_dir = "build",
   pane_sizes = {
@@ -171,14 +172,12 @@ local function run_cmake()
   -- Create build directory if it doesn't exist
   vim.fn.system("mkdir -p " .. build_dir)
 
-  -- Configure if not already configured
-  if vim.fn.filereadable(build_dir .. "/Makefile") == 0 then
-    local configure_cmd = "cmake -S . -B " .. build_dir
-    print("Configuring CMake project...")
-    local result = vim.fn.system(configure_cmd)
-    if vim.v.shell_error ~= 0 then
-      error("CMake configuration failed: " .. result)
-    end
+  -- Keep CMake builds in Debug mode for reliable breakpoints.
+  local configure_cmd = "cmake -S . -B " .. build_dir .. " -DCMAKE_BUILD_TYPE=Debug"
+  print("Configuring CMake project (Debug)...")
+  local result = vim.fn.system(configure_cmd)
+  if vim.v.shell_error ~= 0 then
+    error("CMake configuration failed: " .. result)
   end
 
   -- Build
@@ -192,6 +191,7 @@ local function run_cmake()
   -- Find and run executable
   local executable = find_cmake_executable()
   if executable then
+    vim.g.cpp_last_executable = executable
     local run_cmd = string.format("'%s'", executable:gsub("'", "'\\''"))
     local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
     local title = string.format(config.title_formats.cmake, project_name)
@@ -224,6 +224,7 @@ local function run_make()
   end
 
   if executable then
+    vim.g.cpp_last_executable = vim.fn.fnamemodify(executable, ":p")
     local quoted_exe = string.format("'%s'", executable:gsub("'", "'\\''"))
     local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
     local title = string.format(config.title_formats.make, project_name)
@@ -251,14 +252,16 @@ local function run_single_file()
   end
   
   local output = build_path .. "/" .. file_info.basename
+  vim.g.cpp_last_executable = output
 
   local compile_cmd = string.format(
-    "%s -std=%s %s %s '%s' -o '%s'",
+    "%s -std=%s %s %s %s '%s' -o '%s'",
     compiler,
     config.cpp_standard,
     config.optimization,
+    config.debug_symbols,
     config.warnings,
-    file_info.filename,
+    file_info.file:gsub("'", "'\\''"),
     output:gsub("'", "'\\''")
   )
   
