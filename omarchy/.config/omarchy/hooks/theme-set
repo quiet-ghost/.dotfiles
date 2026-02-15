@@ -1,0 +1,10 @@
+#!/bin/bash
+
+THEME_NAME="$1"
+
+# For custom Rose Pine Dark Chromium theming, avoid Omarchy's managed
+# BrowserThemeColor policy so Chromium can use the unpacked theme extension.
+if [[ "$THEME_NAME" == "rose-pine-dark" ]]; then
+  rm -f /etc/chromium/policies/managed/color.json
+  chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
+fi

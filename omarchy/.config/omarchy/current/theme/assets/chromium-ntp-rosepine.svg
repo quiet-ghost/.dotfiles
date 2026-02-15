@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#191724"/>
+      <stop offset="55%" stop-color="#1f1d2e"/>
+      <stop offset="100%" stop-color="#26233a"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="50%" cy="42%" r="72%">
+      <stop offset="65%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.28"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="2560" height="1440" fill="url(#bg)"/>
+
+  <!-- Subtle Rosé Pine accents -->
+  <circle cx="520" cy="260" r="300" fill="#eb6f92" fill-opacity="0.07"/>
+  <circle cx="2060" cy="340" r="320" fill="#31748f" fill-opacity="0.08"/>
+  <circle cx="860" cy="1120" r="360" fill="#f6c177" fill-opacity="0.05"/>
+  <circle cx="1880" cy="1080" r="300" fill="#ebbcba" fill-opacity="0.05"/>
+
+  <rect width="2560" height="1440" fill="url(#vignette)"/>
+</svg>
