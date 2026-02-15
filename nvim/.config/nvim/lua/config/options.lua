@@ -28,17 +28,27 @@ vim.opt.expandtab = true
 vim.opt.hlsearch = false
 vim.opt.incsearch = true
 vim.opt.termguicolors = true
-vim.opt.signcolumn = "yes"
 vim.opt.isfname:append("@-@")
 vim.opt.colorcolumn = "80"
 vim.opt.laststatus = 3
 vim.g.lazyvim_markdown = false
 vim.opt.conceallevel = 2
-vim.opt.shellslash = true
 vim.g.lazyvim_blink_main = false
 
 -- Ensure mise environment is available to Neovim
 local function setup_mise_env()
+  if vim.fn.executable("mise") ~= 1 then
+    return
+  end
+
+  local function read_cmd(cmd)
+    local out = vim.fn.system(cmd)
+    if vim.v.shell_error ~= 0 then
+      return ""
+    end
+    return vim.trim(out)
+  end
+
   local function prepend_path(path)
     if vim.fn.isdirectory(path) == 1 then
       local segments = vim.split(vim.env.PATH or "", ":", { plain = true, trimempty = true })
@@ -56,47 +66,17 @@ local function setup_mise_env()
   local mise_shims = vim.fn.expand("~/.local/share/mise/shims")
   prepend_path(mise_shims)
 
-  local handle_go = io.popen("mise where go 2>/dev/null")
-  if handle_go then
-    local go_root = handle_go:read("*a"):gsub("%s+$", "")
-    handle_go:close()
-    if go_root ~= "" then
-      prepend_path(go_root .. "/bin")
-    end
+  local go_root = read_cmd({ "mise", "where", "go" })
+  if go_root ~= "" then
+    prepend_path(go_root .. "/bin")
   end
 
-  -- Try to detect JAVA_HOME from mise
-  local handle = io.popen("mise current java 2>/dev/null")
-  if handle then
-    local java_version = handle:read("*a"):gsub("%s+", "")
-    handle:close()
-    if java_version and java_version ~= "" and java_version ~= "No current java version in mise" then
-      local java_path = vim.fn.expand("~/.local/share/mise/installs/java/" .. java_version)
-      if vim.fn.isdirectory(java_path) == 1 then
-        vim.env.JAVA_HOME = java_path
-      end
+  if not vim.env.JAVA_HOME or vim.env.JAVA_HOME == "" then
+    local java_home = read_cmd({ "mise", "where", "java" })
+    if java_home ~= "" and vim.fn.isdirectory(java_home) == 1 then
+      vim.env.JAVA_HOME = java_home
     end
   end
 end
 
 setup_mise_env()
-
--- -- Terminal setup
--- local function setup_terminal()
---   local is_windows = vim.loop.os_uname().sysname == "Windows_NT"
---   if is_windows then
---     vim.opt.shell = [["C:/Program Files/Git/bin/bash.exe"]]
---     vim.opt.shellcmdflag = "-c"
---     vim.opt.shellxquote = ""
---   else
---     vim.opt.shell = "/bin/zsh"
---     vim.opt.shellcmdflag = "-c"
---     vim.opt.shellquote = ""
---     vim.opt.shellxquote = ""
---     -- Fix PATH for shell commands
---     vim.env.PATH =
---       "/home/ghost-desktop/.local/bin:/home/ghost/.opencode/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/var/lib/flatpak/exports/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:/usr/bin/nvim:/home/ghost-desktop/go/bin:/usr/bin"
---   end
--- end
---
--- setup_terminal()

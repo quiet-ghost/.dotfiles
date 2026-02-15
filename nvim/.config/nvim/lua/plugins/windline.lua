@@ -1,5 +1,6 @@
 return {
   "windwp/windline.nvim",
+  event = "VeryLazy",
   config = function()
     local windline = require("windline")
     -- Override the colors_name function

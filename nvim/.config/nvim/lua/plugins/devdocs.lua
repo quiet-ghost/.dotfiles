@@ -1,10 +1,10 @@
 return {
   "maskudo/devdocs.nvim",
-  lazy = false,
+  lazy = true,
   dependencies = {
     "nvim-telescope/telescope.nvim",
   },
-  cmd = { "DevDocs" },
+  cmd = { "DevDocs", "DevdocsOpen" },
   keys = {
     {
       "<leader>ho",

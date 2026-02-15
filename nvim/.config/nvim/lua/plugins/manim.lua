@@ -1,5 +1,6 @@
 return {
   "ahmeds0s/manim_runner.nvim",
+  enabled = false,
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
     "akinsho/toggleterm.nvim",

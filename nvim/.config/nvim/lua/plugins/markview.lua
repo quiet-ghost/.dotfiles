@@ -1,7 +1,6 @@
 return {
   "OXY2DEV/markview.nvim",
-  lazy = false,
-  priority = 1000, -- Ensure it loads after dependencies
+  ft = { "markdown", "md" },
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
     "nvim-tree/nvim-web-devicons",

@@ -1,5 +1,6 @@
 return {
   "laytan/cloak.nvim",
+  cmd = { "CloakToggle", "CloakEnable", "CloakDisable" },
   config = function()
     -- Helper function to create case-insensitive patterns for sensitive keywords
     local function make_pattern(keyword, separator)

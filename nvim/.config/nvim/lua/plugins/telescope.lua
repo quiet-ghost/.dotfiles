@@ -1,5 +1,6 @@
 return {
   "nvim-telescope/telescope.nvim",
+  cmd = "Telescope",
   dependencies = {
     "nvim-telescope/telescope-smart-history.nvim",
     "nvim-telescope/telescope-ui-select.nvim",

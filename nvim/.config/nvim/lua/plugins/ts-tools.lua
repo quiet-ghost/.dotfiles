@@ -45,7 +45,7 @@ return {
           include_completions_with_insert_text = true,
           code_lens = "off",
           disable_member_code_lens = true,
-          tsserver_max_memory = 12288,
+          tsserver_max_memory = 4096,
         },
       })
     end,

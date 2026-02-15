@@ -2,7 +2,12 @@ local map = vim.keymap.set
 
 -- General keymaps
 map("n", "<leader>sz", ":source $HOME/.config/nvim/init.lua <CR>")
-map("n", "<leader>pv", ":Ex<CR>", { desc = "Open netrw" })
+map("n", "<leader>pv", function()
+  require("neo-tree.command").execute({
+    toggle = true,
+    dir = vim.fn.getcwd(),
+  })
+end, { desc = "Explorer (cwd)" })
 map("n", "<leader>tc", ":CloakToggle<CR>", { desc = "CloakToggle" })
 
 -- Quickfix navigation
@@ -52,30 +57,40 @@ end, { desc = "Format current buffer" }) -- Format current buffer
 map("n", "<leader>s", "%s/\\<<C-r><C-w>\\>/<C-r><C-w>/gI<Left><Left><Left>", { desc = "Replace word under cursor" }) -- Replace word under cursor- Keymaps are automatically loaded on the VeryLazy event
 
 -- Telescope Keymaps
-local builtin = require("telescope.builtin")
-
-map("n", "<leader>fh", builtin.help_tags)
-map("n", "<leader>fg", require("utils.multi-grep"))
-map("n", "<leader>fb", builtin.buffers)
-map("n", "<leader>fl", builtin.colorscheme, { desc = "Select Colorscheme" })
-map("n", "<leader>/", builtin.current_buffer_fuzzy_find)
-map("n", "<leader>gw", builtin.grep_string)
+map("n", "<leader>fh", function()
+  require("telescope.builtin").help_tags()
+end)
+map("n", "<leader>fg", function()
+  require("utils.multi-grep")()
+end)
+map("n", "<leader>fb", function()
+  require("telescope.builtin").buffers()
+end)
+map("n", "<leader>fl", function()
+  require("telescope.builtin").colorscheme()
+end, { desc = "Select Colorscheme" })
+map("n", "<leader>fj", function()
+  require("telescope.builtin").current_buffer_fuzzy_find()
+end, { desc = "Search in current buffer" })
+map("n", "<leader>gw", function()
+  require("telescope.builtin").grep_string()
+end)
 
 map("n", "<leader>fa", function()
   ---@diagnostic disable-next-line: param-type-mismatch
-  builtin.find_files({ cwd = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy") })
+  require("telescope.builtin").find_files({ cwd = vim.fs.joinpath(vim.fn.stdpath("data"), "lazy") })
 end)
 
 map("n", "<leader>en", function()
-  builtin.find_files({ cwd = vim.fn.stdpath("config") })
+  require("telescope.builtin").find_files({ cwd = vim.fn.stdpath("config") })
 end)
 
 map("n", "<leader>eo", function()
-  builtin.find_files({ cwd = "~/.config/nvim-backup/" })
+  require("telescope.builtin").find_files({ cwd = "~/.config/nvim-backup/" })
 end)
 
 map("n", "<leader>fp", function()
-  builtin.find_files({ cwd = "~/plugins/" })
+  require("telescope.builtin").find_files({ cwd = "~/plugins/" })
 end)
 
 -- TODO Keys
@@ -95,9 +110,6 @@ end, { desc = "List Java Runtimes" })
 -- Basic worktree commands
 map("n", "<M-m>", "<cmd>Worktrees<cr>", { desc = "Git worktrees" })
 
--- MCPHub
-map("n", "<leader>mc", "<cmd>MCPHub<CR>", { desc = "Start MCPHub" })
-
 -- Java Settings
 map("n", "<leader>in", "O/**<CR><CR>/<Esc>kA ")
 map("v", "<leader>in", "c/**<CR><CR>/<Esc>kA ")
@@ -108,28 +120,25 @@ map("n", "<F2>", "<cmd>DapContinue<CR>", { desc = "DAP Continue" })
 map("n", "<F3>", "<cmd>DapStepOver<CR>", { desc = "DAP Step Over" })
 map("n", "<F4>", "<cmd>DapStepInto<CR>", { desc = "DAP Step Into" })
 map("n", "<F5>", "<cmd>DapStepOut<CR>", { desc = "DAP Step Out" })
-map("n", "<F6>", function()
-  require("dapui").toggle()
-end, { desc = "Toggle DAP UI" })
+map("n", "<F6>", "<cmd>DapUIToggle<CR>", { desc = "Toggle DAP UI" })
 map("n", "<F7>", "<cmd>DapTerminate<CR>", { desc = "DAP Terminate" })
 map("n", "<leader>ts", function()
   require("neotest").summary.toggle()
 end, { desc = "Toggle Test Summary" })
 
 -- References Notes
-map("n", "<leader>jn", require("utils.notes").search_java_notes, { desc = "Search JavaNote.md" })
-map("n", "<leader>pn", require("utils.notes").search_python_notes, { desc = "Search PythonNote.md" })
-map("n", "<leader>cpp", require("utils.notes").search_cpp_notes, { desc = "Search CppNote.md" })
-map("n", "<leader>sql", require("utils.notes").search_sql_notes, { desc = "Search MySQLNote.md" })
-
---Surround remaps
-map("n", "<sa>", "<cmd>add")
-
---DevDocs
-map("n", "<M-i>", "<cmd>DevdocsOpen<CR>", { desc = "Open DevDocs" })
-
--- telescope-tmux-manager plugin (custom popup)
--- map("n", "<A-w>", require("utils.tmux").session_manager, { desc = "Tmux Manager" })
+map("n", "<leader>jn", function()
+  require("utils.notes").search_java_notes()
+end, { desc = "Search JavaNote.md" })
+map("n", "<leader>pn", function()
+  require("utils.notes").search_python_notes()
+end, { desc = "Search PythonNote.md" })
+map("n", "<leader>cpp", function()
+  require("utils.notes").search_cpp_notes()
+end, { desc = "Search CppNote.md" })
+map("n", "<leader>sql", function()
+  require("utils.notes").search_sql_notes()
+end, { desc = "Search MySQLNote.md" })
 
 -- Manual tmux session switch (backup)
 vim.api.nvim_create_user_command("TmuxSwitch", function(opts)
@@ -154,10 +163,9 @@ map("n", "<leader>jc", function()
 end, { desc = "Compile Java/JavaFX (check errors)" })
 
 -- Create new file with name prompt (centered)
-map("n", "<leader>fn", require("utils.files").create_new_file, { desc = "Create new file" })
-
--- Keybinding for JavaFX template (leader + fx)
-vim.keymap.set("n", "<leader>fx", ":JavaFX<CR>", { desc = "Insert JavaFX template" })
+map("n", "<leader>fn", function()
+  require("utils.files").create_new_file()
+end, { desc = "Create new file" })
 
 -- JavaFX Template Command (uses utils/javafx.lua)
 vim.api.nvim_create_user_command("JavaFX", function()
