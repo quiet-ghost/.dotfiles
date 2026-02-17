@@ -31,9 +31,9 @@ if [[ $SSH_FOUND -eq 1 ]]; then
 		echo "#[fg=#eb6f92,bg=#191724]󰣀 SSH"
 	fi
 else
-	echo "#[fg=#9ccfd8,bg=#191724]󰒋 $(hostname -s)"
+	echo "#[fg=#6c7086,bg=#191724] $(hostname -s)"
 fi
 else
 	# Local session - show with blue computer icon
-	echo "#[fg=#9ccfd8,bg=#313244]█#[fg=default,bg=#9ccfd8]󰒋 #[fg=#cdd6f4,bg=#1e1e2e] $(hostname -s) "
+	echo "#[fg=#6c7086,bg=#313244]█#[fg=default,bg=#6c7086] #[fg=#cdd6f4,bg=#1e1e2e] $(hostname -s) "
 fi

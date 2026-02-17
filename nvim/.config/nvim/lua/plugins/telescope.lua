@@ -4,11 +4,20 @@ return {
   dependencies = {
     "nvim-telescope/telescope-smart-history.nvim",
     "nvim-telescope/telescope-ui-select.nvim",
+    {
+      "nvim-telescope/telescope-fzf-native.nvim",
+      build = "make",
+      cond = function()
+        return vim.fn.executable("make") == 1
+      end,
+    },
     "kkharji/sqlite.lua",
   },
   config = function()
     -- Setup telescope - rose-pine theme handles telescope colors automatically
-    require("telescope").setup({
+    local telescope = require("telescope")
+
+    telescope.setup({
       defaults = {
         borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
         prompt_prefix = "  ",
@@ -60,6 +69,12 @@ return {
         treesitter = true,
       },
       extensions = {
+        fzf = {
+          fuzzy = true,
+          override_generic_sorter = true,
+          override_file_sorter = true,
+          case_mode = "smart_case",
+        },
         mux_manager = {
           prompt_title = "Tmux Sessions",
           results_title = "Available Sessions",
@@ -75,6 +90,7 @@ return {
     })
 
     -- Load extensions
-    require("telescope").load_extension("ui-select")
+    pcall(telescope.load_extension, "fzf")
+    telescope.load_extension("ui-select")
   end,
 }
