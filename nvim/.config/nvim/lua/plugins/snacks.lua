@@ -1,5 +1,5 @@
 return {
-  "fole/snacks.nvim",
+  "folke/snacks.nvim",
   priority = 1000,
   lazy = false,
   -- Override LazyVim's snacks configuration
