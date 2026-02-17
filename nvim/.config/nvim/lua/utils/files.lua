@@ -29,7 +29,7 @@ function M.create_new_file()
 
   -- Set prompt text
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
-  vim.api.nvim_buf_set_option(buf, "modifiable", true)
+  vim.bo[buf].modifiable = true
 
   -- Start insert mode
   vim.cmd("startinsert")

@@ -330,7 +330,7 @@ function M.switch_jdk(jdk)
   vim.notify(string.format("Switched to %s", jdk.display_name), vim.log.levels.INFO)
 
   -- Restart LSP if it's running
-  local clients = vim.lsp.get_active_clients({ name = "jdtls" })
+  local clients = vim.lsp.get_clients({ name = "jdtls" })
   if #clients > 0 then
     vim.notify("Restarting Java LSP with new runtime...", vim.log.levels.INFO)
     for _, client in ipairs(clients) do

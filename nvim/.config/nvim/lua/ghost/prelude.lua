@@ -52,6 +52,16 @@ local function open_link()
   local line = vim.fn.getline(".")
   local col = vim.fn.col(".")
 
+  -- Detect the appropriate opener for the current OS
+  local opener
+  if vim.fn.has("mac") == 1 then
+    opener = "open"
+  elseif vim.fn.has("unix") == 1 then
+    opener = "xdg-open"
+  else
+    opener = "start"
+  end
+
   -- Pattern for markdown links: [text](url)
   local md_link_pattern = "%[.-%]%((.-)%)"
   -- Pattern for bare URLs (simplified, covers most cases)
@@ -66,7 +76,7 @@ local function open_link()
     end
 
     if col >= md_start and col <= md_end then
-      vim.fn.system("open " .. vim.fn.shellescape(url))
+      vim.fn.system(opener .. " " .. vim.fn.shellescape(url))
       return
     end
     start_pos = md_end + 1
@@ -82,14 +92,14 @@ local function open_link()
 
     if col >= url_start and col <= url_end then
       local url = line:sub(url_start, url_end)
-      vim.fn.system("open " .. vim.fn.shellescape(url))
+      vim.fn.system(opener .. " " .. vim.fn.shellescape(url))
       return
     end
     start_pos = url_end + 1
   end
 
   -- Fallback to original behavior using cWORD
-  vim.cmd("sil !open <cWORD>")
+  vim.cmd("sil !" .. opener .. " <cWORD>")
 end
 
 M.open_link = open_link
