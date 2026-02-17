@@ -260,7 +260,7 @@ local config = {
 
 -- Check if JDTLS is already running for this root
 local root_dir = config.root_dir
-local clients = vim.lsp.get_active_clients({ name = "jdtls" })
+local clients = vim.lsp.get_clients({ name = "jdtls" })
 for _, client in ipairs(clients) do
   if client.config.root_dir == root_dir then
     -- Reuse existing client for the same root directory
