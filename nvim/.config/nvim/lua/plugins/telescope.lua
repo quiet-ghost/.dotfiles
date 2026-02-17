@@ -86,11 +86,15 @@ return {
             borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
           }),
         },
+        smart_history = {
+          cycle_wrap = true,
+        },
       },
     })
 
     -- Load extensions
     pcall(telescope.load_extension, "fzf")
     telescope.load_extension("ui-select")
+    pcall(telescope.load_extension, "smart_history")
   end,
 }
