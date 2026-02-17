@@ -19,7 +19,7 @@ return {
       follow_files = true, -- Follow files moved in Git
     },
     attach_to_untracked = true, -- Attach to untracked files
-    current_line_blame = true,
+    current_line_blame = false,
     current_line_blame_opts = {
       virt_text = true,
       virt_text_pos = "eol", -- Show blame at end of line
