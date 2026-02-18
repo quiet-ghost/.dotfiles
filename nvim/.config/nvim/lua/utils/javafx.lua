@@ -1,6 +1,7 @@
 local M = {}
 
--- Helper function to find pom.xml in current or parent directories
+local FALLBACK_JAVA_HOME = "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
+
 local function find_pom_xml(start_dir)
   local dir = start_dir
   local home = vim.fn.expand("~")
@@ -16,7 +17,6 @@ local function find_pom_xml(start_dir)
   return nil, nil
 end
 
--- Helper function to check if pom.xml contains JavaFX dependencies
 local function is_javafx_maven_project(pom_path)
   local file = io.open(pom_path, "r")
   if not file then
@@ -25,9 +25,104 @@ local function is_javafx_maven_project(pom_path)
 
   local content = file:read("*all")
   file:close()
-
-  -- Check for JavaFX dependencies or plugins
   return content:match("javafx") ~= nil
+end
+
+local function resolve_java_tools()
+  local java_home = os.getenv("JAVA_HOME")
+  if java_home and java_home ~= "" then
+    local javac = java_home .. "/bin/javac"
+    local java = java_home .. "/bin/java"
+    if vim.fn.executable(javac) == 1 and vim.fn.executable(java) == 1 then
+      return javac, java
+    end
+  end
+
+  if vim.fn.executable(FALLBACK_JAVA_HOME .. "/bin/javac") == 1 and vim.fn.executable(FALLBACK_JAVA_HOME .. "/bin/java") == 1 then
+    return FALLBACK_JAVA_HOME .. "/bin/javac", FALLBACK_JAVA_HOME .. "/bin/java"
+  end
+
+  local javac = vim.fn.exepath("javac")
+  local java = vim.fn.exepath("java")
+  return (javac ~= "" and javac or "javac"), (java ~= "" and java or "java")
+end
+
+local function detect_main_info(lines, fallback_class)
+  local package_name
+  local current_class
+  local main_class = fallback_class
+
+  for _, line in ipairs(lines) do
+    if not package_name then
+      package_name = line:match("^%s*package%s+([%w_.]+)%s*;")
+    end
+
+    local class_name = line:match("^%s*[%w%s]*class%s+([%w_]+)")
+    if class_name then
+      current_class = class_name
+    end
+
+    if line:match("public%s+static%s+void%s+main%s*%(") or line:match("static%s+public%s+void%s+main%s*%(") then
+      if current_class and current_class ~= "" then
+        main_class = current_class
+      end
+      break
+    end
+  end
+
+  local fqcn = package_name and (package_name .. "." .. main_class) or main_class
+  return {
+    package_name = package_name,
+    main_class = main_class,
+    fqcn = fqcn,
+  }
+end
+
+local function package_to_source_root(file_dir, package_name)
+  if not package_name or package_name == "" then
+    return file_dir
+  end
+
+  local normalized_dir = file_dir:gsub("\\", "/")
+  local package_path = package_name:gsub("%.", "/")
+  local suffix = "/" .. package_path
+
+  if #normalized_dir >= #suffix and normalized_dir:sub(-#suffix) == suffix then
+    local root = normalized_dir:sub(1, #normalized_dir - #suffix)
+    return root ~= "" and root or "/"
+  end
+
+  return file_dir
+end
+
+local function relative_path(path, root)
+  local normalized_path = path:gsub("\\", "/")
+  local normalized_root = root:gsub("\\", "/")
+  local prefix = normalized_root:sub(-1) == "/" and normalized_root or (normalized_root .. "/")
+
+  if normalized_path:sub(1, #prefix) == prefix then
+    return normalized_path:sub(#prefix + 1)
+  end
+
+  return vim.fn.fnamemodify(path, ":t")
+end
+
+local function run_in_tmux(command, pane_size)
+  local tmux_cmd = string.format(
+    [[tmux split-window -h -l %d%% "%s; echo ''; echo 'Press Enter to close...'; read"]],
+    pane_size,
+    command
+  )
+  vim.fn.system(tmux_cmd)
+end
+
+local function build_single_file_commands(file, dir, entry, javac_path, java_path)
+  local source_root = package_to_source_root(dir, entry.package_name)
+  local relative_source = relative_path(file, source_root)
+  local compile_cmd = string.format("%s %s", vim.fn.shellescape(javac_path), vim.fn.shellescape(relative_source))
+  local run_cmd = string.format("%s -cp . %s", vim.fn.shellescape(java_path), vim.fn.shellescape(entry.fqcn))
+
+  return source_root, compile_cmd, run_cmd
 end
 
 function M.compile_and_run()
@@ -43,93 +138,68 @@ function M.compile_and_run()
 
   vim.cmd("w")
 
-  -- Check if we're in tmux
-  local in_tmux = os.getenv("TMUX") ~= nil
-
-  if not in_tmux then
+  if not os.getenv("TMUX") then
     vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
     return
   end
 
-  -- Check for Maven project
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local file_content = table.concat(lines, "\n")
+  local is_javafx_file = file_content:match("import%s+javafx") or file_content:match("extends%s+Application")
+  local entry = detect_main_info(lines, classname)
+
   local maven_dir, pom_path = find_pom_xml(dir)
+  if maven_dir and pom_path then
+    if is_javafx_maven_project(pom_path) then
+      vim.notify("Maven JavaFX project detected - running with mvn", vim.log.levels.INFO)
+      local maven_cmd = string.format(
+        "cd %s && echo 'Running Maven JavaFX project...' && mvn clean javafx:run",
+        vim.fn.shellescape(maven_dir)
+      )
+      run_in_tmux(maven_cmd, 20)
+      vim.notify("Maven JavaFX running from " .. maven_dir, vim.log.levels.INFO)
+      return
+    end
 
-  if maven_dir and pom_path and is_javafx_maven_project(pom_path) then
-    -- Maven JavaFX project - use mvn javafx:run
-    vim.notify("Maven JavaFX project detected - running with mvn", vim.log.levels.INFO)
-
-    local tmux_cmd = string.format(
-      [[tmux split-window -h -l 20%% "cd '%s' && echo 'Running Maven JavaFX project...' && mvn clean javafx:run; echo && echo 'Press Enter to close...'; read"]],
-      maven_dir
+    local is_test_source = file:find("/src/test/java/", 1, true) ~= nil
+    local phase = is_test_source and "test-compile" or "compile"
+    local classpath_scope = is_test_source and "test" or "runtime"
+    local maven_cmd = string.format(
+      "cd %s && mvn -q -DskipTests %s exec:java -Dexec.mainClass=%s -Dexec.classpathScope=%s",
+      vim.fn.shellescape(maven_dir),
+      phase,
+      vim.fn.shellescape(entry.fqcn),
+      classpath_scope
     )
-    vim.fn.system(tmux_cmd)
-    vim.notify("Maven JavaFX running from " .. maven_dir, vim.log.levels.INFO)
+
+    run_in_tmux(maven_cmd, 30)
+    vim.notify("Maven Java running (" .. entry.fqcn .. ")", vim.log.levels.INFO)
+    return
+  end
+
+  local javac_path, java_path = resolve_java_tools()
+  local source_root, compile_cmd, run_cmd = build_single_file_commands(file, dir, entry, javac_path, java_path)
+  local command = string.format(
+    "cd %s && %s && echo '--- Running %s ---' && %s",
+    vim.fn.shellescape(source_root),
+    compile_cmd,
+    entry.fqcn,
+    run_cmd
+  )
+
+  run_in_tmux(command, is_javafx_file and 20 or 30)
+
+  if is_javafx_file then
+    vim.notify("JavaFX running (class: " .. entry.fqcn .. ")", vim.log.levels.INFO)
   else
-    -- Single file JavaFX or regular Java - use existing logic
-    local file_content = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-    local is_javafx = file_content:match("import javafx") or file_content:match("extends Application")
-
-    -- Find the class that contains the main method
-    local main_class = classname -- Default to filename without extension
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-
-    -- Look for the class containing public static void main
-    local main_pattern = "public%s+static%s+void%s+main"
-
-    -- Find which class contains the main method
-    local in_class = nil
-    for i = 1, #lines do
-      local line = lines[i]
-
-      -- Match any class declaration (public or not)
-      local class_match = line:match("^%s*public%s+class%s+([%w_]+)") or line:match("^%s*class%s+(Main)%s")
-      if class_match then
-        in_class = class_match
-      end
-
-      -- If we find main method, use the current class
-      if line:match(main_pattern) and in_class then
-        main_class = in_class
-        break
-      end
-    end
-
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
-    local javac_path = java_home .. "/bin/javac"
-    local java_path = java_home .. "/bin/java"
-
-    if is_javafx then
-      -- Single file JavaFX program - run in background pane
-      local tmux_cmd = string.format(
-        [[tmux split-window -h -l 20%% "cd '%s' && %s %s && %s %s; echo 'Press Enter to close...'; read"]],
-        dir,
-        javac_path,
-        filename,
-        java_path,
-        main_class
-      )
-      vim.fn.system(tmux_cmd)
-      vim.notify("JavaFX running (single file, class: " .. main_class .. ")", vim.log.levels.INFO)
-    else
-      -- Regular Java program - run in interactive pane
-      local tmux_cmd = string.format(
-        [[tmux split-window -h -l 30%% "cd '%s' && %s %s && echo '--- Running %s ---' && %s %s; echo && echo 'Press Enter to close...'; read"]],
-        dir,
-        javac_path,
-        filename,
-        main_class,
-        java_path,
-        main_class
-      )
-      vim.fn.system(tmux_cmd)
-      vim.notify("Java running (class: " .. main_class .. ")", vim.log.levels.INFO)
-    end
+    vim.notify("Java running (class: " .. entry.fqcn .. ")", vim.log.levels.INFO)
   end
 end
 
 function M.compile_only()
   local file = vim.fn.expand("%:p")
   local filename = vim.fn.expand("%:t")
+  local classname = vim.fn.expand("%:t:r")
   local dir = vim.fn.expand("%:p:h")
 
   if not filename:match("%.java$") then
@@ -139,26 +209,26 @@ function M.compile_only()
 
   vim.cmd("w")
 
-  -- Check for Maven project
   local maven_dir, pom_path = find_pom_xml(dir)
-
   if maven_dir and pom_path then
-    -- Maven project - use mvn compile
+    local is_test_source = file:find("/src/test/java/", 1, true) ~= nil
+    local phase = is_test_source and "test-compile" or "compile"
     vim.notify("Maven project detected - compiling with mvn", vim.log.levels.INFO)
 
-    local compile_cmd = string.format("cd %s && mvn compile", vim.fn.shellescape(maven_dir))
-
+    local compile_cmd = string.format("cd %s && mvn -q -DskipTests %s", vim.fn.shellescape(maven_dir), phase)
     vim.cmd("split | terminal " .. compile_cmd)
     vim.cmd("resize 10")
-  else
-    -- Single file - use javac directly
-    local java_home = os.getenv("JAVA_HOME") or "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
-    local compile_cmd =
-      string.format("cd %s && %s/bin/javac %s", vim.fn.shellescape(dir), java_home, vim.fn.shellescape(filename))
-
-    vim.cmd("split | terminal " .. compile_cmd)
-    vim.cmd("resize 10")
+    return
   end
+
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local entry = detect_main_info(lines, classname)
+  local javac_path = select(1, resolve_java_tools())
+  local source_root, compile_cmd = build_single_file_commands(file, dir, entry, javac_path, "java")
+
+  local terminal_cmd = string.format("cd %s && %s", vim.fn.shellescape(source_root), compile_cmd)
+  vim.cmd("split | terminal " .. terminal_cmd)
+  vim.cmd("resize 10")
 end
 
 function M.insert_template()
@@ -184,7 +254,6 @@ function M.insert_template()
     "}",
   }
   vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
-  -- Position cursor inside start method
   vim.api.nvim_win_set_cursor(0, { 10, 8 })
 end
 

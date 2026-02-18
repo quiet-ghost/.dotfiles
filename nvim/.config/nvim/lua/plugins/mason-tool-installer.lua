@@ -10,6 +10,7 @@ return {
       ensure_installed = {
         "java-debug-adapter",
         "java-test",
+        "codelldb",
       },
       run_on_start = true,
       start_delay = 3000,

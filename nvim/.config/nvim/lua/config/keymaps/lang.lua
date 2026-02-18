@@ -43,7 +43,7 @@ map("n", "<leader>jf", function()
   end
 end, { desc = "Run current file (Java/C++/Python)" })
 
-map("n", "<leader>jc", function()
+map("n", "<leader>jC", function()
   require("utils.javafx").compile_only()
 end, { desc = "Compile Java/JavaFX (check errors)" })
 

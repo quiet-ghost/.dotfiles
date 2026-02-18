@@ -10,38 +10,111 @@ vim.b.jdtls_setup_done = true
 
 local home = os.getenv("HOME")
 local jdtls = require("jdtls")
+local jdtls_setup = require("jdtls.setup")
 
 -- Paths
 local mason_path = home .. "/.local/share/nvim/mason/packages"
 local jdtls_path = mason_path .. "/jdtls"
 local java_debug_path = mason_path .. "/java-debug-adapter"
 local java_test_path = mason_path .. "/java-test"
+local jdtls_bin = mason_path .. "/jdtls/bin/jdtls"
 
--- Java executable - dynamically detect from mise/JAVA_HOME/PATH
-local function get_java_executable()
-  local mise_java = vim.fn.exepath("java")
-  if mise_java and mise_java ~= "" then
-    return mise_java
-  end
-  local java_home = os.getenv("JAVA_HOME")
-  if java_home then
-    return java_home .. "/bin/java"
-  end
-  return "java"
+-- Root/workspace
+local current_file = vim.api.nvim_buf_get_name(0)
+if current_file == "" then
+  current_file = vim.fn.expand("%:p")
+end
+local file_dir = vim.fn.fnamemodify(current_file, ":h")
+if file_dir == "" then
+  file_dir = vim.fn.getcwd()
 end
 
-local java_exec = get_java_executable()
+local function detect_package_name()
+  local line_count = vim.api.nvim_buf_line_count(0)
+  local max_lines = math.min(line_count, 200)
+  local lines = vim.api.nvim_buf_get_lines(0, 0, max_lines, false)
 
--- Workspace
-local project_name = vim.fn.fnamemodify(vim.fn.expand("%:p:h"), ":t")
-local workspace_dir = home .. "/.local/share/nvim-data/jdtls-workspace/" .. project_name
+  for _, line in ipairs(lines) do
+    local package_name = line:match("^%s*package%s+([%w_.]+)%s*;")
+    if package_name then
+      return package_name
+    end
+  end
+
+  return nil
+end
+
+local function derive_unmanaged_root()
+  local package_name = detect_package_name()
+  if not package_name or package_name == "" then
+    return file_dir
+  end
+
+  local package_path = package_name:gsub("%.", "/")
+  local normalized_dir = file_dir:gsub("\\", "/")
+  local suffix = "/" .. package_path
+
+  if #normalized_dir >= #suffix and normalized_dir:sub(-#suffix) == suffix then
+    local root = normalized_dir:sub(1, #normalized_dir - #suffix)
+    return root ~= "" and root or "/"
+  end
+
+  return file_dir
+end
+
+local managed_root = jdtls_setup.find_root({
+  "mvnw",
+  "gradlew",
+  "pom.xml",
+  "build.gradle",
+  "build.gradle.kts",
+  "settings.gradle",
+  "settings.gradle.kts",
+})
+local root_dir = managed_root or derive_unmanaged_root() or vim.fn.getcwd()
+local project_name = vim.fs.basename(root_dir)
+if not project_name or project_name == "" then
+  project_name = "default"
+end
+project_name = project_name:gsub("[^%w_.-]", "_")
+local root_hash = vim.fn.sha256(root_dir):sub(1, 8)
+local workspace_dir = home .. "/.local/share/nvim-data/jdtls-workspace/" .. project_name .. "-" .. root_hash
+vim.fn.mkdir(workspace_dir, "p")
+
+if vim.fn.executable(jdtls_bin) ~= 1 then
+  vim.notify("jdtls launcher not found: " .. jdtls_bin, vim.log.levels.ERROR)
+  return
+end
+
+if vim.fn.isdirectory(jdtls_path .. "/config_linux") ~= 1 then
+  vim.notify("jdtls config_linux not found in Mason package", vim.log.levels.ERROR)
+  return
+end
 
 -- Bundles for java-debug and java-test
-local bundles = {
-  vim.fn.glob(java_debug_path .. "/extension/server/com.microsoft.java.debug.plugin-*.jar", true),
-}
+local function collect_jars(pattern)
+  local jars = {}
+  for _, path in ipairs(vim.fn.glob(pattern, false, true)) do
+    if path ~= "" and vim.fn.filereadable(path) == 1 then
+      table.insert(jars, path)
+    end
+  end
+  return jars
+end
 
-vim.list_extend(bundles, vim.split(vim.fn.glob(java_test_path .. "/extension/server/*.jar", true), "\n"))
+if vim.fn.isdirectory(java_debug_path) == 0 and not vim.g.java_debug_bundle_warned then
+  vim.g.java_debug_bundle_warned = true
+  vim.notify("java-debug-adapter not found in Mason; Java DAP may be limited", vim.log.levels.WARN)
+end
+
+if vim.fn.isdirectory(java_test_path) == 0 and not vim.g.java_test_bundle_warned then
+  vim.g.java_test_bundle_warned = true
+  vim.notify("java-test not found in Mason; Java test integration may be limited", vim.log.levels.WARN)
+end
+
+local bundles = {}
+vim.list_extend(bundles, collect_jars(java_debug_path .. "/extension/server/com.microsoft.java.debug.plugin-*.jar"))
+vim.list_extend(bundles, collect_jars(java_test_path .. "/extension/server/*.jar"))
 
 -- Filter out excluded bundles
 local filtered_bundles = {}
@@ -117,6 +190,8 @@ local on_attach = function(client, bufnr)
     dap.configurations.java = {}
   end
 
+  local launch_config_name = "Debug (Launch) - Current File"
+
   local function find_main_class_simple()
     local bufnr = vim.api.nvim_get_current_buf()
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -144,19 +219,32 @@ local on_attach = function(client, bufnr)
     return vim.fn.expand("%:t:r")
   end
 
-  table.insert(dap.configurations.java, {
+  local launch_config = {
     type = "java",
     request = "launch",
-    name = "Debug (Launch) - Current File",
+    name = launch_config_name,
     mainClass = find_main_class_simple,
     projectName = "",
     cwd = "${workspaceFolder}",
     classPaths = { "${workspaceFolder}" },
     modulePaths = {},
-  })
+  }
+
+  local replaced = false
+  for i, cfg in ipairs(dap.configurations.java) do
+    if cfg.name == launch_config_name then
+      dap.configurations.java[i] = launch_config
+      replaced = true
+      break
+    end
+  end
+
+  if not replaced then
+    table.insert(dap.configurations.java, launch_config)
+  end
 
   vim.defer_fn(function()
-    local ok, err = pcall(require("jdtls.dap").setup_dap_main_class_configs)
+    local ok = pcall(require("jdtls.dap").setup_dap_main_class_configs)
     if not ok then
       vim.notify("DAP: Using manual config for standalone files", vim.log.levels.DEBUG)
     end
@@ -164,82 +252,92 @@ local on_attach = function(client, bufnr)
 end
 
 -- JDTLS configuration
+local java_settings = {
+  eclipse = {
+    downloadSources = true,
+  },
+  configuration = {
+    updateBuildConfiguration = "interactive",
+    runtimes = require("utils.java").get_runtimes_config(),
+  },
+  maven = {
+    downloadSources = true,
+  },
+  import = {
+    exclusions = {
+      "**/node_modules/**",
+      "**/.metadata/**",
+      "**/archetype-resources/**",
+      "**/target/**",
+      "**/bin/**",
+    },
+  },
+  implementationsCodeLens = {
+    enabled = true,
+  },
+  referencesCodeLens = {
+    enabled = true,
+  },
+  references = {
+    includeDecompiledSources = true,
+  },
+  format = {
+    enabled = true,
+  },
+  signatureHelp = { enabled = true },
+  contentProvider = { preferred = "fernflower" },
+  completion = {
+    favoriteStaticMembers = {
+      "org.hamcrest.MatcherAssert.assertThat",
+      "org.hamcrest.Matchers.*",
+      "org.hamcrest.CoreMatchers.*",
+      "org.junit.jupiter.api.Assertions.*",
+      "java.util.Objects.requireNonNull",
+      "java.util.Objects.requireNonNullElse",
+      "org.mockito.Mockito.*",
+    },
+    filteredTypes = {
+      "com.sun.*",
+      "io.micrometer.shaded.*",
+      "java.awt.*",
+      "jdk.*",
+      "sun.*",
+    },
+  },
+  sources = {
+    organizeImports = {
+      starThreshold = 9999,
+      staticStarThreshold = 9999,
+    },
+  },
+  codeGeneration = {
+    toString = {
+      template = "${object.className}{${member.name()}=${member.value}, ${otherMembers}}",
+    },
+    useBlocks = true,
+  },
+}
+
+if not managed_root then
+  java_settings.configuration.updateBuildConfiguration = "disabled"
+  java_settings.project = {
+    sourcePaths = { "." },
+    outputPath = ".jdtls-out",
+  }
+end
+
 local config = {
   cmd = {
-    mason_path .. "/jdtls/bin/jdtls",
+    jdtls_bin,
     "-configuration",
     jdtls_path .. "/config_linux",
     "-data",
     workspace_dir,
   },
 
-  root_dir = require("jdtls.setup").find_root({ "mvnw", "gradlew", "pom.xml", "build.gradle" }) or vim.fn.getcwd(),
+  root_dir = root_dir,
   settings = {
-    java = {
-      eclipse = {
-        downloadSources = true,
-      },
-      configuration = {
-        updateBuildConfiguration = "interactive",
-        runtimes = require("utils.java").get_runtimes_config(),
-      },
-      maven = {
-        downloadSources = true,
-      },
-      import = {
-        exclusions = {
-          "**/node_modules/**",
-          "**/.metadata/**",
-          "**/archetype-resources/**",
-          "**/target/**",
-          "**/bin/**",
-        },
-      },
-      implementationsCodeLens = {
-        enabled = true,
-      },
-      referencesCodeLens = {
-        enabled = true,
-      },
-      references = {
-        includeDecompiledSources = true,
-      },
-      format = {
-        enabled = true,
-      },
-      signatureHelp = { enabled = true },
-      contentProvider = { preferred = "fernflower" },
-      completion = {
-        favoriteStaticMembers = {
-          "org.hamcrest.MatcherAssert.assertThat",
-          "org.hamcrest.Matchers.*",
-          "org.hamcrest.CoreMatchers.*",
-          "org.junit.jupiter.api.Assertions.*",
-          "java.util.Objects.requireNonNull",
-          "java.util.Objects.requireNonNullElse",
-          "org.mockito.Mockito.*",
-        },
-        filteredTypes = {
-          "com.sun.*",
-          "io.micrometer.shaded.*",
-          "java.awt.*",
-          "jdk.*",
-          "sun.*",
-        },
-      },
-      sources = {
-        organizeImports = {
-          starThreshold = 9999,
-          staticStarThreshold = 9999,
-        },
-      },
-      codeGeneration = {
-        toString = {
-          template = "${object.className}{${member.name()}=${member.value}, ${otherMembers}}",
-        },
-        useBlocks = true,
-      },
-    },
+    java = java_settings,
   },
 
   init_options = {
@@ -259,13 +357,13 @@ local config = {
 }
 
 -- Check if JDTLS is already running for this root
-local root_dir = config.root_dir
+local config_root = config.root_dir
 local clients = vim.lsp.get_clients({ name = "jdtls" })
 for _, client in ipairs(clients) do
-  if client.config.root_dir == root_dir then
+  if client.config.root_dir == config_root then
     -- Reuse existing client for the same root directory
     vim.lsp.buf_attach_client(0, client.id)
-    vim.notify("Reusing JDTLS client for root: " .. root_dir, vim.log.levels.DEBUG)
+    vim.notify("Reusing JDTLS client for root: " .. config_root, vim.log.levels.DEBUG)
     return
   end
 end
