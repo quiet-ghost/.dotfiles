@@ -1,7 +1,7 @@
 return {
   {
     "vuki656/package-info.nvim",
-    ft = "json",
+    event = { "BufReadPost package.json", "BufNewFile package.json" },
     dependencies = { "MunifTanjim/nui.nvim" },
     config = function()
       require("package-info").setup({

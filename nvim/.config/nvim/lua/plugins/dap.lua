@@ -287,9 +287,14 @@ return {
     end
 
     local function setup_codelldb_adapter()
+      local mason_codelldb = vim.fn.stdpath("data") .. "/mason/bin/codelldb"
       local codelldb = vim.fn.exepath("codelldb")
+      if codelldb == "" and vim.fn.executable(mason_codelldb) == 1 then
+        codelldb = mason_codelldb
+      end
       if codelldb == "" then
         codelldb = "codelldb"
+        vim.notify("codelldb not found in PATH or Mason bin", vim.log.levels.WARN)
       end
 
       dap.adapters.codelldb = {

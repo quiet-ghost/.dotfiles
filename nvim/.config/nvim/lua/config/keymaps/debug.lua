@@ -7,7 +7,3 @@ map("n", "<F4>", "<cmd>DapStepInto<CR>", { desc = "DAP Step Into" })
 map("n", "<F5>", "<cmd>DapStepOut<CR>", { desc = "DAP Step Out" })
 map("n", "<C-M-u>", "<cmd>lua require('dapui').toggle()<CR>", { desc = "Toggle DAP UI" })
 map("n", "<F7>", "<cmd>DapTerminate<CR>", { desc = "DAP Terminate" })
-
-map("n", "<leader>ts", function()
-  require("neotest").summary.toggle()
-end, { desc = "Toggle Test Summary" })
