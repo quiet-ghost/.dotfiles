@@ -1,0 +1,40 @@
+// Programmer QWERTY layout for Wayland/Hyprland
+// Based on ThePrimeagen's keyd setup
+// 
+// Features:
+// - Number row: symbols on base layer, numbers on shift
+// - <> moved to where [] was (right of P)
+// 
+// To use in Hyprland input.conf:
+//   kb_layout = custom
+//   kb_variant = programmer
+
+partial alphanumeric_keys
+xkb_symbols "programmer" {
+    // Number row - ThePrimeagen style symbols on base layer
+    key <AE01> { [ plus, 1, plus, 1 ] };
+    key <AE02> { [ bracketleft, 2, bracketleft, 2 ] };
+    key <AE03> { [ braceleft, 3, braceleft, 3 ] };
+    key <AE04> { [ parenleft, 4, parenleft, 4 ] };
+    key <AE05> { [ ampersand, 5, ampersand, 5 ] };
+    key <AE06> { [ equal, 6, equal, 6 ] };
+    key <AE07> { [ parenright, 7, parenright, 7 ] };
+    key <AE08> { [ braceright, 8, braceright, 8 ] };
+    key <AE09> { [ bracketright, 9, bracketright, 9 ] };
+    key <AE10> { [ asterisk, 0, asterisk, 0 ] };
+    
+    // Equals key - ! on base, % on shift
+    key <AE12> { [ exclam, percent, exclam, percent ] };
+    
+    // Bracket keys repurposed for <>
+    // leftbrace key (usually [) -> < on base, @ on shift
+    key <AD11> { [ less, at, less, at ] };
+    // rightbrace key (usually ]) -> > on base, # on shift
+    key <AD12> { [ greater, numbersign, greater, numbersign ] };
+    
+    // Comma and dot - $ and ^ on shift
+    key <AB08> { [ comma, dollar, comma, dollar ] };
+    key <AB09> { [ period, asciicircum, period, asciicircum ] };
+    
+    include "us(basic)"
+};
