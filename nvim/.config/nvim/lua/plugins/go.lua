@@ -9,8 +9,8 @@ return {
     ft = { "go", "gomod", "gowork", "gotmpl" },
     build = ':lua require("go.install").update_all_sync()',
     opts = {
-      -- Use gopls from LazyVim's existing lang.go or system path
-      lsp_cfg = false, -- LazyVim already configures gopls via nvim-lspconfig
+      -- Keep a single gopls client managed in lua/plugins/nvim-lspconfig.lua
+      lsp_cfg = false,
       lsp_gofumpt = true,
       lsp_on_attach = false, -- don't override LazyVim's on_attach
       dap_debug = true,

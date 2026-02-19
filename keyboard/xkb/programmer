@@ -1,0 +1,114 @@
+xkb_symbols "basic" {
+    name[Group1]= "English (Programmer QWERTY)";
+
+    // Alphanumeric keys - QWERTY base
+    key <TLDE> { [ grave, asciitilde, grave, asciitilde ] };
+    key <AE01> { [ plus, 1, plus, 1 ] };
+    key <AE02> { [ bracketleft, 2, bracketleft, 2 ] };
+    key <AE03> { [ braceleft, 3, braceleft, 3 ] };
+    key <AE04> { [ parenleft, 4, parenleft, 4 ] };
+    key <AE05> { [ ampersand, 5, ampersand, 5 ] };
+    key <AE06> { [ equal, 6, equal, 6 ] };
+    key <AE07> { [ parenright, 7, parenright, 7 ] };
+    key <AE08> { [ braceright, 8, braceright, 8 ] };
+    key <AE09> { [ bracketright, 9, bracketright, 9 ] };
+    key <AE10> { [ asterisk, 0, asterisk, 0 ] };
+    
+    // Minus key (left of equals) - ! on base, % on shift
+    key <AE11> { [ exclam, percent, exclam, percent ] };
+    
+    // Equals key (right of minus) - minus on base, underscore on shift
+    key <AE12> { [ minus, underscore, minus, underscore ] };
+    
+    // QWERTY row
+    key <AD01> { [ q, Q, q, Q ] };
+    key <AD02> { [ w, W, w, W ] };
+    key <AD03> { [ e, E, e, E ] };
+    key <AD04> { [ r, R, r, R ] };
+    key <AD05> { [ t, T, t, T ] };
+    key <AD06> { [ y, Y, y, Y ] };
+    key <AD07> { [ u, U, u, U ] };
+    key <AD08> { [ i, I, i, I ] };
+    key <AD09> { [ o, O, o, O ] };
+    key <AD10> { [ p, P, p, P ] };
+    
+    // Bracket keys repurposed for <>
+    key <AD11> { [ less, at, less, at ] };
+    key <AD12> { [ greater, numbersign, greater, numbersign ] };
+    
+    // ASDF row
+    key <AC01> { [ a, A, a, A ] };
+    key <AC02> { [ s, S, s, S ] };
+    key <AC03> { [ d, D, d, D ] };
+    key <AC04> { [ f, F, f, F ] };
+    key <AC05> { [ g, G, g, G ] };
+    key <AC06> { [ h, H, h, H ] };
+    key <AC07> { [ j, J, j, J ] };
+    key <AC08> { [ k, K, k, K ] };
+    key <AC09> { [ l, L, l, L ] };
+    key <AC10> { [ semicolon, colon, semicolon, colon ] };
+    key <AC11> { [ apostrophe, quotedbl, apostrophe, quotedbl ] };
+    
+    // ZXCV row
+    key <AB01> { [ z, Z, z, Z ] };
+    key <AB02> { [ x, X, x, X ] };
+    key <AB03> { [ c, C, c, C ] };
+    key <AB04> { [ v, V, v, V ] };
+    key <AB05> { [ b, B, b, B ] };
+    key <AB06> { [ n, N, n, N ] };
+    key <AB07> { [ m, M, m, M ] };
+    key <AB08> { [ comma, dollar, comma, dollar ] };
+    key <AB09> { [ period, asciicircum, period, asciicircum ] };
+    key <AB10> { [ slash, question, slash, question ] };
+    
+    // Space bar
+    key <SPCE> { [ space, space, space, space ] };
+    
+    // Function keys row
+    key <FK01> { [ F1, F1, F1, F1 ] };
+    key <FK02> { [ F2, F2, F2, F2 ] };
+    key <FK03> { [ F3, F3, F3, F3 ] };
+    key <FK04> { [ F4, F4, F4, F4 ] };
+    key <FK05> { [ F5, F5, F5, F5 ] };
+    key <FK06> { [ F6, F6, F6, F6 ] };
+    key <FK07> { [ F7, F7, F7, F7 ] };
+    key <FK08> { [ F8, F8, F8, F8 ] };
+    key <FK09> { [ F9, F9, F9, F9 ] };
+    key <FK10> { [ F10, F10, F10, F10 ] };
+    key <FK11> { [ F11, F11, F11, F11 ] };
+    key <FK12> { [ F12, F12, F12, F12 ] };
+    
+    // Escape
+    key <ESC> { [ Escape, Escape, Escape, Escape ] };
+    
+    // Backspace
+    key <BKSP> { [ BackSpace, BackSpace, BackSpace, BackSpace ] };
+    
+    // Tab
+    key <TAB> { [ Tab, ISO_Left_Tab, Tab, ISO_Left_Tab ] };
+    
+    // Caps Lock
+    key <CAPS> { [ Caps_Lock, Caps_Lock, Caps_Lock, Caps_Lock ] };
+    
+    // Return/Enter
+    key <RTRN> { [ Return, Return, Return, Return ] };
+    
+    // Shift keys
+    key <LFSH> { [ Shift_L, Shift_L, Shift_L, Shift_L ] };
+    key <RTSH> { [ Shift_R, Shift_R, Shift_R, Shift_R ] };
+    
+    // Control keys
+    key <LCTL> { [ Control_L, Control_L, Control_L, Control_L ] };
+    key <RCTL> { [ Control_R, Control_R, Control_R, Control_R ] };
+    
+    // Alt keys
+    key <LALT> { [ Alt_L, Alt_L, Alt_L, Alt_L ] };
+    key <RALT> { [ Alt_R, Alt_R, Alt_R, Alt_R ] };
+    
+    // Super/Meta keys
+    key <LWIN> { [ Super_L, Super_L, Super_L, Super_L ] };
+    key <RWIN> { [ Super_R, Super_R, Super_R, Super_R ] };
+    
+    // Menu key
+    key <MENU> { [ Menu, Menu, Menu, Menu ] };
+};
