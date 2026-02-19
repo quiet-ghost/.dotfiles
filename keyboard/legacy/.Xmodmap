@@ -1,0 +1,38 @@
+! Xmodmap configuration for Programmer QWERTY layout
+! Based on ThePrimeagen's setup - works with Hyprland ALT keybindings
+! 
+! Features:
+! - Number row: symbols on base layer, numbers on shift
+! - <> moved to where [] was (right of P)
+! 
+! To load: xmodmap ~/.Xmodmap
+! To autostart: add to ~/.bashrc or ~/.zshrc or Hyprland autostart
+
+! Number row - ThePrimeagen style symbols on base layer
+! Format: keycode <number> = <base> <shift> <mode_switch_base> <mode_switch_shift>
+keycode 10 = plus 1 plus 1
+keycode 11 = bracketleft 2 bracketleft 2
+keycode 12 = braceleft 3 braceleft 3
+keycode 13 = parenleft 4 parenleft 4
+keycode 14 = ampersand 5 ampersand 5
+keycode 15 = equal 6 equal 6
+keycode 16 = parenright 7 parenright 7
+keycode 17 = braceright 8 braceright 8
+keycode 18 = bracketright 9 bracketright 9
+keycode 19 = asterisk 0 asterisk 0
+
+! Equals key - ! on base, % on shift
+keycode 21 = exclam percent exclam percent
+
+! Bracket keys repurposed for <>
+! leftbrace key (usually [) -> < on base, @ on shift
+keycode 34 = less at less at
+! rightbrace key (usually ]) -> > on base, # on shift  
+keycode 35 = greater numbersign greater numbersign
+
+! Comma and dot - $ and ^ on shift
+keycode 59 = comma dollar comma dollar
+keycode 60 = period asciicircum period asciicircum
+
+! Note: xmodmap works at the X11/Wayland level and doesn't interfere with
+! Hyprland's key binding detection like keyd does.

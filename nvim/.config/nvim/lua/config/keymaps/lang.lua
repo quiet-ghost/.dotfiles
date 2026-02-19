@@ -52,3 +52,34 @@ map("n", "<leader>fx", function()
 end, { desc = "Insert JavaFX template" })
 
 map("n", "<leader>tf", ":TSC<cr>", { desc = "Run TypeScript compile" })
+
+local function is_ts_js_filetype()
+  local ft = vim.bo.filetype
+  return ft == "typescript" or ft == "typescriptreact" or ft == "javascript" or ft == "javascriptreact"
+end
+
+local function run_ts_tools_command(command, label)
+  return function()
+    if not is_ts_js_filetype() then
+      vim.notify(label .. " is available only in TS/JS buffers", vim.log.levels.WARN)
+      return
+    end
+
+    local ok = pcall(vim.cmd, command)
+    if not ok then
+      vim.notify("Failed to run " .. label, vim.log.levels.ERROR)
+    end
+  end
+end
+
+map("n", "<leader>co", run_ts_tools_command("TSToolsOrganizeImports", "TSToolsOrganizeImports"),
+  { desc = "TS Organize Imports" })
+map("n", "<leader>cM", run_ts_tools_command("TSToolsAddMissingImports", "TSToolsAddMissingImports"),
+  { desc = "TS Add Missing Imports" })
+map("n", "<leader>cu", run_ts_tools_command("TSToolsRemoveUnused", "TSToolsRemoveUnused"),
+  { desc = "TS Remove Unused" })
+map("n", "<leader>cD", run_ts_tools_command("TSToolsFixAll", "TSToolsFixAll"), { desc = "TS Fix All" })
+map("n", "<leader>tR", run_ts_tools_command("TSToolsRenameFile", "TSToolsRenameFile"),
+  { desc = "TS Rename File" })
+map("n", "<leader>tI", run_ts_tools_command("TSToolsFileReferences", "TSToolsFileReferences"),
+  { desc = "TS File References" })
