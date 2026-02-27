@@ -10,7 +10,7 @@ return {
       prompt_func_return_type = {
         go = false,
         java = true,
-        cpp = false,
+        cpp = true,
         c = false,
         h = false,
         hpp = false,
@@ -19,7 +19,7 @@ return {
       prompt_func_param_type = {
         go = false,
         java = true,
-        cpp = false,
+        cpp = true,
         c = false,
         h = false,
         hpp = false,
@@ -35,36 +35,31 @@ return {
 
     local map = vim.keymap.set
 
+    local function refactor_expr(name)
+      return function()
+        return require("refactoring").refactor(name)
+      end
+    end
+
     -- Refactoring.nvim keymaps (using <leader>r prefix for general refactoring)
     -- Extract function (works in visual mode)
-    map("x", "<leader>re", function()
-      require("refactoring").refactor("Extract Function")
-    end, { desc = "Extract Function" })
+    map({ "n", "x" }, "<leader>re", refactor_expr("Extract Function"), { expr = true, desc = "Extract Function" })
 
     -- Extract function to file (works in visual mode)
-    map("x", "<leader>rf", function()
-      require("refactoring").refactor("Extract Function To File")
-    end, { desc = "Extract Function To File" })
+    map({ "n", "x" }, "<leader>rf", refactor_expr("Extract Function To File"),
+      { expr = true, desc = "Extract Function To File" })
 
     -- Extract variable (works in visual and normal mode)
-    map({ "n", "x" }, "<leader>rv", function()
-      require("refactoring").refactor("Extract Variable")
-    end, { desc = "Extract Variable" })
+    map({ "n", "x" }, "<leader>rv", refactor_expr("Extract Variable"), { expr = true, desc = "Extract Variable" })
 
     -- Inline variable (works in visual and normal mode)
-    map({ "n", "x" }, "<leader>ri", function()
-      require("refactoring").refactor("Inline Variable")
-    end, { desc = "Inline Variable" })
+    map({ "n", "x" }, "<leader>ri", refactor_expr("Inline Variable"), { expr = true, desc = "Inline Variable" })
 
     -- Extract block
-    map("n", "<leader>rb", function()
-      require("refactoring").refactor("Extract Block")
-    end, { desc = "Extract Block" })
+    map("n", "<leader>rb", refactor_expr("Extract Block"), { expr = true, desc = "Extract Block" })
 
     -- Extract block to file
-    map("n", "<leader>rbf", function()
-      require("refactoring").refactor("Extract Block To File")
-    end, { desc = "Extract Block To File" })
+    map("n", "<leader>rbf", refactor_expr("Extract Block To File"), { expr = true, desc = "Extract Block To File" })
 
     -- Refactoring menu via Telescope with centered layout
     map({ "n", "x" }, "<leader>rr", function()

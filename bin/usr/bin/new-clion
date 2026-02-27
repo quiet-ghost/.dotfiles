@@ -333,14 +333,18 @@ fi
 if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
     cat >> CMakeLists.txt << EOFCMAKE
 
-add_executable(${PROJECT_NAME} main.${FILE_EXT})
+file(GLOB PROJECT_SOURCES CONFIGURE_DEPENDS "
+    \${CMAKE_CURRENT_SOURCE_DIR}/*.${FILE_EXT}")
+
+add_executable(${PROJECT_NAME} \${PROJECT_SOURCES})
 EOFCMAKE
 else
     cat >> CMakeLists.txt << EOFCMAKE
 
-add_library(${PROJECT_NAME} STATIC
-    src/${PROJECT_NAME}.${FILE_EXT}
-)
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
+
+add_library(${PROJECT_NAME} STATIC \${PROJECT_SOURCES})
 EOFCMAKE
 fi
 
