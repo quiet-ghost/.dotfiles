@@ -1,29 +1,29 @@
 xkb_symbols "basic" {
+    include "us(basic)"
     name[Group1]= "English (Programmer QWERTY)";
 
     // Alphanumeric keys - QWERTY base
     key <TLDE> { [ grave, asciitilde, grave, asciitilde ] };
-    key <AE01> { [ plus, 1, plus, 1 ] };
-    key <AE02> { [ bracketleft, 2, bracketleft, 2 ] };
-    key <AE03> { [ braceleft, 3, braceleft, 3 ] };
+    key <AE01> { [ less, 1, less, 1 ] };
+    key <AE02> { [ braceleft, 2, braceleft, 2 ] };
+    key <AE03> { [ bracketleft, 3, bracketleft, 3 ] };
     key <AE04> { [ parenleft, 4, parenleft, 4 ] };
-    key <AE05> { [ ampersand, 5, ampersand, 5 ] };
-    key <AE06> { [ equal, 6, equal, 6 ] };
+    key <AE05> { [ equal, 5, equal, 5 ] };
+    key <AE06> { [ ampersand, 6, ampersand, 6 ] };
     key <AE07> { [ parenright, 7, parenright, 7 ] };
-    key <AE08> { [ braceright, 8, braceright, 8 ] };
-    key <AE09> { [ bracketright, 9, bracketright, 9 ] };
-    key <AE10> { [ asterisk, 0, asterisk, 0 ] };
+    key <AE08> { [ bracketright, 8, bracketright, 8 ] };
+    key <AE09> { [ braceright, 9, braceright, 9 ] };
+    key <AE10> { [ greater, 0, greater, 0 ] };
     
     // Minus key (left of equals) - ! on base, % on shift
     key <AE11> { [ exclam, percent, exclam, percent ] };
-    
-    // Equals key (right of minus) - minus on base, underscore on shift
     key <AE12> { [ minus, underscore, minus, underscore ] };
     
     // QWERTY row
-    key <AD01> { [ q, Q, q, Q ] };
+    key.type[Group1] = "EIGHT_LEVEL";
+    key <AD01> { [ q, Q, NoSymbol, NoSymbol, less, less, less, less ] };
     key <AD02> { [ w, W, w, W ] };
-    key <AD03> { [ e, E, e, E ] };
+    key <AD03> { [ e, E, NoSymbol, NoSymbol, greater, greater, greater, greater ] };
     key <AD04> { [ r, R, r, R ] };
     key <AD05> { [ t, T, t, T ] };
     key <AD06> { [ y, Y, y, Y ] };
@@ -33,9 +33,9 @@ xkb_symbols "basic" {
     key <AD10> { [ p, P, p, P ] };
     
     // Bracket keys repurposed for <>
-    key <AD11> { [ less, at, less, at ] };
-    key <AD12> { [ greater, numbersign, greater, numbersign ] };
-    
+    key <AD11> { [ dollar, at, dollar, at ] };
+    key <AD12> { [ numbersign, asciicircum, numbersign, asciicircum ] };
+
     // ASDF row
     key <AC01> { [ a, A, a, A ] };
     key <AC02> { [ s, S, s, S ] };
@@ -57,8 +57,8 @@ xkb_symbols "basic" {
     key <AB05> { [ b, B, b, B ] };
     key <AB06> { [ n, N, n, N ] };
     key <AB07> { [ m, M, m, M ] };
-    key <AB08> { [ comma, dollar, comma, dollar ] };
-    key <AB09> { [ period, asciicircum, period, asciicircum ] };
+    key <AB08> { [ comma, plus, comma, plus ] };
+    key <AB09> { [ period, asterisk, period, asterisk ] };
     key <AB10> { [ slash, question, slash, question ] };
     
     // Space bar
