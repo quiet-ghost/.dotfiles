@@ -43,6 +43,14 @@ map("n", "<leader>jf", function()
   end
 end, { desc = "Run current file (Java/C++/Python)" })
 
+map("n", "<leader>rh", function()
+  require("utils.cpp_header").prototype_to_header()
+end, { desc = "C++ Prototype To Header" })
+
+map("n", "<leader>fp", function()
+  require("utils.cpp_project").new_pair_prompt()
+end, { desc = "C++ New Header/Source Pair" })
+
 map("n", "<leader>jC", function()
   require("utils.javafx").compile_only()
 end, { desc = "Compile Java/JavaFX (check errors)" })
@@ -72,14 +80,29 @@ local function run_ts_tools_command(command, label)
   end
 end
 
-map("n", "<leader>co", run_ts_tools_command("TSToolsOrganizeImports", "TSToolsOrganizeImports"),
-  { desc = "TS Organize Imports" })
-map("n", "<leader>cM", run_ts_tools_command("TSToolsAddMissingImports", "TSToolsAddMissingImports"),
-  { desc = "TS Add Missing Imports" })
-map("n", "<leader>cu", run_ts_tools_command("TSToolsRemoveUnused", "TSToolsRemoveUnused"),
-  { desc = "TS Remove Unused" })
+map(
+  "n",
+  "<leader>co",
+  run_ts_tools_command("TSToolsOrganizeImports", "TSToolsOrganizeImports"),
+  { desc = "TS Organize Imports" }
+)
+map(
+  "n",
+  "<leader>cM",
+  run_ts_tools_command("TSToolsAddMissingImports", "TSToolsAddMissingImports"),
+  { desc = "TS Add Missing Imports" }
+)
+map(
+  "n",
+  "<leader>cu",
+  run_ts_tools_command("TSToolsRemoveUnused", "TSToolsRemoveUnused"),
+  { desc = "TS Remove Unused" }
+)
 map("n", "<leader>cD", run_ts_tools_command("TSToolsFixAll", "TSToolsFixAll"), { desc = "TS Fix All" })
-map("n", "<leader>tR", run_ts_tools_command("TSToolsRenameFile", "TSToolsRenameFile"),
-  { desc = "TS Rename File" })
-map("n", "<leader>tI", run_ts_tools_command("TSToolsFileReferences", "TSToolsFileReferences"),
-  { desc = "TS File References" })
+map("n", "<leader>tR", run_ts_tools_command("TSToolsRenameFile", "TSToolsRenameFile"), { desc = "TS Rename File" })
+map(
+  "n",
+  "<leader>tI",
+  run_ts_tools_command("TSToolsFileReferences", "TSToolsFileReferences"),
+  { desc = "TS File References" }
+)

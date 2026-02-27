@@ -1,5 +1,7 @@
 local M = {}
 
+local uv = vim.uv or vim.loop
+
 -- Compiler configuration
 local config = {
   cpp_standard = "c++20",
@@ -19,6 +21,41 @@ local config = {
     single_file = "cpp: %s",
   },
 }
+
+local function ensure_compile_commands_link(build_dir)
+  local cwd = vim.fn.getcwd()
+  local build_compile_commands = cwd .. "/" .. build_dir .. "/compile_commands.json"
+  local root_compile_commands = cwd .. "/compile_commands.json"
+
+  if vim.fn.filereadable(build_compile_commands) ~= 1 then
+    return
+  end
+
+  local stat = uv.fs_lstat(root_compile_commands)
+  if stat then
+    return
+  end
+
+  local ok, err = pcall(uv.fs_symlink, build_compile_commands, root_compile_commands)
+  if not ok and err then
+    vim.notify("Could not create compile_commands.json symlink: " .. tostring(err), vim.log.levels.WARN)
+  end
+end
+
+local function linker_hint(output)
+  if not output:match("undefined reference to") then
+    return nil
+  end
+
+  local symbol = output:match("undefined reference to `([^']+)'")
+  local symbol_text = symbol and ("Missing symbol: " .. symbol) or "Undefined reference linker error."
+
+  return table.concat({
+    symbol_text,
+    "This is usually a declaration/definition mismatch.",
+    "Check that function calls in main.cpp match the signature in the header and the .cpp definition.",
+  }, "\n")
+end
 
 -- Detect available compiler
 local function detect_compiler()
@@ -180,11 +217,17 @@ local function run_cmake()
     error("CMake configuration failed: " .. result)
   end
 
+  ensure_compile_commands_link(build_dir)
+
   -- Build
   local build_cmd = "cmake --build " .. build_dir
   print("Building CMake project...")
   local result = vim.fn.system(build_cmd)
   if vim.v.shell_error ~= 0 then
+    local hint = linker_hint(result)
+    if hint then
+      error("CMake build failed:\n" .. hint .. "\n\n" .. result)
+    end
     error("CMake build failed: " .. result)
   end
 

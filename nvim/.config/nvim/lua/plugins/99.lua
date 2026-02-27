@@ -2,7 +2,7 @@ return {
   "ThePrimeagen/99",
   keys = {
     {
-      "<leader>9f",
+      "<leader>}f",
       mode = "v",
       function()
         require("99").visual()
@@ -10,7 +10,7 @@ return {
       desc = "99 Visual",
     },
     {
-      "<leader>9s",
+      "<leader>}s",
       mode = { "n", "v" },
       function()
         require("99").stop_all_requests()
