@@ -35,6 +35,27 @@ local function create_header_from_autocmd(path)
   return true
 end
 
+local function use_split_layout(cwd)
+  local has_cmake = vim.fn.filereadable(cwd .. "/CMakeLists.txt") == 1
+  local has_src = vim.fn.isdirectory(cwd .. "/src") == 1
+  local has_include = vim.fn.isdirectory(cwd .. "/include") == 1
+  return has_cmake or has_src or has_include
+end
+
+local function pick_header_ext(header_dir, name)
+  local h_path = string.format("%s/%s.h", header_dir, name)
+  if vim.fn.filereadable(h_path) == 1 then
+    return ".h"
+  end
+
+  local hpp_path = string.format("%s/%s.hpp", header_dir, name)
+  if vim.fn.filereadable(hpp_path) == 1 then
+    return ".hpp"
+  end
+
+  return ".h"
+end
+
 function M.new_pair(name_input)
   local name = sanitize_name(name_input)
   if not name then
@@ -43,10 +64,22 @@ function M.new_pair(name_input)
   end
 
   local cwd = vim.fn.getcwd()
-  local header_name = name .. ".h"
+  local split_layout = use_split_layout(cwd)
+
+  local source_dir = split_layout and (cwd .. "/src") or cwd
+  local header_dir = split_layout and (cwd .. "/include") or cwd
+
+  if split_layout then
+    vim.fn.mkdir(source_dir, "p")
+    vim.fn.mkdir(header_dir, "p")
+  end
+
+  local header_ext = pick_header_ext(header_dir, name)
+  local header_name = name .. header_ext
   local source_name = name .. ".cpp"
-  local header_path = cwd .. "/" .. header_name
-  local source_path = cwd .. "/" .. source_name
+
+  local header_path = header_dir .. "/" .. header_name
+  local source_path = source_dir .. "/" .. source_name
 
   local created_header = create_header_from_autocmd(header_path)
   local created_source = write_if_missing(source_path, {
@@ -58,10 +91,10 @@ function M.new_pair(name_input)
 
   local pieces = {}
   if created_header then
-    table.insert(pieces, header_name)
+    table.insert(pieces, vim.fn.fnamemodify(header_path, ":."))
   end
   if created_source then
-    table.insert(pieces, source_name)
+    table.insert(pieces, vim.fn.fnamemodify(source_path, ":."))
   end
 
   if #pieces == 0 then

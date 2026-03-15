@@ -274,8 +274,8 @@ echo ""
 mkdir -p "$PROJECT_NAME"
 cd "$PROJECT_NAME"
 
-# Create directory structure (CLion uses simple structure)
-mkdir -p cmake
+# Create directory structure
+mkdir -p cmake src include
 
 # ============================================================================
 # Generate CMakeLists.txt (CLion's exact format)
@@ -333,10 +333,17 @@ fi
 if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
     cat >> CMakeLists.txt << EOFCMAKE
 
-file(GLOB PROJECT_SOURCES CONFIGURE_DEPENDS "
-    \${CMAKE_CURRENT_SOURCE_DIR}/*.${FILE_EXT}")
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
+
+if(NOT PROJECT_SOURCES)
+    message(FATAL_ERROR "No source files found in \${CMAKE_CURRENT_SOURCE_DIR}/src")
+endif()
 
 add_executable(${PROJECT_NAME} \${PROJECT_SOURCES})
+
+target_include_directories(${PROJECT_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include")
 EOFCMAKE
 else
     cat >> CMakeLists.txt << EOFCMAKE
@@ -345,6 +352,9 @@ file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
     "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
 
 add_library(${PROJECT_NAME} STATIC \${PROJECT_SOURCES})
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include")
 EOFCMAKE
 fi
 
@@ -389,9 +399,8 @@ fi
 gum_info "Generating source files..."
 
 if [ "$LANGUAGE" = "C++" ]; then
-    # Generate main.cpp (CLion's exact format)
     if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
-        cat > main.cpp << EOFCPP
+        cat > src/main.cpp << EOFCPP
 #include <iostream>
 
 int main() {
@@ -400,29 +409,26 @@ int main() {
 }
 EOFCPP
     else
-        # Library project
-        mkdir -p src
         cat > src/${PROJECT_NAME}.cpp << EOFCPP
-#include "${PROJECT_NAME}.hpp"
+#include "${PROJECT_NAME}.h"
 
 int add(int a, int b) {
     return a + b;
 }
 EOFCPP
 
-        cat > include/${PROJECT_NAME}.hpp << EOFHEADER
-#ifndef ${PROJECT_NAME^^}_HPP
-#define ${PROJECT_NAME^^}_HPP
+        cat > include/${PROJECT_NAME}.h << EOFHEADER
+#ifndef ${PROJECT_NAME^^}_H
+#define ${PROJECT_NAME^^}_H
 
 int add(int a, int b);
 
-#endif // ${PROJECT_NAME^^}_HPP
+#endif // ${PROJECT_NAME^^}_H
 EOFHEADER
     fi
 else
-    # Generate main.c (CLion's exact format)
     if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
-        cat > main.c << EOFC
+        cat > src/main.c << EOFC
 #include <stdio.h>
 
 int main() {
@@ -431,8 +437,6 @@ int main() {
 }
 EOFC
     else
-        # Library project
-        mkdir -p src
         cat > src/${PROJECT_NAME}.c << EOFC
 #include "${PROJECT_NAME}.h"
 
@@ -496,17 +500,6 @@ Makefile
 vcpkg_installed/
 conan/
 .conan/
-
-# Compiled binaries
- *
-!*.cpp
-!*.c
-!*.hpp
-!*.h
-!CMakeLists.txt
-!vcpkg.json
-!conanfile.txt
-!.gitignore
 EOFGITIGNORE
 
 # ============================================================================

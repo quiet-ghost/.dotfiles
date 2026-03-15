@@ -11,7 +11,7 @@ alias v='nvim'
 alias nvim-tj='NVIM_APPNAME=nvim-tj nvim'
 alias nvim-java='NVIM_APPNAME=nvim-java nvim'
 alias lg='lazygit'
-alias ls='eza --icons --long --git --group-directories-first'
+alias ghd='gh dash'
 alias oc='opencode'
 alias df='duf'
 alias windows='omarchy-windows-vm stop'
@@ -22,6 +22,12 @@ alias ccpp='cookiecutter-cpp'
 alias ya='yazi'
 alias bd="bootdev"
 alias cc="calc"
+
+#Eza
+alias l="eza -l --icons --git -a"
+alias ls='eza --icons --long --git --group-directories-first'
+alias lt="eza --tree --level=2 --long --icons --git"
+alias ltree="eza --tree --level=2  --icons --git"
 
 #alias suffix
 alias -s json=jless

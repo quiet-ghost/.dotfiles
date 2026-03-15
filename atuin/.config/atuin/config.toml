@@ -1,0 +1,10 @@
+style = "compact"
+enter_accept = false
+workspaces = true
+filter_mode = "workspace"
+filter_mode_shell_up_key_binding = "directory"
+search_mode = "fuzzy"
+inline_height = 20
+show_preview = true
+ctrl_n_shortcuts = true
+sync_frequency = "1h"
