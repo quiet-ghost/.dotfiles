@@ -25,6 +25,28 @@ shell-integration-features = no-cursor
 keybind = f11=toggle_fullscreen
 keybind = shift+insert=paste_from_clipboard
 keybind = control+insert=copy_to_clipboard
+
+# Font zoom controls for Programmer layout
+# Use both layout-aware and physical-key forms for reliability.
+keybind = ctrl+equal=decrease_font_size:1
+keybind = ctrl+minus=decrease_font_size:1
+keybind = ctrl+digit_5=decrease_font_size:1
+
+# Zoom in: '+' is on comma in Programmer layout.
+keybind = ctrl+comma=increase_font_size:1
+keybind = ctrl+shift+comma=increase_font_size:1
+keybind = ctrl+plus=increase_font_size:1
+
+# Physical-key fallbacks in case layout translation differs.
+keybind = ctrl+Comma=increase_font_size:1
+keybind = ctrl+shift+Comma=increase_font_size:1
+keybind = ctrl+Period=increase_font_size:1
+
+keybind = ctrl+kp_add=increase_font_size:1
+keybind = ctrl+kp_subtract=decrease_font_size:1
+keybind = ctrl+backslash=reset_font_size
+keybind = ctrl+digit_0=reset_font_size
+
 keybind = super+control+shift+alt+arrow_down=resize_split:down,100
 keybind = super+control+shift+alt+arrow_up=resize_split:up,100
 keybind = super+control+shift+alt+arrow_left=resize_split:left,100

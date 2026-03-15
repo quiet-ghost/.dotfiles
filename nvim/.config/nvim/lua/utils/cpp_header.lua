@@ -45,21 +45,28 @@ local function build_prototype(bufnr, fn_node)
 end
 
 local function find_header_path(source_path)
-  local dir = vim.fn.fnamemodify(source_path, ":h")
+  local source_dir = vim.fn.fnamemodify(source_path, ":h")
+  local project_root = vim.fn.getcwd()
   local base = vim.fn.fnamemodify(source_path, ":t:r")
 
-  local h = dir .. "/" .. base .. ".h"
-  local hpp = dir .. "/" .. base .. ".hpp"
+  local candidates = {
+    source_dir .. "/" .. base .. ".h",
+    source_dir .. "/" .. base .. ".hpp",
+    project_root .. "/include/" .. base .. ".h",
+    project_root .. "/include/" .. base .. ".hpp",
+  }
 
-  if vim.fn.filereadable(h) == 1 then
-    return h
+  for _, path in ipairs(candidates) do
+    if vim.fn.filereadable(path) == 1 then
+      return path
+    end
   end
 
-  if vim.fn.filereadable(hpp) == 1 then
-    return hpp
+  if vim.fn.isdirectory(project_root .. "/include") == 1 then
+    return project_root .. "/include/" .. base .. ".h"
   end
 
-  return h
+  return source_dir .. "/" .. base .. ".h"
 end
 
 local function has_prototype(lines, prototype)

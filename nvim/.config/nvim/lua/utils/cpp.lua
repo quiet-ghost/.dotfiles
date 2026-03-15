@@ -52,9 +52,90 @@ local function linker_hint(output)
 
   return table.concat({
     symbol_text,
-    "This is usually a declaration/definition mismatch.",
-    "Check that function calls in main.cpp match the signature in the header and the .cpp definition.",
+    "This is usually a declaration/definition mismatch or a missing source file in the link step.",
+    "Check that function calls match signatures and that related .cpp files are included in compilation.",
   }, "\n")
+end
+
+local function shell_quote(path)
+  return string.format("'%s'", path:gsub("'", "'\\''"))
+end
+
+local function file_has_main(path)
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    return false
+  end
+
+  for _, line in ipairs(lines) do
+    if line:match("%f[%w]int%s+main%s*%(") then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function find_main_sources(dir)
+  local files = {}
+  for _, pattern in ipairs({ "*.cpp", "*.cc", "*.cxx" }) do
+    local matched = vim.fn.globpath(dir, pattern, false, true)
+    for _, file in ipairs(matched) do
+      if file_has_main(file) then
+        table.insert(files, vim.fn.fnamemodify(file, ":p"))
+      end
+    end
+  end
+  return files
+end
+
+local function collect_linked_sources(entry_file)
+  local dir = vim.fn.fnamemodify(entry_file, ":h")
+  local project_root = vim.fn.getcwd()
+  local source_set = {}
+  local ordered_sources = {}
+
+  local function add_source(path)
+    local absolute = vim.fn.fnamemodify(path, ":p")
+    if source_set[absolute] then
+      return
+    end
+    source_set[absolute] = true
+    table.insert(ordered_sources, absolute)
+  end
+
+  local function add_companion_source_from_header(header_name)
+    local stem = header_name:gsub("%.[^.]+$", "")
+    local search_dirs = {
+      dir,
+      project_root .. "/src",
+      project_root,
+    }
+
+    for _, search_dir in ipairs(search_dirs) do
+      for _, ext in ipairs({ ".cpp", ".cc", ".cxx" }) do
+        local candidate = vim.fn.fnamemodify(search_dir .. "/" .. stem .. ext, ":p")
+        if vim.fn.filereadable(candidate) == 1 then
+          add_source(candidate)
+          return
+        end
+      end
+    end
+  end
+
+  add_source(entry_file)
+
+  local ok, lines = pcall(vim.fn.readfile, entry_file)
+  if ok then
+    for _, line in ipairs(lines) do
+      local header = line:match('^%s*#%s*include%s*"([^"]+)"')
+      if header then
+        add_companion_source_from_header(header)
+      end
+    end
+  end
+
+  return ordered_sources
 end
 
 -- Detect available compiler
@@ -282,9 +363,35 @@ end
 local function run_single_file()
   local file_info = get_current_file_info()
   local compiler = detect_compiler()
+  local cwd = vim.fn.getcwd()
+
+  local entry_file = file_info.file
+  if not file_has_main(entry_file) then
+    local mains = find_main_sources(file_info.dirname)
+
+    if #mains == 0 then
+      mains = find_main_sources(cwd .. "/src")
+    end
+
+    if #mains == 0 then
+      mains = find_main_sources(cwd)
+    end
+
+    if #mains == 1 then
+      entry_file = mains[1]
+      file_info = {
+        file = entry_file,
+        filename = vim.fn.fnamemodify(entry_file, ":t"),
+        basename = vim.fn.fnamemodify(entry_file, ":t:r"),
+        dirname = vim.fn.fnamemodify(entry_file, ":h"),
+      }
+      vim.notify(string.format("Using entry file with main(): %s", file_info.filename), vim.log.levels.INFO)
+    end
+  end
+
+  local source_files = collect_linked_sources(entry_file)
   
   -- Check if build directory exists in cwd
-  local cwd = vim.fn.getcwd()
   local build_dir = detect_build_dir()
   local build_path = cwd .. "/" .. build_dir
   
@@ -297,18 +404,30 @@ local function run_single_file()
   local output = build_path .. "/" .. file_info.basename
   vim.g.cpp_last_executable = output
 
+  local source_args = {}
+  for _, source in ipairs(source_files) do
+    table.insert(source_args, shell_quote(source))
+  end
+
+  local include_args = {}
+  local include_dir = cwd .. "/include"
+  if vim.fn.isdirectory(include_dir) == 1 then
+    table.insert(include_args, "-I" .. shell_quote(include_dir))
+  end
+
   local compile_cmd = string.format(
-    "%s -std=%s %s %s %s '%s' -o '%s'",
+    "%s -std=%s %s %s %s %s %s -o %s",
     compiler,
     config.cpp_standard,
     config.optimization,
     config.debug_symbols,
     config.warnings,
-    file_info.file:gsub("'", "'\\''"),
-    output:gsub("'", "'\\''")
+    table.concat(include_args, " "),
+    table.concat(source_args, " "),
+    shell_quote(output)
   )
   
-  local run_cmd = string.format("'%s'", output:gsub("'", "'\\''"))
+  local run_cmd = shell_quote(output)
   local full_cmd = compile_cmd .. " && " .. run_cmd
   
   local title = string.format(config.title_formats.single_file, file_info.filename)

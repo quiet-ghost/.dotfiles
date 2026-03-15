@@ -1,7 +1,7 @@
 ---
 description: Reviews code for quality and best practices
 mode: subagent
-model: opencode/claude-opus-4-5
+model: openai/gpt-5.4
 temperature: 0.1
 tools:
   write: false

@@ -6,6 +6,37 @@ set -e
 
 WORKTREE_DIR=".worktrees"
 
+link_or_stub_env_file() {
+  local file_name="$1"
+  local source_path="$REPO_ROOT/$file_name"
+  local target_path="$REPO_ROOT/$WORKTREE_PATH/$file_name"
+  local example_path="$REPO_ROOT/${file_name}.example"
+
+  if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+    return 0
+  fi
+
+  if [ -f "$source_path" ]; then
+    ln -s "$source_path" "$target_path"
+    echo "Linked $file_name into worktree"
+    return 0
+  fi
+
+  if [ -f "$example_path" ]; then
+    cp "$example_path" "$target_path"
+    echo "Created placeholder $file_name from ${file_name}.example"
+    return 0
+  fi
+
+  : > "$target_path"
+  echo "Created empty placeholder $file_name"
+}
+
+setup_worktree_env_files() {
+  link_or_stub_env_file ".env"
+  link_or_stub_env_file ".dev.vars"
+}
+
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo "Error: Not in a git repository"
@@ -87,6 +118,7 @@ switch_to_tmux_session() {
 # Check if worktree already exists
 if [ -d "$WORKTREE_PATH" ]; then
   echo "Worktree already exists at: $WORKTREE_PATH"
+  setup_worktree_env_files
   
   # If in tmux, create/switch to session
   if [ "$IN_TMUX" = true ]; then
@@ -154,6 +186,8 @@ if command -v mise > /dev/null 2>&1; then
   echo "Running mise trust for worktree..."
   mise trust "$WORKTREE_PATH" 2>/dev/null || true
 fi
+
+setup_worktree_env_files
 
 echo ""
 echo "✓ Worktree created successfully!"
