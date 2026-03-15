@@ -62,6 +62,7 @@ fi
 
 # Starship prompt
 eval "$(starship init zsh)"
+eval "$(atuin init zsh --disable-up-arrow)"
 
 # ============================================================================
 # KEY BINDINGS

@@ -61,7 +61,7 @@ function M.create_new_file()
   })
 
   -- Add a placeholder/hint text
-  vim.fn.prompt_setprompt(buf, "File name (e.g., Animal.java): ")
+  vim.fn.prompt_setprompt(buf, "File name (e.g., src/main.cpp or include/math.h): ")
 end
 
 return M
