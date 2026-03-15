@@ -1,5 +1,5 @@
 ---
-model: openai/gpt-4o
+model: openai/gpt-5.4
 reasoningEffort: medium
 mode: subagent
 description: ALWAYS use this when writing bi-annual performance reviews.

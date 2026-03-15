@@ -8,3 +8,4 @@ inline_height = 20
 show_preview = true
 ctrl_n_shortcuts = true
 sync_frequency = "1h"
+keymap_mode = "vim-normal"
