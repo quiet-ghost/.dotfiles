@@ -1,5 +1,5 @@
 ---
-model: openAI/gpt-5.4
+model: opencode/kimi-k2.5
 reasoningEffort: medium
 description: use this when writing comments in programs
 ---

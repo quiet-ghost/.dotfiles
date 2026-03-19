@@ -105,19 +105,40 @@ local function collect_linked_sources(entry_file)
   end
 
   local function add_companion_source_from_header(header_name)
-    local stem = header_name:gsub("%.[^.]+$", "")
+    local normalized_header = header_name:gsub("\\", "/")
+    local header_stem = normalized_header:gsub("%.[^.]+$", "")
+    local relative_include_stem = header_stem:match("^%.%./include/(.+)$")
+      or header_stem:match("^include/(.+)$")
+      or header_stem:match("^.*/include/(.+)$")
+
+    local stems = {}
+    local seen_stems = {}
+    local function add_stem(stem)
+      if not stem or stem == "" or seen_stems[stem] then
+        return
+      end
+      seen_stems[stem] = true
+      table.insert(stems, stem)
+    end
+
+    add_stem(relative_include_stem)
+    add_stem(header_stem:gsub("^%./", ""))
+    add_stem(vim.fn.fnamemodify(normalized_header, ":t:r"))
+
     local search_dirs = {
-      dir,
       project_root .. "/src",
+      dir,
       project_root,
     }
 
-    for _, search_dir in ipairs(search_dirs) do
-      for _, ext in ipairs({ ".cpp", ".cc", ".cxx" }) do
-        local candidate = vim.fn.fnamemodify(search_dir .. "/" .. stem .. ext, ":p")
-        if vim.fn.filereadable(candidate) == 1 then
-          add_source(candidate)
-          return
+    for _, stem in ipairs(stems) do
+      for _, search_dir in ipairs(search_dirs) do
+        for _, ext in ipairs({ ".cpp", ".cc", ".cxx" }) do
+          local candidate = vim.fn.fnamemodify(search_dir .. "/" .. stem .. ext, ":p")
+          if vim.fn.filereadable(candidate) == 1 then
+            add_source(candidate)
+            return
+          end
         end
       end
     end

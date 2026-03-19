@@ -14,6 +14,14 @@ vim.api.nvim_create_user_command("CppNewPair", function(opts)
   require("utils.cpp_project").new_pair(opts.args)
 end, { nargs = 1, desc = "Create C++ .h/.cpp pair" })
 
+vim.api.nvim_create_user_command("CppNewPrivatePair", function(opts)
+  require("utils.cpp_project").new_private_pair(opts.args)
+end, { nargs = 1, desc = "Create private C++ .h/.cpp pair in src" })
+
 vim.api.nvim_create_user_command("CppNewPairPrompt", function()
   require("utils.cpp_project").new_pair_prompt()
 end, { desc = "Prompt to create C++ .h/.cpp pair" })
+
+vim.api.nvim_create_user_command("CppNewPrivatePairPrompt", function()
+  require("utils.cpp_project").new_private_pair_prompt()
+end, { desc = "Prompt to create private C++ .h/.cpp pair in src" })

@@ -1,0 +1,94 @@
+name: issue-automation
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+
+jobs:
+  compliance-and-duplicates:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Ensure compliance label exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const name = 'needs:compliance';
+            const color = 'B42318';
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({ owner, repo, name, color });
+            }
+
+      - name: Install OpenCode
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Check issue compliance and duplicates
+        env:
+          __MODEL_API_KEY_ENV__: ${{ secrets.__MODEL_API_KEY_ENV__ }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_ACTION: ${{ github.event.action }}
+          OPENCODE_PERMISSION: |
+            {
+              "bash": {
+                "*": "deny",
+                "gh issue*": "allow",
+                "gh api*": "allow"
+              },
+              "webfetch": "deny"
+            }
+        run: |
+          opencode run -m __MODEL__ "An issue in this repository was ${ISSUE_ACTION}. Review issue #${ISSUE_NUMBER} for both intake quality and likely duplicates.
+
+          Use gh to inspect the full issue, including comments:
+          - gh issue view ${ISSUE_NUMBER} --comments
+
+          Then search existing issues for likely duplicates. Prioritize open issues, but include a clearly better closed issue if it is an obvious match.
+
+          The repository uses these issue forms:
+          - Bug report: title should start with [BUG]: and should include meaningful content for What happened, Steps to reproduce, and What did you expect to happen?
+          - Feature request: title should start with [FEATURE]: and should include meaningful content for What problem are you trying to solve? and What change would you like?
+          - Question: title should start with [QUESTION]: and should include meaningful content for What do you need help with? and What are you trying to do?
+
+          Treat the issue as non-compliant only when there is a real issue, such as:
+          - the wrong template or no recognizable template
+          - unchanged placeholder text
+          - empty or low-signal required sections
+          - title missing the expected prefix for its template
+          - obvious AI-generated filler or a wall of generic text with little actionable content
+
+          Do not be nitpicky about optional fields.
+
+          Manage one bot comment with this exact marker at the top:
+          <!-- repo-init:issue-automation -->
+
+          Your job:
+          1. If the issue is non-compliant, ensure label needs:compliance exists on the issue.
+          2. If the issue is compliant, remove label needs:compliance if present.
+          3. If a prior bot comment with that marker exists, update or delete it instead of creating duplicates.
+          4. If the issue is compliant and there are no likely duplicates, delete the marked bot comment if it exists and post nothing.
+          5. If the issue is non-compliant and/or has likely duplicates, leave one concise combined comment.
+
+          Comment format:
+          - Start with the marker.
+          - Add heading: ## Issue intake follow-up
+          - If non-compliant, add a short sentence saying what needs to be fixed and list only the concrete problems.
+          - If likely duplicates exist, add a short section named Duplicate check with bullet links to the most relevant matches.
+          - End by saying that editing the issue will refresh the automation.
+
+          Keep the tone direct and helpful. Do not post more than one bot comment."

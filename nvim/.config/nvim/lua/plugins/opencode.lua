@@ -37,15 +37,7 @@ return {
       desc = "Execute opencode action",
     },
     {
-      "ga",
-      mode = { "n", "x" },
-      function()
-        require("opencode").prompt("@this")
-      end,
-      desc = "Add to opencode",
-    },
-    {
-      "<C-.>",
+      "<M-.>",
       mode = { "n", "t" },
       function()
         require("opencode").toggle()
