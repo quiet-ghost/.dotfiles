@@ -51,6 +51,10 @@ map("n", "<leader>fp", function()
   require("utils.cpp_project").new_pair_prompt()
 end, { desc = "C++ New Header/Source Pair" })
 
+map("n", "<leader>fP", function()
+  require("utils.cpp_project").new_private_pair_prompt()
+end, { desc = "C++ New Private Header/Source Pair" })
+
 map("n", "<leader>jC", function()
   require("utils.javafx").compile_only()
 end, { desc = "Compile Java/JavaFX (check errors)" })

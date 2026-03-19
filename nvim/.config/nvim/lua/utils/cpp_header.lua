@@ -47,14 +47,28 @@ end
 local function find_header_path(source_path)
   local source_dir = vim.fn.fnamemodify(source_path, ":h")
   local project_root = vim.fn.getcwd()
+  local src_root = project_root .. "/src"
+  local include_root = project_root .. "/include"
   local base = vim.fn.fnamemodify(source_path, ":t:r")
+  local normalized_source = vim.fn.fnamemodify(source_path, ":p")
+  local relative_from_src
+
+  if normalized_source:sub(1, #src_root + 1) == src_root .. "/" then
+    relative_from_src = normalized_source:sub(#src_root + 2):gsub("%.[^.]+$", "")
+  end
 
   local candidates = {
     source_dir .. "/" .. base .. ".h",
     source_dir .. "/" .. base .. ".hpp",
-    project_root .. "/include/" .. base .. ".h",
-    project_root .. "/include/" .. base .. ".hpp",
   }
+
+  if relative_from_src then
+    table.insert(candidates, include_root .. "/" .. relative_from_src .. ".h")
+    table.insert(candidates, include_root .. "/" .. relative_from_src .. ".hpp")
+  end
+
+  table.insert(candidates, include_root .. "/" .. base .. ".h")
+  table.insert(candidates, include_root .. "/" .. base .. ".hpp")
 
   for _, path in ipairs(candidates) do
     if vim.fn.filereadable(path) == 1 then
@@ -62,8 +76,12 @@ local function find_header_path(source_path)
     end
   end
 
-  if vim.fn.isdirectory(project_root .. "/include") == 1 then
-    return project_root .. "/include/" .. base .. ".h"
+  if vim.fn.isdirectory(include_root) == 1 then
+    if relative_from_src then
+      return include_root .. "/" .. relative_from_src .. ".h"
+    end
+
+    return include_root .. "/" .. base .. ".h"
   end
 
   return source_dir .. "/" .. base .. ".h"
@@ -113,6 +131,7 @@ function M.prototype_to_header()
   local header_path = find_header_path(source_path)
   local source_win = vim.api.nvim_get_current_win()
 
+  vim.fn.mkdir(vim.fn.fnamemodify(header_path, ":h"), "p")
   vim.cmd("keepalt edit " .. vim.fn.fnameescape(header_path))
   local header_buf = vim.api.nvim_get_current_buf()
 

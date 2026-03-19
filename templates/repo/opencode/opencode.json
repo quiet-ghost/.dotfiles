@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "__MODEL__",
+  "default_agent": "review-bot",
+  "instructions": [
+    "AGENTS.md",
+    ".github/review-guidelines.md"
+  ],
+  "agent": {
+    "review-bot": {
+      "description": "Reviews pull requests against repository conventions.",
+      "prompt": "You are a pull request review bot. Review only the proposed changes against the repository rules. Leave concise, actionable feedback. Ignore style-only comments unless they affect maintainability.",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    },
+    "pr-analyst": {
+      "description": "Performs deeper maintainer-grade pull request analysis and follow-up issue triage.",
+      "prompt": "You are the maintainer-grade PR analyst for this repository. Review the whole branch, not only the latest diff. Prioritize correctness, regressions, integration risk, edge cases, and missing validation. Use inline comments only for concrete file-level findings. Always leave one structured summary comment for maintainers. When you are explicitly invoked for follow-up triage, convert durable non-blocking work into linked GitHub issues, apply accurate labels, and assign them using `.github/CODEOWNERS` when possible, falling back to the repository owner if needed.",
+      "permission": {
+        "edit": "deny",
+        "bash": "allow"
+      }
+    }
+  }
+}

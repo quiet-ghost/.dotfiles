@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+find_pr_template() {
+  local repo_root="$1"
+  local candidate
+
+  for candidate in \
+    "$repo_root/.github/pull_request_template.md" \
+    "$repo_root/.github/PULL_REQUEST_TEMPLATE.md" \
+    "$repo_root/pull_request_template.md" \
+    "$repo_root/PULL_REQUEST_TEMPLATE.md" \
+    "$repo_root/docs/pull_request_template.md" \
+    "$repo_root/docs/PULL_REQUEST_TEMPLATE.md"
+  do
+    if [[ -f "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  if [[ -d "$repo_root/.github/PULL_REQUEST_TEMPLATE" ]]; then
+    while IFS= read -r candidate; do
+      if [[ -f "$candidate" ]]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
+    done < <(printf '%s\n' "$repo_root/.github/PULL_REQUEST_TEMPLATE"/*.md 2>/dev/null)
+  fi
+
+  return 1
+}
+
+main() {
+  local repo_root current_branch base_branch remote_head template_path
+  local commit_count title commit_notes initial_body editor draft_file body_file
+  local -a create_args
+
+  if ! command -v gh >/dev/null 2>&1; then
+    printf 'gh CLI is required for gpr\n' >&2
+    exit 1
+  fi
+
+  if ! repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    printf 'gpr must run inside a git repository\n' >&2
+    exit 1
+  fi
+
+  current_branch="$(git branch --show-current 2>/dev/null)"
+  base_branch="$(git config --get "branch.${current_branch}.gh-merge-base" 2>/dev/null || true)"
+
+  if [[ -z "$base_branch" ]]; then
+    remote_head="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+    if [[ -n "$remote_head" ]]; then
+      base_branch="${remote_head#origin/}"
+    elif git show-ref --verify --quiet refs/heads/main; then
+      base_branch='main'
+    elif git show-ref --verify --quiet refs/heads/master; then
+      base_branch='master'
+    fi
+  fi
+
+  if [[ -n "$base_branch" ]] && git rev-parse --verify --quiet "$base_branch" >/dev/null; then
+    commit_count="$(git rev-list --count "${base_branch}..HEAD" 2>/dev/null || printf '0')"
+    if [[ "$commit_count" -gt 0 ]]; then
+      title="$(git log -1 --format=%s HEAD)"
+      commit_notes="$(git log --reverse --format='- %s%n%b' "${base_branch}..HEAD")"
+    fi
+  fi
+
+  if [[ -z "${title:-}" ]]; then
+    title="$(git log -1 --format=%s HEAD 2>/dev/null || true)"
+  fi
+
+  template_path="$(find_pr_template "$repo_root" 2>/dev/null || true)"
+  if [[ -n "$template_path" ]]; then
+    initial_body="$(<"$template_path")"
+  fi
+
+  if [[ -n "${commit_notes:-}" ]]; then
+    if [[ -n "${initial_body:-}" ]]; then
+      initial_body+=$'\n\n'
+    fi
+    initial_body+=$'<!-- Autofill from commits; edit or remove before creating the PR. -->\n\n'
+    initial_body+=$'### Autofill from commits\n\n'
+    initial_body+="$commit_notes"
+  fi
+
+  editor="${VISUAL:-${EDITOR:-nvim}}"
+  draft_file="$(mktemp)"
+  body_file="$(mktemp)"
+  trap 'rm -f "${draft_file:-}" "${body_file:-}"' EXIT
+
+  {
+    printf '%s\n' "$title"
+    printf '\n'
+    printf '%s\n' "${initial_body:-}"
+  } > "$draft_file"
+
+  eval "$editor \"$draft_file\""
+
+  title="$(sed -n '1p' "$draft_file")"
+  if [[ -z "$title" ]]; then
+    printf 'PR title cannot be empty\n' >&2
+    exit 1
+  fi
+
+  sed '1d' "$draft_file" > "$body_file"
+  create_args=(--title "$title" --body-file "$body_file")
+  if [[ $# -gt 0 ]]; then
+    create_args+=("$@")
+  fi
+
+  gh pr create "${create_args[@]}"
+}
+
+main "$@"
