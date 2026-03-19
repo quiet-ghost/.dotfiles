@@ -10,8 +10,6 @@ alias pbpaste='xsel --clipboard --output'
 alias v='nvim'
 alias nvim-tj='NVIM_APPNAME=nvim-tj nvim'
 alias nvim-java='NVIM_APPNAME=nvim-java nvim'
-alias lg='lazygit'
-alias ghd='gh dash'
 alias oc='opencode'
 alias df='duf'
 alias windows='omarchy-windows-vm stop'
@@ -19,9 +17,19 @@ alias sf='source ~/.fabric-patterns.zsh'
 alias jn='new-java'
 alias cn='new-clion'
 alias ccpp='cookiecutter-cpp'
+alias nr='repo-init'
+alias ginit='repo-init'
 alias ya='yazi'
 alias bd="bootdev"
 alias cc="calc"
+alias cat=bat
+
+#git
+alias lg='lazygit'
+alias ghd='gh dash'
+alias gpr='gh-pr-create-smart'
+alias gl="git log --graph --topo-order --pretty='%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N' --abbrev-commit"
+alias gs="git status"
 
 #Eza
 alias l="eza -l --icons --git -a"

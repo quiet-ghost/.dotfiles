@@ -1,0 +1,258 @@
+name: issue-triage
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+      - labeled
+      - unlabeled
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Apply issue triage labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = context.issue.number;
+            const issue = context.payload.issue;
+            const body = issue.body ?? '';
+            const marker = '<!-- repo-init:issue-triage -->';
+
+            const managedLabels = {
+              triage: '8B949E',
+              'needs-repro': 'B42318',
+              'needs-design': '1D76DB',
+              'needs-context': 'C69026',
+            };
+
+            async function ensureLabel(name, color) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+                await github.rest.issues.createLabel({ owner, repo, name, color });
+              }
+            }
+
+            async function addLabel(name) {
+              await ensureLabel(name, managedLabels[name]);
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number,
+                labels: [name],
+              });
+            }
+
+            async function removeLabel(name) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner,
+                  repo,
+                  issue_number,
+                  name,
+                });
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+            }
+
+            async function ensureAssignee(login) {
+              if (!login) return;
+              if ((issue.assignees ?? []).some((assignee) => assignee.login === login)) {
+                return;
+              }
+
+              try {
+                await github.rest.issues.addAssignees({
+                  owner,
+                  repo,
+                  issue_number,
+                  assignees: [login],
+                });
+              } catch (error) {
+                core.warning(`Unable to add issue assignee ${login}: ${error.message}`);
+              }
+            }
+
+            function hasLabel(name) {
+              return issue.labels.some((label) => label.name === name);
+            }
+
+            function sectionContent(heading) {
+              const lines = body.split('\n');
+              const sectionHeading = `### ${heading}`;
+              const startIndex = lines.findIndex((line) => line.trim() === sectionHeading);
+
+              if (startIndex === -1) {
+                return null;
+              }
+
+              const content = [];
+              for (let index = startIndex + 1; index < lines.length; index += 1) {
+                if (lines[index].startsWith('### ')) {
+                  break;
+                }
+                content.push(lines[index]);
+              }
+
+              return content.join('\n').trim();
+            }
+
+            function hasMeaningfulContent(value, placeholders = []) {
+              if (!value) return false;
+              let normalized = value
+                .replace(/[*_`>#-]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+              for (const placeholder of placeholders) {
+                const escaped = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                normalized = normalized.replace(new RegExp(escaped, 'ig'), ' ');
+              }
+
+              normalized = normalized.replace(/\s+/g, ' ').trim();
+              return normalized.length > 0;
+            }
+
+            const findings = [];
+
+            await addLabel('triage');
+            await ensureAssignee('__ISSUE_ASSIGNEE__');
+
+            if (hasLabel('bug')) {
+              const reproduce = sectionContent('Steps to reproduce');
+              const expected = sectionContent('What did you expect to happen?');
+
+              const missingRepro = !hasMeaningfulContent(reproduce, [
+                '1. Go to ... 2. Run ... 3. See ...',
+              ]);
+              const missingExpected = !hasMeaningfulContent(expected, [
+                'Describe the expected behavior.',
+              ]);
+
+              if (missingRepro || missingExpected) {
+                await addLabel('needs-repro');
+                if (missingRepro) {
+                  findings.push('- Add clear steps to reproduce the bug.');
+                }
+                if (missingExpected) {
+                  findings.push('- Describe the expected behavior so we can compare it to the bug.');
+                }
+              } else {
+                await removeLabel('needs-repro');
+              }
+            } else {
+              await removeLabel('needs-repro');
+            }
+
+            if (hasLabel('enhancement')) {
+              const problem = sectionContent('What problem are you trying to solve?');
+              const proposal = sectionContent('What change would you like?');
+
+              const missingProblem = !hasMeaningfulContent(problem, [
+                'Explain what is hard today and who it affects.',
+              ]);
+              const missingProposal = !hasMeaningfulContent(proposal, [
+                'Explain the proposed solution.',
+              ]);
+
+              if (missingProblem || missingProposal) {
+                await addLabel('needs-design');
+                if (missingProblem) {
+                  findings.push('- Explain the problem this feature request is solving.');
+                }
+                if (missingProposal) {
+                  findings.push('- Describe the change or workflow you want in more detail.');
+                }
+              } else {
+                await removeLabel('needs-design');
+              }
+            } else {
+              await removeLabel('needs-design');
+            }
+
+            if (hasLabel('question')) {
+              const question = sectionContent('What do you need help with?');
+              const goal = sectionContent('What are you trying to do?');
+
+              const missingQuestion = !hasMeaningfulContent(question, [
+                'Explain what is confusing, broken, or blocked.',
+              ]);
+              const missingGoal = !hasMeaningfulContent(goal, [
+                'Describe the goal so maintainers can answer in context.',
+              ]);
+
+              if (missingQuestion || missingGoal) {
+                await addLabel('needs-context');
+                if (missingQuestion) {
+                  findings.push('- Ask a concrete question so maintainers know exactly what you need answered.');
+                }
+                if (missingGoal) {
+                  findings.push('- Explain what you are trying to do so the answer can match your workflow.');
+                }
+              } else {
+                await removeLabel('needs-context');
+              }
+            } else {
+              await removeLabel('needs-context');
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user?.type === 'Bot' && comment.body?.includes(marker),
+            );
+
+            if (findings.length === 0) {
+              if (existing) {
+                await github.rest.issues.deleteComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                });
+              }
+              return;
+            }
+
+            const commentBody = [
+              marker,
+              '## Issue intake follow-up',
+              '',
+              'This issue needs a bit more detail before it is easy to triage:',
+              '',
+              ...findings,
+              '',
+              'Update the issue body and these labels/comments will refresh automatically.',
+            ].join('\n');
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: commentBody,
+              });
+            }

@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest an idea, feature, or enhancement
+title: "[FEATURE]: "
+labels:
+  - enhancement
+assignees:
+  - __ISSUE_ASSIGNEE__
+body:
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the current pain point or missing capability.
+      placeholder: Explain what is hard today and who it affects.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What change would you like?
+      description: Describe the feature or behavior you want.
+      placeholder: Explain the proposed solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What should the new workflow look like?
+      description: Walk through the ideal user flow, command, or UI behavior.
+      placeholder: Describe the happy path from start to finish.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Share workarounds or other approaches you have tried.
+      placeholder: Tell us what you tried and why it fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+      description: Mockups, examples, screenshots, or related links.
+      placeholder: Add any helpful context here.
+    validations:
+      required: false
