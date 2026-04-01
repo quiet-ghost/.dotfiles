@@ -21,7 +21,7 @@ return {
   end,
   keys = {
     {
-      "<C-a>",
+      "<M-a>",
       mode = { "n", "x" },
       function()
         require("opencode").ask("@this: ", { submit = true })
@@ -29,7 +29,7 @@ return {
       desc = "Ask opencode",
     },
     {
-      "<C-x>",
+      "<M-x>",
       mode = { "n", "x" },
       function()
         require("opencode").select()

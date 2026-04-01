@@ -44,6 +44,11 @@ source $ZSH/oh-my-zsh.sh
 # mise (formerly rtx) - runtime version manager
 eval "$(mise activate zsh)"
 
+# direnv - per-directory environment loading
+if command -v direnv >/dev/null 2>&1; then
+    eval "$(direnv hook zsh)"
+fi
+
 # ============================================================================
 # TOOL CONFIGURATIONS
 # ============================================================================

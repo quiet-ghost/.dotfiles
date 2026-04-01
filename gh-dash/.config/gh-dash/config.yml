@@ -81,13 +81,12 @@ keybindings:
     - key: g
       name: lazygit
       command: >
-        cd {{.RepoPath}}; lazygit
+        bash -lc 'cd "$(gh-repo-path {{.RepoName}})" && lazygit'
   prs:
     - key: C
       name: code review
       command: >
-        tmux new-window -n "PR-{{.PrNumber}}" 
-        'wt switch pr:{{.PrNumber}} -x "opencode --prompt `@code-reviewer: review-pr-for-this-branch`"'
+        gh-pr-review-session {{.RepoName}} {{.PrNumber}}
 
 theme:
   colors:

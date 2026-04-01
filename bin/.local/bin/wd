@@ -2,9 +2,58 @@
 # Git worktree deleter - Remove worktrees and optionally branches
 # Usage: wd [branch-name]
 
-set -e
+set -euo pipefail
 
 WORKTREE_DIR=".worktrees"
+DELETE_REMOTE=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --delete-remote)
+      DELETE_REMOTE=true
+      shift
+      ;;
+    --help|-h)
+      printf 'Usage: wd [--delete-remote] [branch-name]\n'
+      exit 0
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+resolve_worktree_path() {
+  local worktree_name="$1"
+  local candidate_path="$REPO_ROOT/$WORKTREE_DIR/$worktree_name"
+
+  if [ -d "$candidate_path" ]; then
+    printf '%s\n' "$candidate_path"
+    return 0
+  fi
+
+  return 1
+}
+
+display_name_for_path() {
+  local path="$1"
+  local relative="${path#"$REPO_ROOT/$WORKTREE_DIR/"}"
+
+  case "$relative" in
+    issue/*|pr/*)
+      printf '%s\n' "$relative"
+      ;;
+    *)
+      printf '%s\n' "$relative"
+      ;;
+  esac
+}
+
+branch_name_for_path() {
+  local path="$1"
+
+  git -C "$path" branch --show-current
+}
 
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
@@ -24,13 +73,18 @@ fi
 
 # Get list of worktrees in .worktrees/
 worktrees=()
-if [ -d "$WORKTREE_DIR" ]; then
-  for dir in "$WORKTREE_DIR"/*/ ; do
-    if [ -d "$dir" ]; then
-      worktrees+=("$(basename "$dir")")
-    fi
-  done
-fi
+declare -A worktree_paths=()
+while IFS= read -r line; do
+  path="${line%% *}"
+
+  case "$path" in
+    "$REPO_ROOT/$WORKTREE_DIR"/*)
+      display_name="$(display_name_for_path "$path")"
+      worktrees+=("$display_name")
+      worktree_paths["$display_name"]="$path"
+      ;;
+  esac
+done < <(git worktree list)
 
 if [ ${#worktrees[@]} -eq 0 ]; then
   echo "No worktrees found in $WORKTREE_DIR/"
@@ -38,11 +92,13 @@ if [ ${#worktrees[@]} -eq 0 ]; then
 fi
 
 # If argument provided, use it; otherwise let user choose
-if [ -n "$1" ]; then
+if [ -n "${1:-}" ]; then
   WORKTREE_NAME="$1"
-  
+
   # Verify it exists
-  if [ ! -d "$WORKTREE_DIR/$WORKTREE_NAME" ]; then
+  if [[ -n "${worktree_paths[$WORKTREE_NAME]:-}" ]]; then
+    WORKTREE_ABS_PATH="${worktree_paths[$WORKTREE_NAME]}"
+  elif ! WORKTREE_ABS_PATH="$(resolve_worktree_path "$WORKTREE_NAME")"; then
     echo "Error: Worktree '$WORKTREE_NAME' not found in $WORKTREE_DIR/"
     exit 1
   fi
@@ -55,9 +111,12 @@ else
     echo "Cancelled."
     exit 0
   fi
+
+  WORKTREE_ABS_PATH="${worktree_paths[$WORKTREE_NAME]}"
 fi
 
 WORKTREE_PATH="${WORKTREE_DIR}/${WORKTREE_NAME}"
+BRANCH_NAME="$(branch_name_for_path "$WORKTREE_ABS_PATH")"
 
 # Confirm removal
 if ! gum confirm "Remove worktree '$WORKTREE_NAME'?"; then
@@ -67,20 +126,25 @@ fi
 
 # Ask about branch deletion
 DELETE_BRANCH=false
-if git show-ref --verify --quiet "refs/heads/${WORKTREE_NAME}"; then
-  if gum confirm "Also delete branch '$WORKTREE_NAME'?"; then
+if [[ -n "$BRANCH_NAME" ]] && git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
+  if gum confirm "Also delete branch '$BRANCH_NAME'?"; then
     DELETE_BRANCH=true
   fi
 fi
 
 # Remove the worktree
 echo "Removing worktree: $WORKTREE_PATH"
-git worktree remove "$WORKTREE_PATH" --force
+git worktree remove "$WORKTREE_ABS_PATH" --force
 
 # Delete branch if requested
 if [ "$DELETE_BRANCH" = true ]; then
-  echo "Deleting branch: $WORKTREE_NAME"
-  git branch -D "$WORKTREE_NAME"
+  echo "Deleting branch: $BRANCH_NAME"
+  git branch -D "$BRANCH_NAME"
+
+  if [ "$DELETE_REMOTE" = true ] && git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+    echo "Deleting remote branch: origin/$BRANCH_NAME"
+    git push origin --delete "$BRANCH_NAME"
+  fi
 fi
 
 echo "✓ Worktree removed successfully!"

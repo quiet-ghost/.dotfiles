@@ -28,8 +28,16 @@ alias cat=bat
 alias lg='lazygit'
 alias ghd='gh dash'
 alias gpr='gh-pr-create-smart'
+alias ghi='gh-issue-create-smart'
 alias gl="git log --graph --topo-order --pretty='%w(100,0,6)%C(yellow)%h%C(bold)%C(black)%d %C(cyan)%ar %C(green)%an%n%C(bold)%C(white)%s %N' --abbrev-commit"
 alias gs="git status"
+alias wtd='gh pr diff'
+alias wtv='gh pr view'
+alias wtc='gh pr checks'
+alias wtp='gh pr review'
+alias wtiv='gh issue view'
+alias wtic='gh issue comment'
+alias wtdd='wd --delete-remote'
 
 #Eza
 alias l="eza -l --icons --git -a"
