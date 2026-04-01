@@ -1,39 +1,53 @@
 #!/bin/bash
 
-# Get the current active pane's tty
-PANE_TTY=$(tmux display-message -p '#{pane_tty}')
-TTY_NAME="${PANE_TTY##*/}"
+set -euo pipefail
 
-# Check all processes in the current pane for SSH
-SSH_FOUND=0
-SSH_HOST=""
+local_hostname=$(hostname -s)
+pane_pid=$(tmux display-message -p '#{pane_pid}')
 
-# Get all processes running in this tty
-for pid in $(ps -t "$TTY_NAME" -o pid= 2>/dev/null); do
-	if [[ -n "$pid" ]]; then
-		# Check if this is an ssh process
-		CMD=$(ps -p "$pid" -o comm= 2>/dev/null)
-		if [[ "$CMD" == "ssh" ]]; then
-			SSH_FOUND=1
-			# Try to get the hostname from the ssh command
-			ARGS=$(ps -p "$pid" -o args= 2>/dev/null)
-			# Extract hostname (handles user@host and just host)
-			SSH_HOST=$(echo "$ARGS" | sed -E 's/.*ssh[[:space:]]+([^@[:space:]]+@)?([^[:space:]]+).*/\2/' | cut -d. -f1 | cut -d: -f1)
-			break
-		fi
-	fi
-done
+ssh_pid=""
+ssh_command=""
 
-if [[ $SSH_FOUND -eq 1 ]]; then
-	if [[ -n "$SSH_HOST" ]] && [[ "$SSH_HOST" != "ssh" ]]; then
-		echo "#[fg=#eb6f92,bg=#191724]󰣀 ${SSH_HOST}"
-	else
-		echo "#[fg=#eb6f92,bg=#191724]󰣀 SSH"
-	fi
+find_ssh_process() {
+  local parent_pid=$1
+  local child_pid command_name
+
+  while read -r child_pid; do
+    [[ -n $child_pid ]] || continue
+
+    command_name=$(ps -p "$child_pid" -o comm= 2>/dev/null)
+    if [[ $command_name == "ssh" ]]; then
+      ssh_pid=$child_pid
+      ssh_command=$(ps -p "$child_pid" -o args= 2>/dev/null)
+      return 0
+    fi
+
+    find_ssh_process "$child_pid" && return 0
+  done < <(ps -o pid= --ppid "$parent_pid" 2>/dev/null)
+
+  return 1
+}
+
+find_ssh_process "$pane_pid" || true
+
+if [[ -n $ssh_pid ]]; then
+  ss_output=$(ss -Htnp 2>/dev/null | grep "pid=$ssh_pid," | grep ESTAB | head -n1 || true)
 else
-	echo "#[fg=#6c7086,bg=#191724] $(hostname -s)"
+  ss_output=""
 fi
-else
-	# Local session - show with blue computer icon
-	echo "#[fg=#6c7086,bg=#313244]█#[fg=default,bg=#6c7086] #[fg=#cdd6f4,bg=#1e1e2e] $(hostname -s) "
+
+if [[ -n $ss_output ]]; then
+  remote_hostname=$(sed -n 's/.*ssh[[:space:]]\+\([^[:space:]]*@\)\?\([^[:space:]-][^[:space:]]*\).*/\2/p' <<<"$ssh_command")
+
+  if [[ -z $remote_hostname ]]; then
+    remote_address=$(awk '{print $5}' <<<"$ss_output")
+    remote_hostname=${remote_address%:*}
+  fi
+
+  if [[ -n $remote_hostname ]]; then
+    printf '#[fg=#6c7086,bg=#191724]%s#[fg=#eb6f92,bg=#191724] -> %s' "$local_hostname" "$remote_hostname"
+    exit 0
+  fi
 fi
+
+printf '#[fg=#6c7086,bg=#191724]%s' "$local_hostname"

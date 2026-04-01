@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+slugify_short() {
+  local input="$1"
+  local cleaned normalized word slug=""
+  local count=0
+
+  cleaned="$(printf '%s' "$input" | sed -E 's/^\[[^]]+\]:?[[:space:]]*//; s/^(bug|feature|feat|fix|chore|docs|test|refactor):?[[:space:]]*//I')"
+  normalized="$(printf '%s' "$cleaned" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g; s/  */ /g; s/^ //; s/ $//')"
+
+  for word in $normalized; do
+    count=$((count + 1))
+    if [[ $count -gt 3 ]]; then
+      break
+    fi
+
+    if [[ -n "$slug" ]]; then
+      slug+="-"
+    fi
+
+    slug+="$word"
+  done
+
+  if [[ ${#slug} -gt 28 ]]; then
+    slug="${slug:0:28}"
+    slug="${slug%-}"
+  fi
+
+  printf '%s\n' "$slug"
+}
+
+prompt_branch_tail() {
+  local issue_number="$1"
+  local suggestion="$2"
+  local tail="${issue_number}-"
+
+  if command -v gum >/dev/null 2>&1; then
+    if [[ -n "$suggestion" ]]; then
+      tail+="$suggestion"
+    fi
+
+    if tail="$(gum input --header "Issue branch name" --placeholder "${issue_number}-name" --value "$tail" </dev/tty)"; then
+      :
+    fi
+  elif [[ -n "$suggestion" ]]; then
+    tail+="$suggestion"
+  fi
+
+  tail="$(printf '%s' "$tail" | tr '[:upper:]' '[:lower:]' | sed 's#^issue-##; s#[/ ]#-#g; s/[^a-z0-9-]//g; s/-\{2,\}/-/g; s/^-//; s/-$//')"
+
+  if [[ "$tail" != ${issue_number}-* ]]; then
+    tail="${issue_number}-${tail#${issue_number}}"
+    tail="$(printf '%s' "$tail" | sed 's/-\{2,\}/-/g; s/-$//')"
+  fi
+
+  printf '%s\n' "$tail"
+}
+
+select_issue() {
+  local selection
+
+  if ! command -v gum >/dev/null 2>&1; then
+    printf 'gum is required for interactive issue selection; pass an issue number instead\n' >&2
+    exit 1
+  fi
+
+  selection="$({
+    gh issue list --state open --limit 100 --json number,title,labels \
+      --template '{{range .}}{{printf "#%v\t%v" .number .title}}{{if .labels}}{{printf "\t"}}{{range $index, $label := .labels}}{{if $index}}, {{end}}{{printf "%s" $label.name}}{{end}}{{end}}{{printf "\n"}}{{end}}'
+  } | gum choose --header 'Select issue')"
+
+  if [[ -z "$selection" ]]; then
+    printf 'Cancelled\n' >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$selection"
+}
+
+get_issue_metadata() {
+  local issue_number="$1"
+  local repo owner name
+
+  repo="$(gh repo view --json owner,name --template '{{.owner.login}}{{"\n"}}{{.name}}')"
+  owner="$(printf '%s\n' "$repo" | sed -n '1p')"
+  name="$(printf '%s\n' "$repo" | sed -n '2p')"
+
+  gh api graphql \
+    -f query='query($owner:String!, $name:String!, $number:Int!) { repository(owner:$owner, name:$name) { id defaultBranchRef { target { ... on Commit { oid } } } issue(number:$number) { id title linkedBranches(first:10) { nodes { ref { name } } } } } }' \
+    -F owner="$owner" \
+    -F name="$name" \
+    -F number="$issue_number" \
+    --jq '{repoId: .data.repository.id, baseOid: .data.repository.defaultBranchRef.target.oid, issueId: .data.repository.issue.id, title: .data.repository.issue.title, linkedBranch: ((.data.repository.issue.linkedBranches.nodes | map(select(.ref != null and .ref.name != null)) | .[0].ref.name) // "")}'
+}
+
+create_linked_branch() {
+  local issue_id="$1"
+  local repo_id="$2"
+  local base_oid="$3"
+  local branch_name="$4"
+
+  gh api graphql \
+    -f query='mutation($issueId:ID!, $repositoryId:ID!, $oid:GitObjectID!, $name:String!) { createLinkedBranch(input: { issueId: $issueId, repositoryId: $repositoryId, oid: $oid, name: $name }) { linkedBranch { ref { name } } } }' \
+    -F issueId="$issue_id" \
+    -F repositoryId="$repo_id" \
+    -F oid="$base_oid" \
+    -F name="$branch_name" \
+    --jq '.data.createLinkedBranch.linkedBranch.ref.name'
+}
+
+ensure_local_branch() {
+  local branch_name="$1"
+
+  if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+    return 0
+  fi
+
+  if git ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+    printf 'Fetching linked branch %s from origin\n' "$branch_name"
+    git fetch origin "refs/heads/${branch_name}:refs/heads/${branch_name}"
+    return 0
+  fi
+
+  printf 'Linked branch %s was not found locally or on origin\n' "$branch_name" >&2
+  exit 1
+}
+
+main() {
+  local issue_ref issue_number issue_metadata issue_title linked_branch issue_slug branch_name branch_tail issue_id repo_id base_oid created_branch issue_selection issue_title_field
+
+  if ! command -v gh >/dev/null 2>&1; then
+    printf 'gh CLI is required for wti\n' >&2
+    exit 1
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    printf 'jq is required for wti\n' >&2
+    exit 1
+  fi
+
+  if ! command -v wt >/dev/null 2>&1; then
+    printf 'wt is required for wti\n' >&2
+    exit 1
+  fi
+
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    printf 'wti must run inside a git repository\n' >&2
+    exit 1
+  fi
+
+  if [[ $# -gt 0 ]]; then
+    issue_ref="$1"
+    issue_number="$(gh issue view "$issue_ref" --json number --template '{{.number}}')"
+    issue_title="$(gh issue view "$issue_ref" --json title --template '{{.title}}')"
+  else
+    issue_selection="$(select_issue)"
+    issue_ref="${issue_selection%%$'\t'*}"
+    issue_number="${issue_ref#\#}"
+    issue_title_field="${issue_selection#*$'\t'}"
+    issue_title="${issue_title_field%%$'\t'*}"
+  fi
+
+  issue_slug="$(slugify_short "$issue_title")"
+  branch_tail="$(prompt_branch_tail "$issue_number" "$issue_slug")"
+  branch_name="issue-${branch_tail}"
+
+  issue_metadata="$(get_issue_metadata "$issue_number")"
+  issue_id="$(printf '%s' "$issue_metadata" | jq -r '.issueId')"
+  repo_id="$(printf '%s' "$issue_metadata" | jq -r '.repoId')"
+  base_oid="$(printf '%s' "$issue_metadata" | jq -r '.baseOid')"
+  linked_branch="$(printf '%s' "$issue_metadata" | jq -r '.linkedBranch')"
+
+  if [[ -n "$linked_branch" ]]; then
+    branch_name="$linked_branch"
+    printf 'Using linked branch %s for issue #%s\n' "$branch_name" "$issue_number"
+    ensure_local_branch "$branch_name"
+  else
+    printf 'Creating linked branch %s for issue #%s\n' "$branch_name" "$issue_number"
+    created_branch="$(create_linked_branch "$issue_id" "$repo_id" "$base_oid" "$branch_name")"
+    if [[ -z "$created_branch" || "$created_branch" == "null" ]]; then
+      printf 'Failed to create linked branch for issue #%s\n' "$issue_number" >&2
+      exit 1
+    fi
+    ensure_local_branch "$branch_name"
+  fi
+
+  wt "$branch_name"
+}
+
+main "$@"

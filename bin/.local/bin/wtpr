@@ -1,0 +1,220 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+EXEC_COMMAND=""
+EXEC_WINDOW_NAME="review"
+PROMPT_FOR_BRANCH=true
+PR_REF=""
+
+usage() {
+  cat <<'EOF'
+Usage: wtpr [--exec <command>] [--window-name <name>] [pr-number-or-url]
+
+Create or switch to a PR review worktree.
+
+Options:
+  -x, --exec <command>        Run command in a tmux window after opening the worktree
+  -n, --window-name <name>    Tmux window name to use with --exec (default: review)
+      --no-prompt             Skip branch-name prompt and use the generated slug
+  -h, --help                  Show this help message
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -x|--exec)
+      if [[ $# -lt 2 ]]; then
+        printf 'Error: %s requires a command\n' "$1" >&2
+        exit 1
+      fi
+      EXEC_COMMAND="$2"
+      shift 2
+      ;;
+    -n|--window-name)
+      if [[ $# -lt 2 ]]; then
+        printf 'Error: %s requires a window name\n' "$1" >&2
+        exit 1
+      fi
+      EXEC_WINDOW_NAME="$2"
+      shift 2
+      ;;
+    --no-prompt)
+      PROMPT_FOR_BRANCH=false
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      printf 'Error: unknown option %s\n' "$1" >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$PR_REF" ]]; then
+        printf 'Error: expected only one pull request reference\n' >&2
+        exit 1
+      fi
+      PR_REF="$1"
+      shift
+      ;;
+  esac
+done
+
+slugify_short() {
+  local input="$1"
+  local cleaned normalized word slug=""
+  local count=0
+
+  cleaned="$(printf '%s' "$input" | sed -E 's/^\[[^]]+\]:?[[:space:]]*//; s/^(bug|feature|feat|fix|chore|docs|test|refactor):?[[:space:]]*//I')"
+  normalized="$(printf '%s' "$cleaned" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g; s/  */ /g; s/^ //; s/ $//')"
+
+  for word in $normalized; do
+    count=$((count + 1))
+    if [[ $count -gt 3 ]]; then
+      break
+    fi
+
+    if [[ -n "$slug" ]]; then
+      slug+="-"
+    fi
+
+    slug+="$word"
+  done
+
+  if [[ ${#slug} -gt 28 ]]; then
+    slug="${slug:0:28}"
+    slug="${slug%-}"
+  fi
+
+  printf '%s\n' "$slug"
+}
+
+prompt_branch_tail() {
+  local pr_number="$1"
+  local suggestion="$2"
+  local tail="${pr_number}-"
+
+  if command -v gum >/dev/null 2>&1; then
+    if [[ -n "$suggestion" ]]; then
+      tail+="$suggestion"
+    fi
+
+    if tail="$(gum input --header "PR branch name" --placeholder "${pr_number}-name" --value "$tail" </dev/tty)"; then
+      :
+    fi
+  elif [[ -n "$suggestion" ]]; then
+    tail+="$suggestion"
+  fi
+
+  tail="$(printf '%s' "$tail" | tr '[:upper:]' '[:lower:]' | sed 's#^pr-##; s#[/ ]#-#g; s/[^a-z0-9-]//g; s/-\{2,\}/-/g; s/^-//; s/-$//')"
+
+  if [[ "$tail" != ${pr_number}-* ]]; then
+    tail="${pr_number}-${tail#${pr_number}}"
+    tail="$(printf '%s' "$tail" | sed 's/-\{2,\}/-/g; s/-$//')"
+  fi
+
+  printf '%s\n' "$tail"
+}
+
+existing_review_branch() {
+  local pr_number="$1"
+
+  git for-each-ref --format='%(refname:short)' "refs/heads/pr-${pr_number}" "refs/heads/pr-${pr_number}-*" "refs/heads/pr/${pr_number}" "refs/heads/pr/${pr_number}-*" | sed -n '1p'
+}
+
+select_pr() {
+  local selection
+
+  if ! command -v gum >/dev/null 2>&1; then
+    printf 'gum is required for interactive PR selection; pass a PR number instead\n' >&2
+    exit 1
+  fi
+
+  selection="$({
+    gh pr list --state open --limit 100 --json number,title,author,isDraft \
+      --template '{{range .}}{{printf "#%v\t%s\t@%s" .number .title .author.login}}{{if .isDraft}}{{printf "\tdraft"}}{{end}}{{printf "\n"}}{{end}}'
+  } | gum choose --header 'Select pull request')"
+
+  if [[ -z "$selection" ]]; then
+    printf 'Cancelled\n' >&2
+    exit 1
+  fi
+
+  printf '%s\n' "$selection"
+}
+
+ensure_review_branch() {
+  local pr_number="$1"
+  local branch_name="$2"
+
+  if git show-ref --verify --quiet "refs/heads/${branch_name}"; then
+    return 0
+  fi
+
+  printf 'Fetching PR #%s into %s\n' "$pr_number" "$branch_name"
+  git fetch origin "pull/${pr_number}/head:refs/heads/${branch_name}"
+}
+
+main() {
+  local pr_ref pr_number pr_title pr_slug branch_name branch_tail existing_branch pr_selection pr_title_field
+
+  if ! command -v gh >/dev/null 2>&1; then
+    printf 'gh CLI is required for wtpr\n' >&2
+    exit 1
+  fi
+
+  if ! command -v wt >/dev/null 2>&1; then
+    printf 'wt is required for wtpr\n' >&2
+    exit 1
+  fi
+
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    printf 'wtpr must run inside a git repository\n' >&2
+    exit 1
+  fi
+
+  if [[ -n "$PR_REF" ]]; then
+    pr_ref="$PR_REF"
+    pr_number="$(gh pr view "$pr_ref" --json number --template '{{.number}}')"
+    pr_title="$(gh pr view "$pr_ref" --json title --template '{{.title}}')"
+  else
+    pr_selection="$(select_pr)"
+    pr_ref="${pr_selection%%$'\t'*}"
+    pr_number="${pr_ref#\#}"
+    pr_title_field="${pr_selection#*$'\t'}"
+    pr_title="${pr_title_field%%$'\t'*}"
+  fi
+
+  pr_slug="$(slugify_short "$pr_title")"
+  if [[ "$PROMPT_FOR_BRANCH" == true ]]; then
+    branch_tail="$(prompt_branch_tail "$pr_number" "$pr_slug")"
+  elif [[ -n "$pr_slug" ]]; then
+    branch_tail="${pr_number}-${pr_slug}"
+  else
+    branch_tail="$pr_number"
+  fi
+  branch_name="pr-${branch_tail}"
+
+  existing_branch="$(existing_review_branch "$pr_number")"
+
+  if [[ -n "$existing_branch" ]]; then
+    branch_name="$existing_branch"
+    printf 'Using existing review branch %s for PR #%s\n' "$branch_name" "$pr_number"
+  else
+    ensure_review_branch "$pr_number" "$branch_name"
+  fi
+
+  if [[ -n "$EXEC_COMMAND" ]]; then
+    wt --window-name "$EXEC_WINDOW_NAME" --exec "$EXEC_COMMAND" "$branch_name"
+  else
+    wt "$branch_name"
+  fi
+}
+
+main "$@"

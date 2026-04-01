@@ -1,28 +1,46 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+sanitize_name() {
+	printf '%s' "$1" | tr '/ ' '--' | tr -cd '[:alnum:]-_'
+}
 
 get_session_name() {
 	local current_path="$1"
 	local repo_root
+	local common_dir
+	local common_root
+	local repo_name
+	local worktree_name
+
 	repo_root=$(cd "$current_path" && git rev-parse --show-toplevel 2>/dev/null)
 	if [ -z "$repo_root" ]; then
-		echo "opencode-$(basename "$current_path" | tr " " "-" | tr -cd "[:alnum:]-_")"
+		echo "opencode-$(sanitize_name "$(basename "$current_path")")"
 		return
 	fi
-	local repo_name
-	repo_name=$(basename "$repo_root" | tr " " "-" | tr -cd "[:alnum:]-_")
-	if [[ "$current_path" == *"/.worktree/"* ]]; then
-		local worktree_path
-		worktree_path=$(echo "$current_path" | sed 's|.*/.worktree/\([^/]*\).*|\1|')
-		if [ -n "$worktree_path" ]; then
-			local clean_branch
-			clean_branch=$(echo "$worktree_path" | tr " " "-" | tr -cd "[:alnum:]-_")
-			echo "opencode-${repo_name}-${clean_branch}"
-		else
-			echo "opencode-${repo_name}"
-		fi
+
+	common_dir=$(cd "$current_path" && git rev-parse --git-common-dir 2>/dev/null || true)
+	if [ -n "$common_dir" ]; then
+		common_root=$(dirname "$(cd "$current_path" && realpath "$common_dir")")
 	else
-		echo "opencode-${repo_name}"
+		common_root="$repo_root"
 	fi
+
+	repo_name=$(sanitize_name "$(basename "$common_root")")
+
+	case "$repo_root" in
+		"$common_root/.worktrees/"*)
+			worktree_name="${repo_root#"$common_root/.worktrees/"}"
+			worktree_name=$(sanitize_name "$worktree_name")
+			if [ -n "$worktree_name" ]; then
+				echo "opencode-${repo_name}-${worktree_name}"
+			else
+				echo "opencode-${repo_name}"
+			fi
+			;;
+		*)
+			echo "opencode-${repo_name}"
+			;;
+	esac
 }
 current_path="${1:-$PWD}"
 session_name=$(get_session_name "$current_path")
