@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Name=Timer
+Comment=Start a countdown timer
+Exec=/home/ghost/.local/bin/omarchy-timer prompt
+Terminal=false
+Type=Application
+Icon=alarm
+Categories=Utility;
+Keywords=timer;countdown;alarm;pomodoro;
+StartupNotify=true

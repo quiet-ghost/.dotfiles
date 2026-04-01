@@ -25,6 +25,26 @@ log_success() { echo -e "${GREEN}OK${NC} $1"; }
 log_warning() { echo -e "${YELLOW}WARN${NC} $1"; }
 log_error() { echo -e "${RED}ERROR${NC} $1"; }
 
+auto_allow_direnv() {
+  local envrc_path="$TARGET_DIR/.envrc"
+
+  if [[ ! -f "$envrc_path" ]]; then
+    return 0
+  fi
+
+  if ! command -v direnv >/dev/null 2>&1; then
+    log_info "direnv not installed; run 'direnv allow' later if you add it"
+    return 0
+  fi
+
+  if direnv allow "$envrc_path" >/dev/null 2>&1; then
+    log_success "Allowed direnv for ${TARGET_DIR#$HOME/}"
+  else
+    log_warning "Could not run 'direnv allow $envrc_path' automatically"
+    log_info "Run: direnv allow $envrc_path"
+  fi
+}
+
 print_header() {
   local message="$1"
 
@@ -730,6 +750,7 @@ main() {
 
   print_header "Done"
   log_success "Project scaffolded at $TARGET_DIR"
+  auto_allow_direnv
   if modules_require_model; then
     log_info "Configured model: $TEMPLATE_MODEL"
     log_info "Remember to add secret: $TEMPLATE_API_KEY_ENV"

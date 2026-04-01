@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
 
-# Check for active SSH client connections (not ssh-agent or sshd)
-ssh_process=$(pgrep -a -u $USER ssh | grep -v "ssh-agent" | grep "ssh " | head -n1)
+set -euo pipefail
 
-if [ -n "$ssh_process" ]; then
-	# Extract the hostname from the SSH command
-	# Format is typically: "12345 ssh user@host" or "12345 ssh host"
-	hostname=$(echo "$ssh_process" | sed -n 's/.*ssh[[:space:]]\+\([^[:space:]]*@\)\?\([^[:space:]]\+\).*/\2/p')
+ssh_process=$(pgrep -a -u "$USER" ssh | grep -v "ssh-agent" | grep -E "ssh( |$)" | head -n1 || true)
 
-	if [ -n "$hostname" ]; then
-		echo "{\"text\":\"  - $hostname \",\"class\":\"ssh-active\",\"tooltip\":\"SSH: $hostname\"}"
+[[ -n "$ssh_process" ]] || exit 0
 
-	else
-		echo "{\"text\":\"  -   \",\"class\":\"ssh-inactive\",\"tooltip\":\"Local session\"}"
-	fi
-else
-	# No active SSH connection
-	echo "{\"text\":\"  -   \",\"class\":\"ssh-inactive\",\"tooltip\":\"Local session\"}"
+ssh_pid=${ssh_process%% *}
+ssh_command=${ssh_process#* }
+
+ss_output=$(ss -Htnp 2>/dev/null | grep "pid=$ssh_pid," | grep ESTAB | head -n1 || true)
+
+[[ -n "$ss_output" ]] || exit 0
+
+hostname=$(sed -n 's/.*ssh[[:space:]]\+\([^[:space:]]*@\)\?\([^[:space:]-][^[:space:]]*\).*/\2/p' <<<"$ssh_command")
+
+if [[ -z "$hostname" ]]; then
+  remote_address=$(awk '{print $5}' <<<"$ss_output")
+  hostname=${remote_address%:*}
 fi
+
+[[ -n "$hostname" ]] || exit 0
+
+printf '{"text":"ssh: %s","class":"ssh-active","tooltip":"SSH: %s"}\n' "$hostname" "$hostname"

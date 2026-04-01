@@ -1,13 +1,114 @@
 #!/usr/bin/env bash
 # Git worktree manager - Create or switch to worktrees with tmux integration
-# Usage: wt [branch-name]
+# Usage: wt [--exec <command>] [--window-name <name>] [branch-name]
 
-set -e
+set -euo pipefail
 
 WORKTREE_DIR=".worktrees"
+EXEC_COMMAND=""
+EXEC_WINDOW_NAME="task"
+
+usage() {
+  cat <<'EOF'
+Usage: wt [--exec <command>] [--window-name <name>] [branch-name]
+
+Create or switch to a git worktree.
+
+Options:
+  -x, --exec <command>        Run command in a tmux window for the worktree
+  -n, --window-name <name>    Tmux window name to use with --exec (default: task)
+  -h, --help                  Show this help message
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -x|--exec)
+      if [[ $# -lt 2 ]]; then
+        printf 'Error: %s requires a command\n' "$1" >&2
+        exit 1
+      fi
+      EXEC_COMMAND="$2"
+      shift 2
+      ;;
+    -n|--window-name)
+      if [[ $# -lt 2 ]]; then
+        printf 'Error: %s requires a window name\n' "$1" >&2
+        exit 1
+      fi
+      EXEC_WINDOW_NAME="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      printf 'Error: unknown option %s\n' "$1" >&2
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $# -gt 1 ]]; then
+  printf 'Error: expected at most one branch name\n' >&2
+  exit 1
+fi
+
+session_name_for_branch() {
+  local branch_name="$1"
+
+  printf '%s\n' "${branch_name//\//-}"
+}
+
+worktree_path_for_branch() {
+  local branch_name="$1"
+
+  case "$branch_name" in
+    issue/*)
+      printf '%s/issue/%s\n' "$WORKTREE_DIR" "${branch_name#issue/}"
+      ;;
+    pr/*)
+      printf '%s/pr/%s\n' "$WORKTREE_DIR" "${branch_name#pr/}"
+      ;;
+    issue-*)
+      printf '%s/issue/%s\n' "$WORKTREE_DIR" "${branch_name#issue-}"
+      ;;
+    pr-*)
+      printf '%s/pr/%s\n' "$WORKTREE_DIR" "${branch_name#pr-}"
+      ;;
+    *)
+      printf '%s/%s\n' "$WORKTREE_DIR" "$branch_name"
+      ;;
+  esac
+}
+
+display_name_for_branch() {
+  local branch_name="$1"
+
+  case "$branch_name" in
+    issue-*)
+      printf 'issue/%s\n' "${branch_name#issue-}"
+      ;;
+    pr-*)
+      printf 'pr/%s\n' "${branch_name#pr-}"
+      ;;
+    *)
+      printf '%s\n' "$branch_name"
+      ;;
+  esac
+}
 
 link_or_stub_env_file() {
   local file_name="$1"
+  local create_empty="${2:-true}"
   local source_path="$REPO_ROOT/$file_name"
   local target_path="$REPO_ROOT/$WORKTREE_PATH/$file_name"
   local example_path="$REPO_ROOT/${file_name}.example"
@@ -28,13 +129,33 @@ link_or_stub_env_file() {
     return 0
   fi
 
-  : > "$target_path"
-  echo "Created empty placeholder $file_name"
+  if [[ "$create_empty" == "true" ]]; then
+    : > "$target_path"
+    echo "Created empty placeholder $file_name"
+  fi
+}
+
+allow_worktree_direnv() {
+  local envrc_path="$WORKTREE_ABS_PATH/.envrc"
+
+  if ! command -v direnv >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ ! -e "$envrc_path" ] && [ ! -L "$envrc_path" ]; then
+    return 0
+  fi
+
+  if direnv allow "$envrc_path" >/dev/null 2>&1; then
+    echo "Allowed direnv for worktree"
+  fi
 }
 
 setup_worktree_env_files() {
   link_or_stub_env_file ".env"
   link_or_stub_env_file ".dev.vars"
+  link_or_stub_env_file ".envrc" false
+  allow_worktree_direnv
 }
 
 # Check if we're in a git repository
@@ -77,9 +198,9 @@ else
 fi
 
 # If no argument, show current worktrees and available branches
-if [ -z "$1" ]; then
+if [ -z "${1:-}" ]; then
   echo "=== Current Worktrees ==="
-  if [ -d "$WORKTREE_DIR" ] && [ "$(ls -A $WORKTREE_DIR 2>/dev/null)" ]; then
+  if [ -d "$WORKTREE_DIR" ] && [ "$(ls -A "$WORKTREE_DIR" 2>/dev/null)" ]; then
     git worktree list | grep "$WORKTREE_DIR" || echo "  No worktrees found"
   else
     echo "  No worktrees found"
@@ -90,42 +211,87 @@ if [ -z "$1" ]; then
   git branch -a | grep -v HEAD | sed 's/^../  /'
   
   echo ""
-  echo "Usage: wt <branch-name>"
+  echo "Usage: wt [--exec <command>] [--window-name <name>] <branch-name>"
   exit 0
 fi
 
 BRANCH_NAME="$1"
-WORKTREE_PATH="${WORKTREE_DIR}/${BRANCH_NAME}"
+WORKTREE_PATH="$(worktree_path_for_branch "$BRANCH_NAME")"
+WORKTREE_ABS_PATH="${REPO_ROOT}/${WORKTREE_PATH}"
+WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
 
-# Function to create/switch to tmux session
-switch_to_tmux_session() {
+window_name_exists() {
+  local session_name="$1"
+  local window_name="$2"
+
+  tmux list-windows -t "$session_name" -F '#{window_name}' 2>/dev/null | grep -Fxq "$window_name"
+}
+
+unique_window_name() {
+  local session_name="$1"
+  local base_name="$2"
+  local candidate="$base_name"
+  local suffix=2
+
+  while window_name_exists "$session_name" "$candidate"; do
+    candidate="${base_name}-${suffix}"
+    suffix=$((suffix + 1))
+  done
+
+  printf '%s\n' "$candidate"
+}
+
+ensure_tmux_session() {
   local session_name="$1"
   local worktree_path="$2"
-  
-  # Check if session already exists
+
   if tmux has-session -t "$session_name" 2>/dev/null; then
-    echo "Tmux session '$session_name' already exists, switching to it..."
-    tmux switch-client -t "$session_name"
+    echo "Tmux session '$session_name' already exists."
   else
     echo "Creating new tmux session: $session_name"
-    # Create new session in background, starting in the worktree directory
     tmux new-session -d -s "$session_name" -c "$worktree_path"
-    # Switch to the new session
-    tmux switch-client -t "$session_name"
   fi
+}
+
+switch_to_tmux_session() {
+  local session_name="$1"
+
+  tmux switch-client -t "$session_name"
+}
+
+run_command_in_tmux_session() {
+  local session_name="$1"
+  local worktree_path="$2"
+  local command="$3"
+  local requested_window_name="$4"
+  local window_name
+  local window_index
+
+  window_name="$(unique_window_name "$session_name" "$requested_window_name")"
+  echo "Opening tmux window '$window_name' in session '$session_name'"
+  window_index="$(tmux new-window -P -F '#{window_index}' -d -t "$session_name:" -n "$window_name" -c "$worktree_path" "$command")"
+  tmux select-window -t "${session_name}:${window_index}"
 }
 
 # Check if worktree already exists
 if [ -d "$WORKTREE_PATH" ]; then
-  echo "Worktree already exists at: $WORKTREE_PATH"
+  echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
   setup_worktree_env_files
   
   # If in tmux, create/switch to session
   if [ "$IN_TMUX" = true ]; then
-    SESSION_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
-    switch_to_tmux_session "$SESSION_NAME" "$REPO_ROOT/$WORKTREE_PATH"
+    SESSION_NAME="$(session_name_for_branch "$BRANCH_NAME")"
+    ensure_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH"
+    if [[ -n "$EXEC_COMMAND" ]]; then
+      run_command_in_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH" "$EXEC_COMMAND" "$EXEC_WINDOW_NAME"
+    fi
+    switch_to_tmux_session "$SESSION_NAME"
   else
-    echo "cd $WORKTREE_PATH"
+    if [[ -n "$EXEC_COMMAND" ]]; then
+      printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
+    else
+      echo "cd $WORKTREE_PATH"
+    fi
   fi
   exit 0
 fi
@@ -133,6 +299,7 @@ fi
 # Check if branch exists
 if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
   echo "Creating worktree from existing branch: $BRANCH_NAME"
+  mkdir -p "$(dirname "$WORKTREE_ABS_PATH")"
   git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
 else
   echo "Branch '$BRANCH_NAME' does not exist."
@@ -176,8 +343,9 @@ else
   
   # Remove " (current)" suffix if present
   selected_base=$(echo "$selected_base" | sed 's/ (current)$//')
-  
+
   echo "Creating new branch '$BRANCH_NAME' from '$selected_base'..."
+  mkdir -p "$(dirname "$WORKTREE_ABS_PATH")"
   git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "$selected_base"
 fi
 
@@ -194,8 +362,16 @@ echo "✓ Worktree created successfully!"
 
 # If in tmux, create new session and switch to it
 if [ "$IN_TMUX" = true ]; then
-  SESSION_NAME="${PROJECT_NAME}-${BRANCH_NAME}"
-  switch_to_tmux_session "$SESSION_NAME" "$REPO_ROOT/$WORKTREE_PATH"
+  SESSION_NAME="$(session_name_for_branch "$BRANCH_NAME")"
+  ensure_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH"
+  if [[ -n "$EXEC_COMMAND" ]]; then
+    run_command_in_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH" "$EXEC_COMMAND" "$EXEC_WINDOW_NAME"
+  fi
+  switch_to_tmux_session "$SESSION_NAME"
 else
-  echo "cd $WORKTREE_PATH"
+  if [[ -n "$EXEC_COMMAND" ]]; then
+    printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
+  else
+    echo "cd $WORKTREE_PATH"
+  fi
 fi

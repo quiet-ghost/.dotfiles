@@ -1,0 +1,267 @@
+#!/bin/bash
+
+set -euo pipefail
+
+STATE_DIR="$HOME/.cache/omarchy-timer"
+STATE_FILE="$STATE_DIR/state"
+SIGNAL=11
+UNIT="omarchy-timer"
+ALARM_UNIT="omarchy-timer-alarm"
+CONFIG_FILE="$HOME/.config/omarchy/timer.conf"
+
+TIMER_ALARM_SOUND="alarm-clock-elapsed"
+TIMER_ALARM_REPEAT=4
+TIMER_ALARM_INTERVAL=1
+TIMER_ALARM_PLAY_TIMEOUT=2
+TIMER_NOTIFICATION_TIMEOUT=10000
+
+if [[ -f $CONFIG_FILE ]]; then
+  # shellcheck disable=SC1090
+  source "$CONFIG_FILE"
+fi
+
+signal_waybar() {
+  pkill -RTMIN+$SIGNAL waybar 2>/dev/null || true
+}
+
+ensure_state_dir() {
+  mkdir -p "$STATE_DIR"
+}
+
+clear_state() {
+  rm -f "$STATE_FILE"
+}
+
+read_state() {
+  [[ -f "$STATE_FILE" ]] || return 1
+
+  mapfile -t state_lines < "$STATE_FILE"
+  (( ${#state_lines[@]} >= 2 )) || return 1
+
+  end_epoch=${state_lines[0]}
+  label=${state_lines[1]}
+}
+
+format_remaining() {
+  local total=$1
+  local hours minutes seconds
+
+  (( hours = total / 3600 ))
+  (( minutes = (total % 3600) / 60 ))
+  (( seconds = total % 60 ))
+
+  if (( hours > 0 )); then
+    printf '%d:%02d:%02d' "$hours" "$minutes" "$seconds"
+  else
+    printf '%02d:%02d' "$minutes" "$seconds"
+  fi
+}
+
+normalize_label() {
+  local total=$1
+  local hours minutes seconds
+
+  (( hours = total / 3600 ))
+  (( minutes = (total % 3600) / 60 ))
+  (( seconds = total % 60 ))
+
+  if (( hours > 0 && minutes > 0 && seconds == 0 )); then
+    printf '%dh %dm' "$hours" "$minutes"
+  elif (( hours > 0 && minutes == 0 && seconds == 0 )); then
+    printf '%dh' "$hours"
+  elif (( hours == 0 && minutes > 0 && seconds == 0 )); then
+    printf '%dm' "$minutes"
+  elif (( hours == 0 && minutes == 0 )); then
+    printf '%ds' "$seconds"
+  else
+    printf '%ds' "$total"
+  fi
+}
+
+parse_duration() {
+  local input=$1
+  input=${input,,}
+  input=${input// /}
+
+  if [[ $input =~ ^[0-9]+$ ]]; then
+    duration_seconds=$(( 10#$input * 60 ))
+    duration_label="${input}m"
+    return 0
+  fi
+
+  if [[ $input =~ ^([0-9]+)(s|m|h)$ ]]; then
+    local value=${BASH_REMATCH[1]}
+    local unit=${BASH_REMATCH[2]}
+
+    case $unit in
+      s) duration_seconds=$(( 10#$value )) ;;
+      m) duration_seconds=$(( 10#$value * 60 )) ;;
+      h) duration_seconds=$(( 10#$value * 3600 )) ;;
+    esac
+
+    duration_label="$(normalize_label "$duration_seconds")"
+    return 0
+  fi
+
+  return 1
+}
+
+prompt() {
+  exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.terminal --title=Timer -e bash -lc 'omarchy-timer prompt-ui; status=$?; if (( status != 130 )); then omarchy-show-done; fi; exit $status'
+}
+
+show_timer_banner() {
+  clear
+  echo -e "\033[32m"
+  cat <<'EOF'
+████████╗██╗███╗   ███╗███████╗██████╗
+╚══██╔══╝██║████╗ ████║██╔════╝██╔══██╗
+   ██║   ██║██╔████╔██║█████╗  ██████╔╝
+   ██║   ██║██║╚██╔╝██║██╔══╝  ██╔══██╗
+   ██║   ██║██║ ╚═╝ ██║███████╗██║  ██║
+   ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝
+EOF
+  echo -e "\033[0m"
+  echo
+}
+
+prompt_ui() {
+  local input
+
+  show_timer_banner
+
+  input=$(gum input \
+    --header="Set a timer" \
+    --prompt="Duration> " \
+    --placeholder="10, 25m, 1h, 90s" \
+    --value="10") || exit 130
+
+  if [[ -z ${input// /} ]]; then
+    exit 130
+  fi
+
+  "$0" start "$input"
+  echo
+  printf 'Started timer for %s\n' "$duration_label"
+}
+
+start_timer() {
+  local input=$1
+  local now end command
+
+  if ! parse_duration "$input"; then
+    notify-send -u normal "Invalid timer" "Use minutes by default, or specify 10m, 1h, or 90s."
+    exit 1
+  fi
+
+  ensure_state_dir
+  systemctl --user stop "$UNIT".service >/dev/null 2>&1 || true
+
+  now=$(date +%s)
+  end=$(( now + duration_seconds ))
+  printf '%s\n%s\n' "$end" "$duration_label" > "$STATE_FILE"
+
+  printf -v command '%q finish %q' "$0" "$duration_label"
+  systemd-run --user --unit="$UNIT" --collect /bin/bash -lc "sleep $duration_seconds; $command" >/dev/null
+
+  notify-send -u low -t 3000 "Timer started" "$duration_label"
+  signal_waybar
+}
+
+finish_timer() {
+  local finished_label=${1:-}
+
+  if [[ -z $finished_label ]] && read_state; then
+    finished_label=$label
+  fi
+
+  clear_state
+  notify-send -u critical -t "$TIMER_NOTIFICATION_TIMEOUT" "Timer done" "${finished_label:-Your timer} finished."
+  systemd-run --user --unit="$ALARM_UNIT" --collect "$0" alarm >/dev/null 2>&1 || true
+  signal_waybar
+}
+
+cancel_timer() {
+  local should_notify=0
+
+  if [[ -f "$STATE_FILE" ]]; then
+    should_notify=1
+  fi
+
+  systemctl --user stop "$UNIT".service >/dev/null 2>&1 || true
+  systemctl --user stop "$ALARM_UNIT".service >/dev/null 2>&1 || true
+  clear_state
+  signal_waybar
+
+  if (( should_notify == 1 )); then
+    notify-send -u low -t 2000 "Timer canceled"
+  fi
+}
+
+status() {
+  local now remaining text tooltip
+
+  if ! read_state; then
+    clear_state
+    exit 0
+  fi
+
+  now=$(date +%s)
+  remaining=$(( end_epoch - now ))
+
+  if (( remaining <= 0 )); then
+    clear_state
+    exit 0
+  fi
+
+  text="󰔛 $(format_remaining "$remaining")"
+  tooltip="$label remaining\nLeft click: set timer\nRight click: cancel timer"
+  jq -cn --arg text "$text" --arg tooltip "$tooltip" --arg class "active" '{text:$text,tooltip:$tooltip,class:$class}'
+}
+
+play_alarm_sound() {
+  local i
+
+  for (( i = 0; i < TIMER_ALARM_REPEAT; i++ )); do
+    if [[ -f $TIMER_ALARM_SOUND ]]; then
+      timeout "$TIMER_ALARM_PLAY_TIMEOUT" pw-play "$TIMER_ALARM_SOUND" >/dev/null 2>&1 || \
+        timeout "$TIMER_ALARM_PLAY_TIMEOUT" paplay "$TIMER_ALARM_SOUND" >/dev/null 2>&1 || true
+    else
+      timeout "$TIMER_ALARM_PLAY_TIMEOUT" canberra-gtk-play -i "$TIMER_ALARM_SOUND" >/dev/null 2>&1 || true
+    fi
+
+    if (( i + 1 < TIMER_ALARM_REPEAT )); then
+      sleep "$TIMER_ALARM_INTERVAL"
+    fi
+  done
+}
+
+case ${1:-} in
+  prompt)
+    prompt
+    ;;
+  prompt-ui)
+    prompt_ui
+    ;;
+  alarm)
+    play_alarm_sound
+    ;;
+  start)
+    shift
+    start_timer "${1:-}"
+    ;;
+  finish)
+    shift
+    finish_timer "${1:-}"
+    ;;
+  cancel)
+    cancel_timer
+    ;;
+  status)
+    status
+    ;;
+  *)
+    printf 'Usage: %s {prompt|start <duration>|finish [label]|cancel|status}\n' "$0" >&2
+    exit 1
+    ;;
+esac

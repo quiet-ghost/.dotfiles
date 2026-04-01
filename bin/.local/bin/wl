@@ -2,6 +2,8 @@
 # Git worktree lister - Show all worktrees with formatting
 # Usage: wl
 
+set -euo pipefail
+
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo "Error: Not in a git repository"
@@ -12,22 +14,20 @@ fi
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
-# Get current worktree path
-CURRENT_PATH=$(pwd)
-
 echo "=== Git Worktrees ==="
 echo ""
 
 # Run git worktree list and format it
 git worktree list | while IFS= read -r line; do
-  # Extract path (first field)
-  path=$(echo "$line" | awk '{print $1}')
-  
-  # Check if this is the current worktree
-  if [ "$path" = "$CURRENT_PATH" ] || [ "$path" = "$REPO_ROOT" ]; then
-    echo "→ $line"  # Mark current with arrow
+  path="${line%% *}"
+
+  if [ "$path" = "$REPO_ROOT" ]; then
+    printf '→ main\t%s\n' "$line"
+  elif [[ "$path" == "$REPO_ROOT/.worktrees/"* ]]; then
+    name="${path#"$REPO_ROOT/.worktrees/"}"
+    printf '  %s\t%s\n' "$name" "$line"
   else
-    echo "  $line"
+    printf '  %s\n' "$line"
   fi
 done
 
