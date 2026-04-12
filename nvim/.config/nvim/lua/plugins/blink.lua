@@ -23,7 +23,7 @@ return {
         -- Essential functions
         ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
         ["<C-d>"] = { "scroll_documentation_down", "fallback" },
-        ["<C-f>"] = { "scroll_documentation_up", "fallback" },
+        ["<C-u>"] = { "scroll_documentation_up", "fallback" },
 
         -- DISABLE Enter - only Alt+Enter works
         ["<CR>"] = { "fallback" },
