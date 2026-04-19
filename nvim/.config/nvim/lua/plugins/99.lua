@@ -44,7 +44,7 @@ return {
     local cwd = vim.uv.cwd()
     local basename = vim.fs.basename(cwd)
     _99.setup({
-      model = "opencode/gpt-5.3-codex-spark",
+      model = "openai/gpt-5.3-codex-spark",
       logger = {
         level = _99.DEBUG,
         path = "/tmp/" .. basename .. ".99.debug",
