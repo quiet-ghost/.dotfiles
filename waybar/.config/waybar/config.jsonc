@@ -80,21 +80,10 @@
   },
   "clock": {
     "format": "{:%A %d - %I:%M }",
-    "format-alt": "{:%m.%d - %H:%M}",
-    "tooltip": true,
+    // "format-alt": "{:%m.%d - %H:%M}",
+    "tooltip": false,
     "tooltip-format": "<tt><big>{calendar}</big></tt>",
-    "calendar": {
-      "mode": "month",
-      "mode-mon-col": 3,
-      "on-scroll": 1,
-      "format": {
-        "months": "<span color='#ffead3'><b>{}</b></span>",
-        "days": "<span color='#ecc6d9'><b>{}</b></span>",
-        "weeks": "<span color='#99ffdd'><b>W{}</b></span>",
-        "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
-        "today": "<span color='#ff6699'><b><u>{}</u></b></span>",
-      },
-    },
+    "on-click": "pkill -x waycal || waycal",
     "on-click-right": "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select",
   },
   "custom/timer": {
