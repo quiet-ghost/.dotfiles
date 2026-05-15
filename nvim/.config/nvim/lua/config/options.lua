@@ -80,3 +80,9 @@ local function setup_mise_env()
 end
 
 setup_mise_env()
+
+if vim.fn.has("nvim-0.12") == 1 then
+  require("vim._core.ui2").enable({
+    enable = true,
+  })
+end
