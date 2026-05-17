@@ -11,21 +11,22 @@ local config = {
   default_compiler = "g++",
   build_dir = "build",
   pane_sizes = {
-    cmake = 40, -- CMake projects
+    cmake = 40, -- CMake terminal projects
+    gui = 20, -- GUI apps open their own windows
     make = 35, -- Make projects
     single_file = 45, -- Single file compilation
   },
   title_formats = {
     cmake = "cmake: %s",
+    gui = "gui: %s",
     make = "make: %s",
     single_file = "cpp: %s",
   },
 }
 
-local function ensure_compile_commands_link(build_dir)
-  local cwd = vim.fn.getcwd()
-  local build_compile_commands = cwd .. "/" .. build_dir .. "/compile_commands.json"
-  local root_compile_commands = cwd .. "/compile_commands.json"
+local function ensure_compile_commands_link(root, build_dir)
+  local build_compile_commands = root .. "/" .. build_dir .. "/compile_commands.json"
+  local root_compile_commands = root .. "/compile_commands.json"
 
   if vim.fn.filereadable(build_compile_commands) ~= 1 then
     return
@@ -171,8 +172,8 @@ local function detect_compiler()
 end
 
 -- Detect build directory in current working directory
-local function detect_build_dir()
-  local cwd = vim.fn.getcwd()
+local function detect_build_dir(root)
+  local cwd = root or vim.fn.getcwd()
   local candidates = {
     "build",
     "cmake-build-debug",
@@ -191,9 +192,53 @@ local function detect_build_dir()
   return "build"
 end
 
+local function find_project_root()
+  local dir = vim.fn.expand("%:p:h")
+  if dir == "" then
+    dir = vim.fn.getcwd()
+  end
+
+  while dir and dir ~= "" and dir ~= "/" do
+    for _, marker in ipairs({ "CMakeLists.txt", "Makefile", "makefile", "meson.build" }) do
+      if vim.fn.filereadable(dir .. "/" .. marker) == 1 then
+        return dir
+      end
+    end
+
+    local pro_files = vim.fn.glob(dir .. "/*.pro", false, true)
+    if #pro_files > 0 then
+      return dir
+    end
+
+    local parent = vim.fn.fnamemodify(dir, ":h")
+    if parent == dir then
+      break
+    end
+    dir = parent
+  end
+
+  return vim.fn.getcwd()
+end
+
+local function is_gui_cmake_project(root)
+  local cmake_path = root .. "/CMakeLists.txt"
+  local ok, lines = pcall(vim.fn.readfile, cmake_path)
+  if not ok then
+    return false
+  end
+
+  local content = table.concat(lines, "\n")
+  return content:match("Qt6::") ~= nil
+    or content:match("qt_add_") ~= nil
+    or content:match("find_package%(%s*Qt6") ~= nil
+    or content:match("SFML::") ~= nil
+    or content:match("gtkmm") ~= nil
+    or content:match("wxWidgets") ~= nil
+end
+
 -- Detect project type and build system
-local function detect_project_type()
-  local cwd = vim.fn.getcwd()
+local function detect_project_type(root)
+  local cwd = root or find_project_root()
 
   -- Check for CMake
   if vim.fn.filereadable(cwd .. "/CMakeLists.txt") == 1 then
@@ -210,20 +255,19 @@ local function detect_project_type()
     return "meson"
   end
 
-  -- Check for Qt project
+  -- Check for legacy qmake Qt project
   local pro_files = vim.fn.glob(cwd .. "/*.pro", false, true)
   if #pro_files > 0 then
-    return "qt"
+    return "qmake"
   end
 
   return "single_file"
 end
 
 -- Find executable in CMake build
-local function find_cmake_executable()
-  local cwd = vim.fn.getcwd()
-  local build_dir = cwd .. "/" .. config.build_dir
-  local project_name = vim.fn.fnamemodify(cwd, ":t")
+local function find_cmake_executable(root, build_dir_name)
+  local build_dir = root .. "/" .. build_dir_name
+  local project_name = vim.fn.fnamemodify(root, ":t")
   
   -- Priority 1: Try project name directly in build root
   local main_exe = build_dir .. "/" .. project_name
@@ -232,7 +276,7 @@ local function find_cmake_executable()
   end
   
   -- Priority 2: Find in root of build dir ONLY (exclude subdirs like CMakeFiles/, tests/)
-  local handle = io.popen("find " .. build_dir .. " -maxdepth 1 -type f -executable 2>/dev/null")
+  local handle = io.popen("find " .. shell_quote(build_dir) .. " -maxdepth 1 -type f -executable 2>/dev/null")
   if handle then
     local result = handle:read("*a")
     handle:close()
@@ -248,7 +292,7 @@ local function find_cmake_executable()
   end
   
   -- Priority 3: Search all executables but filter intelligently
-  handle = io.popen("find " .. build_dir .. " -type f -executable 2>/dev/null")
+  handle = io.popen("find " .. shell_quote(build_dir) .. " -type f -executable 2>/dev/null")
   if handle then
     local result = handle:read("*a")
     handle:close()
@@ -289,8 +333,8 @@ local function get_current_file_info()
 end
 
 -- Create tmux pane and run command
-local function run_in_tmux(command, pane_size, title)
-  local cwd = vim.fn.getcwd()
+local function run_in_tmux(command, pane_size, title, cwd)
+  cwd = cwd or vim.fn.getcwd()
   local escaped_cwd = cwd:gsub("'", "'\\''")
   
   local tmux_cmd = string.format(
@@ -305,24 +349,25 @@ local function run_in_tmux(command, pane_size, title)
 end
 
 -- CMake project runner
-local function run_cmake()
-  local build_dir = detect_build_dir()
+local function run_cmake(root)
+  local build_dir = detect_build_dir(root)
+  local build_path = root .. "/" .. build_dir
 
   -- Create build directory if it doesn't exist
-  vim.fn.system("mkdir -p " .. build_dir)
+  vim.fn.mkdir(build_path, "p")
 
   -- Keep CMake builds in Debug mode for reliable breakpoints.
-  local configure_cmd = "cmake -S . -B " .. build_dir .. " -DCMAKE_BUILD_TYPE=Debug"
+  local configure_cmd = "cmake -S " .. shell_quote(root) .. " -B " .. shell_quote(build_path) .. " -DCMAKE_BUILD_TYPE=Debug"
   print("Configuring CMake project (Debug)...")
   local result = vim.fn.system(configure_cmd)
   if vim.v.shell_error ~= 0 then
     error("CMake configuration failed: " .. result)
   end
 
-  ensure_compile_commands_link(build_dir)
+  ensure_compile_commands_link(root, build_dir)
 
   -- Build
-  local build_cmd = "cmake --build " .. build_dir
+  local build_cmd = "cmake --build " .. shell_quote(build_path)
   print("Building CMake project...")
   local result = vim.fn.system(build_cmd)
   if vim.v.shell_error ~= 0 then
@@ -334,23 +379,69 @@ local function run_cmake()
   end
 
   -- Find and run executable
-  local executable = find_cmake_executable()
+  local executable = find_cmake_executable(root, build_dir)
   if executable then
     vim.g.cpp_last_executable = executable
     local run_cmd = string.format("'%s'", executable:gsub("'", "'\\''"))
-    local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
-    local title = string.format(config.title_formats.cmake, project_name)
+    local project_name = vim.fn.fnamemodify(root, ":t")
+    local gui_project = is_gui_cmake_project(root)
+    local title_format = gui_project and config.title_formats.gui or config.title_formats.cmake
+    local pane_size = gui_project and config.pane_sizes.gui or config.pane_sizes.cmake
+    local title = string.format(title_format, project_name)
     vim.notify(string.format("Running CMake project: %s", project_name), vim.log.levels.INFO)
-    run_in_tmux(run_cmd, config.pane_sizes.cmake, title)
+    run_in_tmux(run_cmd, pane_size, title, root)
   else
     error("No executable found in build directory")
   end
 end
 
+local function run_qmake(root)
+  local pro_files = vim.fn.glob(root .. "/*.pro", false, true)
+  if #pro_files == 0 then
+    error("No .pro file found for qmake project")
+  end
+
+  local build_dir = root .. "/build"
+  vim.fn.mkdir(build_dir, "p")
+
+  local qmake = vim.fn.exepath("qmake6")
+  if qmake == "" then
+    qmake = vim.fn.exepath("qmake")
+  end
+  if qmake == "" then
+    error("qmake6/qmake not found. Install Qt tools or convert this project to CMake.")
+  end
+
+  local configure_cmd = "cd " .. shell_quote(build_dir) .. " && " .. shell_quote(qmake) .. " " .. shell_quote(pro_files[1])
+  local result = vim.fn.system(configure_cmd)
+  if vim.v.shell_error ~= 0 then
+    error("qmake configuration failed: " .. result)
+  end
+
+  local build_cmd = "cmake --build " .. shell_quote(build_dir)
+  result = vim.fn.system(build_cmd)
+  if vim.v.shell_error ~= 0 then
+    result = vim.fn.system("make -C " .. shell_quote(build_dir))
+    if vim.v.shell_error ~= 0 then
+      error("qmake build failed: " .. result)
+    end
+  end
+
+  local executable = find_cmake_executable(root, "build")
+  if executable then
+    vim.g.cpp_last_executable = executable
+    local title = string.format(config.title_formats.gui, vim.fn.fnamemodify(root, ":t"))
+    run_in_tmux(shell_quote(executable), config.pane_sizes.gui, title, root)
+  else
+    error("No executable found in qmake build directory")
+  end
+end
+
 -- Make project runner
-local function run_make()
+local function run_make(root)
+  root = root or vim.fn.getcwd()
   -- Build
-  local build_cmd = "make"
+  local build_cmd = "make -C " .. shell_quote(root)
   print("Building with Make...")
   local result = vim.fn.system(build_cmd)
   if vim.v.shell_error ~= 0 then
@@ -362,8 +453,9 @@ local function run_make()
   local executable = nil
 
   for _, exe in ipairs(executables) do
-    if vim.fn.executable("./" .. exe) == 1 then
-      executable = "./" .. exe
+    local candidate = root .. "/" .. exe
+    if vim.fn.executable(candidate) == 1 then
+      executable = candidate
       break
     end
   end
@@ -371,10 +463,10 @@ local function run_make()
   if executable then
     vim.g.cpp_last_executable = vim.fn.fnamemodify(executable, ":p")
     local quoted_exe = string.format("'%s'", executable:gsub("'", "'\\''"))
-    local project_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+    local project_name = vim.fn.fnamemodify(root, ":t")
     local title = string.format(config.title_formats.make, project_name)
     vim.notify(string.format("Running Make project: %s", project_name), vim.log.levels.INFO)
-    run_in_tmux(quoted_exe, config.pane_sizes.make, title)
+    run_in_tmux(quoted_exe, config.pane_sizes.make, title, root)
   else
     error("No executable found after make")
   end
@@ -459,16 +551,24 @@ end
 
 -- Main compile and run function
 function M.compile_and_run()
-  local project_type = detect_project_type()
+  vim.cmd("write")
+
+  if not os.getenv("TMUX") then
+    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+    return
+  end
+
+  local root = find_project_root()
+  local project_type = detect_project_type(root)
 
   print("Detected project type: " .. project_type)
 
   if project_type == "cmake" then
-    run_cmake()
+    run_cmake(root)
   elseif project_type == "make" then
-    run_make()
-  elseif project_type == "qt" then
-    error("Qt projects not yet implemented")
+    run_make(root)
+  elseif project_type == "qmake" then
+    run_qmake(root)
   elseif project_type == "meson" then
     error("Meson projects not yet implemented")
   else

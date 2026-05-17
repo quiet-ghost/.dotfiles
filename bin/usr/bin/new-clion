@@ -1,21 +1,10 @@
 #!/usr/bin/env bash
 
-# CLion-like C/C++ Project Generator
-# Mimics CLion's "New Project" wizard
-#
-# Usage:
-#   new-clion                        - Interactive mode (all prompts)
-#   new-clion <project-name>         - Skip project name prompt
-#
-# Examples:
-#   new-clion                        - Fully interactive
-#   new-clion my-app                 - Use "my-app" as project name
+# Unified C/C++ Project Generator
+# Single entry point for CLion-like terminal, library, Qt, and GUI projects.
 
-set -e
+set -euo pipefail
 
-# ============================================================================
-# Rose Pine Color Scheme
-# ============================================================================
 BASE="#191724"
 SURFACE="#1f1d2e"
 OVERLAY="#26233a"
@@ -24,17 +13,9 @@ SUBTLE="#908caa"
 TEXT="#e0def4"
 LOVE="#eb6f92"
 GOLD="#f6c177"
-ROSE="#ebbcba"
 PINE="#31748f"
 FOAM="#9ccfd8"
 IRIS="#c4a7e7"
-HIGHLIGHT_LOW="#21202e"
-HIGHLIGHT_MED="#403d52"
-HIGHLIGHT_HIGH="#524f67"
-
-# ============================================================================
-# Utility Functions
-# ============================================================================
 
 gum_header() {
     gum style \
@@ -56,11 +37,23 @@ gum_success() {
 }
 
 gum_error() {
-    gum style --foreground "$LOVE" --bold " $*"
+    gum style --foreground "$LOVE" --bold " $*" >&2
+}
+
+gum_warn() {
+    gum style --foreground "$GOLD" " $*"
 }
 
 gum_section() {
     gum style --foreground "$GOLD" --bold "$*"
+}
+
+check_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        gum_error "Error: $1 is not installed"
+        [ -n "${2:-}" ] && gum_info "Install with: $2"
+        exit 1
+    fi
 }
 
 validate_project_name() {
@@ -68,424 +61,70 @@ validate_project_name() {
     [[ "$name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]
 }
 
-check_command() {
-    if ! command -v "$1" &> /dev/null; then
-        gum_error "Error: $1 is not installed"
-        [ -n "$2" ] && gum_info "Install with: $2"
-        exit 1
-    fi
+validate_class_name() {
+    local name="$1"
+    [[ "$name" =~ ^[A-Z][a-zA-Z0-9]*$ ]]
 }
 
-# ============================================================================
-# Main Script
-# ============================================================================
+sanitize_target_name() {
+    local name="$1"
+    name="${name//-/_}"
+    printf '%s' "$name"
+}
 
-# Show help if requested
-if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+pascal_from_project_name() {
+    local name="$1"
+    local result=""
+    local part
+    IFS='-_' read -ra parts <<< "$name"
+    for part in "${parts[@]}"; do
+        [ -n "$part" ] || continue
+        result+="$(tr '[:lower:]' '[:upper:]' <<< "${part:0:1}")${part:1}"
+    done
+    printf '%s' "${result:-App}"
+}
+
+show_help() {
     cat << 'EOF'
- CLion-like C/C++ Project Generator
+Unified C/C++ Project Generator
 
 Usage:
-  new-clion                        - Interactive mode (all prompts)
-  new-clion <project-name>         - Skip project name prompt
+  new-clion                 Interactive mode
+  new-clion <project-name>  Skip project name prompt
 
-Examples:
-  new-clion                        - Fully interactive
-  new-clion my-app                 - Use "my-app" as project name
+Alias:
+  cn                        Same as new-clion
 
-Options:
-  -h, --help                     - Show this help message
-
+Project types:
+  C/C++ executable, C/C++ static library, Qt Widgets, Qt QML/Quick,
+  SFML, GTKmm, and wxWidgets.
 EOF
-    exit 0
-fi
-
-# Parse command-line arguments
-ARG_PROJECT_NAME="$1"
-
-# Check dependencies
-check_command gum "pacman -S gum or brew install gum"
-check_command cmake "pacman -S cmake or brew install cmake"
-
-# Welcome screen
-gum_header " CLion-like C/C++ Project Generator" "Create new C/C++ projects mimicking CLion's behavior"
-
-echo ""
-
-# Language selection
-LANGUAGE=$(gum choose \
-    --header.foreground "$GOLD" \
-    --cursor.foreground "$IRIS" \
-    --selected.foreground "$FOAM" \
-    --header " Select language:" \
-    "C++" \
-    "C")
-
-echo ""
-
-# Project type selection
-if [ "$LANGUAGE" = "C++" ]; then
-    PROJECT_TYPE=$(gum choose \
-        --header.foreground "$GOLD" \
-        --cursor.foreground "$IRIS" \
-        --selected.foreground "$FOAM" \
-        --header " Select project type:" \
-        "C++ Executable" \
-        "C++ Library")
-else
-    PROJECT_TYPE=$(gum choose \
-        --header.foreground "$GOLD" \
-        --cursor.foreground "$IRIS" \
-        --selected.foreground "$FOAM" \
-        --header " Select project type:" \
-        "C Executable" \
-        "C Library")
-fi
-
-echo ""
-
-# Language standard selection
-if [ "$LANGUAGE" = "C++" ]; then
-    CPP_STANDARD=$(gum choose \
-        --header.foreground "$GOLD" \
-        --cursor.foreground "$IRIS" \
-        --selected.foreground "$FOAM" \
-        --header " Select C++ standard:" \
-        "C++11" \
-        "C++14" \
-        "C++17" \
-        "C++20 [Default]" \
-        "C++23")
-    STANDARD_VAR="$CPP_STANDARD"
-else
-    C_STANDARD=$(gum choose \
-        --header.foreground "$GOLD" \
-        --cursor.foreground "$IRIS" \
-        --selected.foreground "$FOAM" \
-        --header " Select C standard:" \
-        "C99" \
-        "C11" \
-        "C17 [Default]" \
-        "C23")
-    STANDARD_VAR="$C_STANDARD"
-fi
-
-echo ""
-
-# Package manager selection (optional)
-PKG_MANAGER=$(gum choose \
-    --header.foreground "$GOLD" \
-    --cursor.foreground "$IRIS" \
-    --selected.foreground "$FOAM" \
-    --header " Select package manager (optional):" \
-    "None" \
-    "vcpkg" \
-    "Conan")
-
-PKG_MANAGER_CLEAN=$(echo "$PKG_MANAGER" | awk '{print $1}')
-echo ""
-
-gum_section " Project Configuration"
-echo ""
-
-# Get project name with validation
-if [ -n "$ARG_PROJECT_NAME" ]; then
-    PROJECT_NAME="$ARG_PROJECT_NAME"
-
-    if ! validate_project_name "$PROJECT_NAME"; then
-        gum_error "Invalid project name: $PROJECT_NAME"
-        gum_error "Use letters, numbers, underscores, and hyphens. Start with a letter."
-        exit 1
-    fi
-
-    gum_info "Using project name: $PROJECT_NAME"
-    echo ""
-else
-    while true; do
-        PROJECT_NAME=$(gum input \
-            --prompt.foreground "$FOAM" \
-            --placeholder "my-awesome-app" \
-            --header " Project name (letters, numbers, underscores, hyphens):" \
-            --header.foreground "$SUBTLE" \
-            --prompt " ")
-
-        if [ -z "$PROJECT_NAME" ]; then
-            gum_error "Project name cannot be empty"
-            continue
-        fi
-
-        if ! validate_project_name "$PROJECT_NAME"; then
-            gum_error "Invalid name. Use letters, numbers, underscores, and hyphens. Start with a letter."
-            continue
-        fi
-
-        break
-    done
-fi
-
-echo ""
-gum_section " Project Summary"
-echo ""
-
-# Display summary
-LIBRARY_TYPE=""
-if [[ "$PROJECT_TYPE" == *"Library"* ]]; then
-    if [ "$LANGUAGE" = "C++" ]; then
-        LIBRARY_TYPE=" [Static]"
-    else
-        LIBRARY_TYPE=" [Static]"
-    fi
-fi
-
-gum style \
-    --border "rounded" \
-    --border-foreground "$PINE" \
-    --padding "1 2" \
-    --margin "0 2" \
-    "$(gum style --foreground "$FOAM" "Language:") $LANGUAGE" \
-    "$(gum style --foreground "$FOAM" "Type:") $PROJECT_TYPE$LIBRARY_TYPE" \
-    "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
-    "$(gum style --foreground "$FOAM" "Standard:") $STANDARD_VAR" \
-    "$(gum style --foreground "$FOAM" "Package Manager:") $PKG_MANAGER_CLEAN"
-
-echo ""
-
-# Confirm before proceeding
-if ! gum confirm \
-    --selected.foreground "$FOAM" \
-    --unselected.foreground "$LOVE" \
-    --affirmative " Create Project" \
-    --negative " Cancel" \
-    "Proceed with project creation?"; then
-    gum_error "Project creation cancelled"
-    exit 0
-fi
-
-echo ""
-
-# ============================================================================
-# Project Generation
-# ============================================================================
-
-gum_info "Creating project structure..."
-echo ""
-
-# Create project directory
-mkdir -p "$PROJECT_NAME"
-cd "$PROJECT_NAME"
-
-# Create directory structure
-mkdir -p cmake src include
-
-# ============================================================================
-# Generate CMakeLists.txt (CLion's exact format)
-# ============================================================================
-
-gum_info "Generating CMakeLists.txt..."
-
-# Determine standard number and CMake language identifier
-if [ "$LANGUAGE" = "C++" ]; then
-    STANDARD_NUM=$(echo "$CPP_STANDARD" | sed -E 's/C\+\+//;s/\s+\[.*?\]//')
-    CMAKE_STANDARD="CMAKE_CXX_STANDARD"
-    CMAKE_LANG="CXX"
-    FILE_EXT="cpp"
-    HEADER_EXT="hpp"
-else
-    STANDARD_NUM=$(echo "$C_STANDARD" | sed 's/C//')
-    CMAKE_STANDARD="CMAKE_C_STANDARD"
-    CMAKE_LANG="C"
-    FILE_EXT="c"
-    HEADER_EXT="h"
-fi
-
-# Start with CLion's exact format
-cat > CMakeLists.txt << EOFCMAKE
-cmake_minimum_required(VERSION 3.20)
-project(${PROJECT_NAME} LANGUAGES ${CMAKE_LANG})
-
-set(${CMAKE_STANDARD} ${STANDARD_NUM})
-set(${CMAKE_STANDARD}_REQUIRED ON)
-set(${CMAKE_STANDARD}_EXTENSIONS OFF)
-
-# Export compile commands for LSP/clangd (CLion compatible)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-EOFCMAKE
-
-# Add package manager integration if selected
-if [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
-    cat >> CMakeLists.txt << 'EOFCMAKE'
-
-# vcpkg integration (if using vcpkg)
-if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-        CACHE STRING "")
-endif()
-EOFCMAKE
-elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
-    cat >> CMakeLists.txt << 'EOFCMAKE'
-
-# Conan integration
-include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake OPTIONAL)
-EOFCMAKE
-fi
-
-# Add target based on project type
-if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
-    cat >> CMakeLists.txt << EOFCMAKE
-
-file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
-    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
-
-if(NOT PROJECT_SOURCES)
-    message(FATAL_ERROR "No source files found in \${CMAKE_CURRENT_SOURCE_DIR}/src")
-endif()
-
-add_executable(${PROJECT_NAME} \${PROJECT_SOURCES})
-
-target_include_directories(${PROJECT_NAME} PRIVATE
-    "\${CMAKE_CURRENT_SOURCE_DIR}/include"
-    "\${CMAKE_CURRENT_SOURCE_DIR}/src")
-EOFCMAKE
-else
-    cat >> CMakeLists.txt << EOFCMAKE
-
-file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
-    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
-
-add_library(${PROJECT_NAME} STATIC \${PROJECT_SOURCES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC
-    "\${CMAKE_CURRENT_SOURCE_DIR}/include"
-    PRIVATE
-    "\${CMAKE_CURRENT_SOURCE_DIR}/src")
-EOFCMAKE
-fi
-
-# ============================================================================
-# Generate Package Manager Manifests
-# ============================================================================
-
-if [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
-    gum_info "Generating vcpkg.json manifest..."
-
-    cat > vcpkg.json << 'EOFVCPKG'
-{
-  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-  "name": "PROJECTNAME",
-  "version": "0.1.0",
-  "dependencies": []
 }
-EOFVCPKG
 
-    sed -i "s/PROJECTNAME/${PROJECT_NAME}/" vcpkg.json
-
-elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
-    gum_info "Generating conanfile.txt..."
-
-    cat > conanfile.txt << 'EOFCONAN'
-[requires]
-
-[generators]
-CMakeDeps
-CMakeToolchain
-
-[options]
-
-[imports]
-EOFCONAN
-fi
-
-# ============================================================================
-# Generate Source Files (CLion's simple format)
-# ============================================================================
-
-gum_info "Generating source files..."
-
-if [ "$LANGUAGE" = "C++" ]; then
-    if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
-        cat > src/main.cpp << EOFCPP
-#include <iostream>
-
-int main() {
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
-}
-EOFCPP
-    else
-        cat > src/${PROJECT_NAME}.cpp << EOFCPP
-#include "${PROJECT_NAME}.h"
-
-int add(int a, int b) {
-    return a + b;
-}
-EOFCPP
-
-        cat > include/${PROJECT_NAME}.h << EOFHEADER
-#ifndef ${PROJECT_NAME^^}_H
-#define ${PROJECT_NAME^^}_H
-
-int add(int a, int b);
-
-#endif // ${PROJECT_NAME^^}_H
-EOFHEADER
-    fi
-else
-    if [[ "$PROJECT_TYPE" == *"Executable"* ]]; then
-        cat > src/main.c << EOFC
-#include <stdio.h>
-
-int main() {
-    printf("Hello, World!\n");
-    return 0;
-}
-EOFC
-    else
-        cat > src/${PROJECT_NAME}.c << EOFC
-#include "${PROJECT_NAME}.h"
-
-int add(int a, int b) {
-    return a + b;
-}
-EOFC
-
-        cat > include/${PROJECT_NAME}.h << EOFHEADER
-#ifndef ${PROJECT_NAME^^}_H
-#define ${PROJECT_NAME^^}_H
-
-int add(int a, int b);
-
-#endif // ${PROJECT_NAME^^}_H
-EOFHEADER
-    fi
-fi
-
-# ============================================================================
-# Generate .gitignore
-# ============================================================================
-
-gum_info "Generating .gitignore..."
-
-cat > .gitignore << 'EOFGITIGNORE'
+write_common_gitignore() {
+    cat > .gitignore << 'EOF'
 # Build directories
 build/
 cmake-build-*/
 out/
 
-# IDE files
-.vscode/
+# Editor and IDE files
+.cache/
 .idea/
+.vscode/
 *.swp
 *.swo
 *~
 .DS_Store
 
-# CMake
+# CMake generated files
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
 *.cmake
 !CMakeLists.txt
+compile_commands.json
 
 # Compiled files
 *.o
@@ -503,35 +142,1024 @@ Makefile
 vcpkg_installed/
 conan/
 .conan/
-EOFGITIGNORE
 
-# ============================================================================
-# Ask about Git initialization
-# ============================================================================
+# Qt generated files
+*.autosave
+*.qmlc
+*.jsc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+EOF
+}
+
+write_clang_format() {
+    cat > .clang-format << EOF
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+BreakBeforeBraces: Attach
+DerivePointerAlignment: false
+PointerAlignment: Left
+SortIncludes: true
+Standard: c++${STANDARD_NUM:-20}
+TabWidth: 4
+UseTab: Never
+EOF
+}
+
+write_clangd_config() {
+    cat > .clangd << 'EOF'
+CompileFlags:
+  CompilationDatabase: build
+  Remove:
+    - -mno-direct-extern-access
+EOF
+}
+
+configure_cmake_for_lsp() {
+    gum_info "Configuring CMake for clangd..."
+    if cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug >/dev/null; then
+        if [ -f build/compile_commands.json ] && [ ! -e compile_commands.json ]; then
+            ln -s build/compile_commands.json compile_commands.json
+        fi
+        gum_success "clangd compile database ready"
+        return
+    fi
+
+    gum_warn "CMake configure failed. Project files were preserved; run cmake -S . -B build after installing missing dependencies."
+}
+
+write_package_files() {
+    case "$PKG_MANAGER_CLEAN" in
+        "vcpkg")
+            gum_info "Generating vcpkg.json manifest..."
+            cat > vcpkg.json << EOF
+{
+  "\$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "$(tr '[:upper:]' '[:lower:]' <<< "$PROJECT_NAME")",
+  "version": "0.1.0",
+  "dependencies": [
+$(printf '%s\n' "${VCPKG_DEPS[@]:-}" | awk 'NF { printf "    \"%s\",\n", $0 }' | sed '$ s/,$//')
+  ]
+}
+EOF
+            ;;
+        "Conan")
+            gum_info "Generating conanfile.txt..."
+            cat > conanfile.txt << EOF
+[requires]
+$(printf '%s\n' "${CONAN_DEPS[@]:-}" | awk 'NF { print }')
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
+EOF
+            ;;
+    esac
+}
+
+write_plain_cmake() {
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES ${CMAKE_LANG})
+
+set(${CMAKE_STANDARD_VAR} ${STANDARD_NUM})
+set(${CMAKE_STANDARD_VAR}_REQUIRED ON)
+set(${CMAKE_STANDARD_VAR}_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+EOF
+
+    if [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
+        cat >> CMakeLists.txt << 'EOF'
+
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "")
+endif()
+EOF
+    elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
+        cat >> CMakeLists.txt << 'EOF'
+
+include(${CMAKE_BINARY_DIR}/generators/conan_toolchain.cmake OPTIONAL)
+EOF
+    fi
+
+    if [[ "$PROJECT_TYPE" == *"Library"* ]]; then
+        cat >> CMakeLists.txt << EOF
+
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
+
+add_library(${TARGET_NAME} STATIC \${PROJECT_SOURCES})
+
+target_include_directories(${TARGET_NAME}
+    PUBLIC "\${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE "\${CMAKE_CURRENT_SOURCE_DIR}/src")
+EOF
+    else
+        cat >> CMakeLists.txt << EOF
+
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS
+    "\${CMAKE_CURRENT_SOURCE_DIR}/src/*.${FILE_EXT}")
+
+add_executable(${TARGET_NAME} \${PROJECT_SOURCES})
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "\${CMAKE_CURRENT_SOURCE_DIR}/src")
+EOF
+    fi
+}
+
+write_qt_widgets_project() {
+    mkdir -p "include/${TARGET_NAME}" src
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ${STANDARD_NUM})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+qt_standard_project_setup()
+
+qt_add_executable(${TARGET_NAME}
+    src/main.cpp
+    src/${MAIN_CLASS}.cpp
+    include/${TARGET_NAME}/${MAIN_CLASS}.hpp
+)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+target_link_libraries(${TARGET_NAME} PRIVATE Qt6::Widgets)
+
+set_target_properties(${TARGET_NAME} PROPERTIES
+    WIN32_EXECUTABLE ON
+    MACOSX_BUNDLE ON)
+EOF
+
+    cat > src/main.cpp << EOF
+#include <QApplication>
+
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+int main(int argc, char* argv[]) {
+    QApplication app(argc, argv);
+
+    ${TARGET_NAME}::${MAIN_CLASS} window;
+    window.show();
+
+    return app.exec();
+}
+EOF
+
+    local guard="${TARGET_NAME^^}_${MAIN_CLASS^^}_HPP"
+    cat > "include/${TARGET_NAME}/${MAIN_CLASS}.hpp" << EOF
+#ifndef ${guard}
+#define ${guard}
+
+#include <QMainWindow>
+
+namespace ${TARGET_NAME} {
+
+class ${MAIN_CLASS} : public QMainWindow {
+    Q_OBJECT
+
+public:
+    explicit ${MAIN_CLASS}(QWidget* parent = nullptr);
+    ~${MAIN_CLASS}() override;
+};
+
+}  // namespace ${TARGET_NAME}
+
+#endif  // ${guard}
+EOF
+
+    cat > "src/${MAIN_CLASS}.cpp" << EOF
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QWidget>
+
+namespace ${TARGET_NAME} {
+
+${MAIN_CLASS}::${MAIN_CLASS}(QWidget* parent) : QMainWindow(parent) {
+    setWindowTitle("${PROJECT_NAME}");
+    resize(800, 600);
+
+    auto* central = new QWidget(this);
+    auto* layout = new QVBoxLayout(central);
+    auto* label = new QLabel("Hello from ${PROJECT_NAME}!", central);
+    auto* button = new QPushButton("Click Me", central);
+
+    label->setAlignment(Qt::AlignCenter);
+    layout->addWidget(label);
+    layout->addWidget(button);
+
+    connect(button, &QPushButton::clicked, this, [label]() {
+        label->setText("Button clicked!");
+    });
+
+    setCentralWidget(central);
+}
+
+${MAIN_CLASS}::~${MAIN_CLASS}() = default;
+
+}  // namespace ${TARGET_NAME}
+EOF
+}
+
+write_qt_qml_project() {
+    mkdir -p src
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ${STANDARD_NUM})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Quick QuickControls2)
+qt_policy(SET QTP0001 NEW)
+qt_standard_project_setup()
+
+qt_add_executable(${TARGET_NAME}
+    src/main.cpp
+)
+
+target_link_libraries(${TARGET_NAME} PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Quick
+    Qt6::QuickControls2)
+
+qt_add_qml_module(${TARGET_NAME}
+    URI App
+    VERSION 1.0
+    QML_FILES
+        Main.qml)
+
+set_target_properties(${TARGET_NAME} PROPERTIES
+    WIN32_EXECUTABLE ON
+    MACOSX_BUNDLE ON)
+EOF
+
+    cat > src/main.cpp << 'EOF'
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+
+int main(int argc, char* argv[]) {
+    QGuiApplication app(argc, argv);
+
+    QQmlApplicationEngine engine;
+    QObject::connect(
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() { QCoreApplication::exit(-1); },
+        Qt::QueuedConnection);
+
+    engine.loadFromModule("App", "Main");
+
+    return app.exec();
+}
+EOF
+
+    cat > Main.qml << EOF
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+
+ApplicationWindow {
+    visible: true
+    width: 800
+    height: 600
+    title: "${PROJECT_NAME}"
+
+    ColumnLayout {
+        anchors.centerIn: parent
+        spacing: 16
+
+        Label {
+            text: "Hello from ${PROJECT_NAME}!"
+            font.pixelSize: 24
+            Layout.alignment: Qt.AlignHCenter
+        }
+
+        Button {
+            text: "Click Me"
+            Layout.alignment: Qt.AlignHCenter
+            onClicked: text = "Clicked"
+        }
+    }
+}
+EOF
+}
+
+write_sfml_project() {
+    mkdir -p "include/${TARGET_NAME}" src
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ${STANDARD_NUM})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+
+find_package(SFML 3 REQUIRED COMPONENTS Graphics Window System)
+
+add_executable(${TARGET_NAME}
+    src/main.cpp
+    src/${MAIN_CLASS}.cpp
+    include/${TARGET_NAME}/${MAIN_CLASS}.hpp)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+target_link_libraries(${TARGET_NAME} PRIVATE
+    SFML::Graphics
+    SFML::Window
+    SFML::System)
+EOF
+
+    cat > src/main.cpp << EOF
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+int main() {
+    ${TARGET_NAME}::${MAIN_CLASS} app;
+    return app.run();
+}
+EOF
+
+    local guard="${TARGET_NAME^^}_${MAIN_CLASS^^}_HPP"
+    cat > "include/${TARGET_NAME}/${MAIN_CLASS}.hpp" << EOF
+#ifndef ${guard}
+#define ${guard}
+
+#include <SFML/Graphics.hpp>
+
+namespace ${TARGET_NAME} {
+
+class ${MAIN_CLASS} {
+public:
+    ${MAIN_CLASS}();
+    int run();
+
+private:
+    void process_events();
+    void render();
+
+    sf::RenderWindow window_;
+    sf::CircleShape shape_;
+};
+
+}  // namespace ${TARGET_NAME}
+
+#endif  // ${guard}
+EOF
+
+    cat > "src/${MAIN_CLASS}.cpp" << EOF
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+namespace ${TARGET_NAME} {
+
+${MAIN_CLASS}::${MAIN_CLASS}()
+    : window_(sf::VideoMode({800u, 600u}), "${PROJECT_NAME}"), shape_(100.f) {
+    shape_.setFillColor(sf::Color::Green);
+    shape_.setPosition({350.f, 250.f});
+}
+
+int ${MAIN_CLASS}::run() {
+    while (window_.isOpen()) {
+        process_events();
+        render();
+    }
+    return 0;
+}
+
+void ${MAIN_CLASS}::process_events() {
+    while (const auto event = window_.pollEvent()) {
+        if (event->is<sf::Event::Closed>()) {
+            window_.close();
+        }
+    }
+}
+
+void ${MAIN_CLASS}::render() {
+    window_.clear();
+    window_.draw(shape_);
+    window_.display();
+}
+
+}  // namespace ${TARGET_NAME}
+EOF
+}
+
+write_gtk_project() {
+    mkdir -p "include/${TARGET_NAME}" src
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ${STANDARD_NUM})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTKMM REQUIRED gtkmm-4.0)
+
+add_executable(${TARGET_NAME}
+    src/main.cpp
+    src/${MAIN_CLASS}.cpp
+    include/${TARGET_NAME}/${MAIN_CLASS}.hpp)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include"
+    \${GTKMM_INCLUDE_DIRS})
+target_compile_options(${TARGET_NAME} PRIVATE \${GTKMM_CFLAGS_OTHER})
+target_link_directories(${TARGET_NAME} PRIVATE \${GTKMM_LIBRARY_DIRS})
+target_link_libraries(${TARGET_NAME} PRIVATE \${GTKMM_LIBRARIES})
+EOF
+
+    cat > src/main.cpp << EOF
+#include <gtkmm/application.h>
+
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+int main(int argc, char* argv[]) {
+    auto app = Gtk::Application::create("local.${TARGET_NAME}");
+    return app->make_window_and_run<${TARGET_NAME}::${MAIN_CLASS}>(argc, argv);
+}
+EOF
+
+    local guard="${TARGET_NAME^^}_${MAIN_CLASS^^}_HPP"
+    cat > "include/${TARGET_NAME}/${MAIN_CLASS}.hpp" << EOF
+#ifndef ${guard}
+#define ${guard}
+
+#include <gtkmm/applicationwindow.h>
+#include <gtkmm/box.h>
+#include <gtkmm/button.h>
+#include <gtkmm/label.h>
+
+namespace ${TARGET_NAME} {
+
+class ${MAIN_CLASS} : public Gtk::ApplicationWindow {
+public:
+    ${MAIN_CLASS}();
+
+private:
+    void on_button_clicked();
+
+    Gtk::Box box_;
+    Gtk::Label label_;
+    Gtk::Button button_;
+};
+
+}  // namespace ${TARGET_NAME}
+
+#endif  // ${guard}
+EOF
+
+    cat > "src/${MAIN_CLASS}.cpp" << EOF
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+namespace ${TARGET_NAME} {
+
+${MAIN_CLASS}::${MAIN_CLASS}()
+    : box_(Gtk::Orientation::VERTICAL),
+      label_("Hello from ${PROJECT_NAME}!"),
+      button_("Click Me") {
+    set_title("${PROJECT_NAME}");
+    set_default_size(480, 320);
+
+    box_.set_margin(12);
+    box_.set_spacing(12);
+    box_.append(label_);
+    box_.append(button_);
+
+    button_.signal_clicked().connect(sigc::mem_fun(*this, &${MAIN_CLASS}::on_button_clicked));
+    set_child(box_);
+}
+
+void ${MAIN_CLASS}::on_button_clicked() {
+    label_.set_text("Button clicked!");
+}
+
+}  // namespace ${TARGET_NAME}
+EOF
+}
+
+write_wx_project() {
+    mkdir -p "include/${TARGET_NAME}" src
+    cat > CMakeLists.txt << EOF
+cmake_minimum_required(VERSION 3.20)
+project(${TARGET_NAME} VERSION 0.1.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD ${STANDARD_NUM})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "\${CMAKE_BINARY_DIR}")
+
+find_package(wxWidgets REQUIRED COMPONENTS core base)
+include(\${wxWidgets_USE_FILE})
+
+add_executable(${TARGET_NAME}
+    src/main.cpp
+    src/${MAIN_CLASS}.cpp
+    include/${TARGET_NAME}/${MAIN_CLASS}.hpp)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    "\${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(${TARGET_NAME} PRIVATE \${wxWidgets_LIBRARIES})
+EOF
+
+    cat > src/main.cpp << EOF
+#include <wx/wx.h>
+
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+namespace ${TARGET_NAME} {
+
+class App : public wxApp {
+public:
+    bool OnInit() override {
+        auto* frame = new ${MAIN_CLASS}();
+        frame->Show(true);
+        return true;
+    }
+};
+
+}  // namespace ${TARGET_NAME}
+
+wxIMPLEMENT_APP(${TARGET_NAME}::App);
+EOF
+
+    local guard="${TARGET_NAME^^}_${MAIN_CLASS^^}_HPP"
+    cat > "include/${TARGET_NAME}/${MAIN_CLASS}.hpp" << EOF
+#ifndef ${guard}
+#define ${guard}
+
+#include <wx/wx.h>
+
+namespace ${TARGET_NAME} {
+
+class ${MAIN_CLASS} : public wxFrame {
+public:
+    ${MAIN_CLASS}();
+
+private:
+    void on_button_click(wxCommandEvent& event);
+
+    wxStaticText* label_ = nullptr;
+};
+
+}  // namespace ${TARGET_NAME}
+
+#endif  // ${guard}
+EOF
+
+    cat > "src/${MAIN_CLASS}.cpp" << EOF
+#include "${TARGET_NAME}/${MAIN_CLASS}.hpp"
+
+namespace ${TARGET_NAME} {
+
+${MAIN_CLASS}::${MAIN_CLASS}()
+    : wxFrame(nullptr, wxID_ANY, "${PROJECT_NAME}", wxDefaultPosition, wxSize(480, 320)) {
+    auto* panel = new wxPanel(this);
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+
+    label_ = new wxStaticText(panel, wxID_ANY, "Hello from ${PROJECT_NAME}!");
+    auto* button = new wxButton(panel, wxID_ANY, "Click Me");
+
+    sizer->Add(label_, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, 12);
+    sizer->Add(button, 0, wxALL | wxALIGN_CENTER_HORIZONTAL, 12);
+    panel->SetSizer(sizer);
+
+    button->Bind(wxEVT_BUTTON, &${MAIN_CLASS}::on_button_click, this);
+}
+
+void ${MAIN_CLASS}::on_button_click(wxCommandEvent& event) {
+    label_->SetLabel("Button clicked!");
+}
+
+}  // namespace ${TARGET_NAME}
+EOF
+}
+
+write_plain_sources() {
+    if [ "$LANGUAGE" = "C++" ]; then
+        if [[ "$PROJECT_TYPE" == *"Library"* ]]; then
+            cat > "src/${TARGET_NAME}.cpp" << EOF
+#include "${TARGET_NAME}.hpp"
+
+int add(int a, int b) {
+    return a + b;
+}
+EOF
+            cat > "include/${TARGET_NAME}.hpp" << EOF
+#ifndef ${TARGET_NAME^^}_HPP
+#define ${TARGET_NAME^^}_HPP
+
+int add(int a, int b);
+
+#endif  // ${TARGET_NAME^^}_HPP
+EOF
+        else
+            cat > src/main.cpp << EOF
+#include <iostream>
+
+int main() {
+    std::cout << "Hello from ${PROJECT_NAME}!" << std::endl;
+    return 0;
+}
+EOF
+        fi
+    else
+        if [[ "$PROJECT_TYPE" == *"Library"* ]]; then
+            cat > "src/${TARGET_NAME}.c" << EOF
+#include "${TARGET_NAME}.h"
+
+int add(int a, int b) {
+    return a + b;
+}
+EOF
+            cat > "include/${TARGET_NAME}.h" << EOF
+#ifndef ${TARGET_NAME^^}_H
+#define ${TARGET_NAME^^}_H
+
+int add(int a, int b);
+
+#endif  // ${TARGET_NAME^^}_H
+EOF
+        else
+            cat > src/main.c << EOF
+#include <stdio.h>
+
+int main(void) {
+    printf("Hello from ${PROJECT_NAME}!\n");
+    return 0;
+}
+EOF
+        fi
+    fi
+}
+
+write_readme() {
+    cat > README.md << EOF
+# ${PROJECT_NAME}
+
+Generated with \`new-clion\` / \`cn\`.
+
+## Build and Run
+
+\`\`\`bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+./build/${TARGET_NAME}
+\`\`\`
+
+In Neovim, use \`<leader>jf\` from a C/C++ buffer to build and run this project.
+EOF
+
+    if [ "$PKG_MANAGER_CLEAN" = "System" ]; then
+        cat >> README.md << EOF
+
+## Dependencies
+
+This project expects dependencies from system packages.
+EOF
+    elif [ "$PKG_MANAGER_CLEAN" = "Conan" ]; then
+        cat >> README.md << EOF
+
+## Conan
+
+\`\`\`bash
+conan install . --build=missing
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=build/Debug/generators/conan_toolchain.cmake
+cmake --build build
+\`\`\`
+EOF
+    elif [ "$PKG_MANAGER_CLEAN" = "vcpkg" ]; then
+        cat >> README.md << EOF
+
+## vcpkg
+
+\`\`\`bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=\$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+cmake --build build
+\`\`\`
+EOF
+    fi
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+ARG_PROJECT_NAME="${1:-}"
+
+check_command gum "pacman -S gum or brew install gum"
+check_command cmake "pacman -S cmake or brew install cmake"
+
+gum_header "Unified C/C++ Project Generator" "Create terminal, Qt, and GUI projects from one entry point"
+echo ""
+
+LANGUAGE=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header "Select language:" \
+    "C++" \
+    "C")
+
+echo ""
+
+if [ "$LANGUAGE" = "C++" ]; then
+    PROJECT_TYPE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header "Select project type:" \
+        "C++ Executable" \
+        "C++ Library" \
+        "Qt Widgets Application" \
+        "Qt QML/Quick Application" \
+        "SFML Application" \
+        "GTKmm Application" \
+        "wxWidgets Application")
+else
+    PROJECT_TYPE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header "Select project type:" \
+        "C Executable" \
+        "C Library")
+fi
+
+echo ""
+
+if [ "$LANGUAGE" = "C++" ]; then
+    CPP_STANDARD=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header "Select C++ standard:" \
+        "C++17" \
+        "C++20 [Default]" \
+        "C++23")
+    STANDARD_NUM=$(sed -E 's/C\+\+//;s/ .*//' <<< "$CPP_STANDARD")
+    CMAKE_STANDARD_VAR="CMAKE_CXX_STANDARD"
+    CMAKE_LANG="CXX"
+    FILE_EXT="cpp"
+else
+    C_STANDARD=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header "Select C standard:" \
+        "C99" \
+        "C11" \
+        "C17 [Default]" \
+        "C23")
+    STANDARD_NUM=$(sed -E 's/C//;s/ .*//' <<< "$C_STANDARD")
+    CMAKE_STANDARD_VAR="CMAKE_C_STANDARD"
+    CMAKE_LANG="C"
+    FILE_EXT="c"
+fi
+
+echo ""
+
+PKG_MANAGER=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header "Select dependency source:" \
+    "System packages [Default]" \
+    "Conan" \
+    "vcpkg")
+PKG_MANAGER_CLEAN=$(awk '{print $1}' <<< "$PKG_MANAGER")
+
+VCPKG_DEPS=()
+CONAN_DEPS=()
+
+case "$PROJECT_TYPE" in
+    "Qt Widgets Application")
+        VCPKG_DEPS=("qtbase")
+        CONAN_DEPS=("qt/[>=6.0]")
+        ;;
+    "Qt QML/Quick Application")
+        VCPKG_DEPS=("qtbase" "qtdeclarative")
+        CONAN_DEPS=("qt/[>=6.0]")
+        ;;
+    "SFML Application")
+        VCPKG_DEPS=("sfml")
+        CONAN_DEPS=("sfml/[>=3.0]")
+        ;;
+    "GTKmm Application")
+        VCPKG_DEPS=("gtkmm")
+        ;;
+    "wxWidgets Application")
+        VCPKG_DEPS=("wxwidgets")
+        CONAN_DEPS=("wxwidgets/[>=3.2]")
+        ;;
+esac
+
+echo ""
+gum_section "Project Configuration"
+echo ""
+
+if [ -n "$ARG_PROJECT_NAME" ]; then
+    PROJECT_NAME="$ARG_PROJECT_NAME"
+    if ! validate_project_name "$PROJECT_NAME"; then
+        gum_error "Invalid project name: $PROJECT_NAME"
+        gum_error "Use letters, numbers, underscores, and hyphens. Start with a letter."
+        exit 1
+    fi
+    gum_info "Using project name: $PROJECT_NAME"
+else
+    while true; do
+        PROJECT_NAME=$(gum input \
+            --prompt.foreground "$FOAM" \
+            --placeholder "my-awesome-app" \
+            --header "Project name (letters, numbers, underscores, hyphens):" \
+            --header.foreground "$SUBTLE" \
+            --prompt "> ")
+
+        if [ -z "$PROJECT_NAME" ]; then
+            gum_error "Project name cannot be empty"
+            continue
+        fi
+
+        if ! validate_project_name "$PROJECT_NAME"; then
+            gum_error "Invalid name. Use letters, numbers, underscores, and hyphens. Start with a letter."
+            continue
+        fi
+
+        break
+    done
+fi
+
+TARGET_NAME=$(sanitize_target_name "$PROJECT_NAME")
+DEFAULT_CLASS="$(pascal_from_project_name "$PROJECT_NAME")Window"
+MAIN_CLASS=""
+
+case "$PROJECT_TYPE" in
+    "Qt Widgets Application"|"SFML Application"|"GTKmm Application"|"wxWidgets Application")
+        if [ "$PROJECT_TYPE" = "SFML Application" ]; then
+            DEFAULT_CLASS="$(pascal_from_project_name "$PROJECT_NAME")App"
+        fi
+
+        while true; do
+            MAIN_CLASS=$(gum input \
+                --prompt.foreground "$FOAM" \
+                --placeholder "$DEFAULT_CLASS" \
+                --value "$DEFAULT_CLASS" \
+                --header "Main class name (PascalCase):" \
+                --header.foreground "$SUBTLE" \
+                --prompt "> ")
+
+            [ -n "$MAIN_CLASS" ] || MAIN_CLASS="$DEFAULT_CLASS"
+            if validate_class_name "$MAIN_CLASS"; then
+                break
+            fi
+            gum_error "Invalid class name. Use PascalCase, like MainWindow."
+        done
+        ;;
+esac
+
+echo ""
+gum_section "Project Summary"
+echo ""
+
+gum style \
+    --border "rounded" \
+    --border-foreground "$PINE" \
+    --padding "1 2" \
+    --margin "0 2" \
+    "$(gum style --foreground "$FOAM" "Language:") $LANGUAGE" \
+    "$(gum style --foreground "$FOAM" "Type:") $PROJECT_TYPE" \
+    "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
+    "$(gum style --foreground "$FOAM" "Target:") $TARGET_NAME" \
+    "$(gum style --foreground "$FOAM" "Standard:") ${LANGUAGE}${STANDARD_NUM}" \
+    "$(gum style --foreground "$FOAM" "Dependencies:") $PKG_MANAGER_CLEAN" \
+    "$(if [ -n "$MAIN_CLASS" ]; then gum style --foreground "$FOAM" "Main Class:"; fi) $MAIN_CLASS"
+
+echo ""
+
+if ! gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$LOVE" \
+    --affirmative "Create Project" \
+    --negative "Cancel" \
+    "Proceed with project creation?"; then
+    gum_error "Project creation cancelled"
+    exit 0
+fi
+
+if [ -e "$PROJECT_NAME" ]; then
+    gum_error "Path already exists: $PROJECT_NAME"
+    exit 1
+fi
+
+mkdir -p "$PROJECT_NAME"
+cd "$PROJECT_NAME"
+mkdir -p cmake include src
+
+case "$PROJECT_TYPE" in
+    "Qt Widgets Application")
+        write_qt_widgets_project
+        ;;
+    "Qt QML/Quick Application")
+        write_qt_qml_project
+        ;;
+    "SFML Application")
+        write_sfml_project
+        ;;
+    "GTKmm Application")
+        write_gtk_project
+        ;;
+    "wxWidgets Application")
+        write_wx_project
+        ;;
+    *)
+        write_plain_cmake
+        write_plain_sources
+        ;;
+esac
+
+write_package_files
+write_common_gitignore
+write_clangd_config
 
 echo ""
 if gum confirm \
     --selected.foreground "$FOAM" \
     --unselected.foreground "$SUBTLE" \
-    --affirmative " Yes, initialize" \
-    --negative " No, skip" \
-    "Initialize Git repository?"; then
+    --affirmative "Yes" \
+    --negative "No" \
+    "Generate .clang-format configuration?"; then
+    write_clang_format
+fi
 
-    gum_info "Initializing Git repository..."
-    git init > /dev/null 2>&1
-    git add . > /dev/null 2>&1
-    git commit -m "Initial commit: ${PROJECT_NAME} project created with new-clion" > /dev/null 2>&1
+write_readme
+configure_cmake_for_lsp
+
+case "$PROJECT_TYPE" in
+    "Qt Widgets Application"|"Qt QML/Quick Application")
+        if ! command -v qmake6 >/dev/null 2>&1 && [ "$PKG_MANAGER_CLEAN" = "System" ]; then
+            gum_warn "Qt tools were not found in PATH. Install qt6-base and qt6-declarative if CMake cannot find Qt."
+        fi
+        ;;
+    "GTKmm Application")
+        if ! pkg-config --exists gtkmm-4.0 2>/dev/null && [ "$PKG_MANAGER_CLEAN" = "System" ]; then
+            gum_warn "gtkmm-4.0 was not found. On Arch, install gtkmm-4.0 before building."
+        fi
+        ;;
+    "wxWidgets Application")
+        if ! command -v wx-config >/dev/null 2>&1 && [ "$PKG_MANAGER_CLEAN" = "System" ]; then
+            gum_warn "wxWidgets tools were not found. On Arch, install wxwidgets-gtk3 before building."
+        fi
+        ;;
+esac
+
+echo ""
+if gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$SUBTLE" \
+    --affirmative "Yes" \
+    --negative "No" \
+    "Initialize Git repository?"; then
+    git init >/dev/null 2>&1
     gum_success "Git repository initialized"
 fi
 
-gum_success "Project structure created!"
+gum_success "Project structure created"
 echo ""
 
-# ============================================================================
-# Success Message
-# ============================================================================
-
-echo ""
 gum style \
     --foreground "$FOAM" \
     --border "rounded" \
@@ -540,29 +1168,21 @@ gum style \
     --width 70 \
     --margin "1 2" \
     --padding "1 4" \
-    " Project created successfully!" \
+    "Project created successfully" \
     "" \
-    " Location: $(pwd)" \
-    " Language: $LANGUAGE" \
-    " Type: $PROJECT_TYPE$LIBRARY_TYPE" \
-    " Standard: $STANDARD_VAR" \
-    " Package Manager: $PKG_MANAGER_CLEAN" \
+    "Location: $(pwd)" \
+    "Type: $PROJECT_TYPE" \
+    "Target: $TARGET_NAME" \
     "" \
-    "Next steps:" \
-    "  cd $PROJECT_NAME" \
-    "  mkdir build && cd build" \
-    "  cmake .." \
-    "  cmake --build ."
+    "Build: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug" \
+    "Run in Neovim: <leader>jf"
 
 echo ""
-
-# Ask to open in editor
 if gum confirm \
     --selected.foreground "$FOAM" \
     --unselected.foreground "$SUBTLE" \
-    --affirmative " Open project" \
-    --negative " Done" \
+    --affirmative "Open project" \
+    --negative "Done" \
     "Open project in Neovim?"; then
-    cd ..
-    nvim "$PROJECT_NAME"
+    nvim .
 fi
