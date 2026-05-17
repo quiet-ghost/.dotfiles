@@ -12,6 +12,13 @@ return {
     opts.servers.omnisharp = { enabled = false }
     opts.servers.ts_ls = { enabled = false }
 
+    opts.servers.clangd = vim.tbl_deep_extend("force", opts.servers.clangd or {}, {
+      cmd = {
+        "clangd",
+        "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++,/usr/bin/clang++",
+      },
+    })
+
     opts.servers.gopls = vim.tbl_deep_extend("force", opts.servers.gopls or {}, {
       settings = {
         gopls = {

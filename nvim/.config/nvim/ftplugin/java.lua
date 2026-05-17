@@ -147,6 +147,10 @@ local on_attach = function(client, bufnr)
   vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", opts, { desc = "Rename" }))
   vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, vim.tbl_extend("force", opts, { desc = "Signature Help" }))
 
+  if vim.lsp.inlay_hint then
+    vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+  end
+
   -- Java specific keymaps
   vim.keymap.set(
     "n",
@@ -285,6 +289,20 @@ local java_settings = {
     enabled = true,
   },
   signatureHelp = { enabled = true },
+  inlayHints = {
+    parameterNames = {
+      enabled = "all",
+    },
+    variableTypes = {
+      enabled = true,
+    },
+    parameterTypes = {
+      enabled = true,
+    },
+    formatParameters = {
+      enabled = true,
+    },
+  },
   contentProvider = { preferred = "fernflower" },
   completion = {
     favoriteStaticMembers = {
