@@ -1,0 +1,8 @@
+require("config.keymaps.core")
+require("config.keymaps.navigation")
+require("config.keymaps.search")
+require("config.keymaps.quickfix")
+require("config.keymaps.debug")
+require("config.keymaps.lang")
+require("config.keymaps.commands")
+require("config.keymaps.git")
