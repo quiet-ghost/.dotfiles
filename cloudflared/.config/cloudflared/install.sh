@@ -7,7 +7,7 @@ HOSTNAME=$(hostname)
 cloudflared tunnel create ${HOSTNAME}-tunnel
 
 #DNS:
-cloudflared tunnel route ${HOSTNAME}-tunnel ${HOSTNAME}-quigghost.dev
+cloudflared tunnel route ${HOSTNAME}-tunnel ${HOSTNAME}-quietghost.dev
 cloudflared tunnel route ${HOSTNAME}-tunnel ${HOSTNAME}-obs.quietghost.dev
 
 #install:
