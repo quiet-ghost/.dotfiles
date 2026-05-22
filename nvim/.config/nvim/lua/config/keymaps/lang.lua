@@ -38,10 +38,12 @@ map("n", "<leader>jf", function()
     require("utils.cpp").compile_and_run()
   elseif vim.bo.filetype == "python" then
     require("utils.python").compile_and_run()
+  elseif vim.bo.filetype == "rust" then
+    require("utils.rust").compile_and_run()
   else
     vim.notify("No run configuration for filetype: " .. vim.bo.filetype, vim.log.levels.WARN)
   end
-end, { desc = "Run current file (Java/C++/Python)" })
+end, { desc = "Run current file (Java/C++/Python/Rust)" })
 
 map("n", "<leader>rh", function()
   require("utils.cpp_header").prototype_to_header()
