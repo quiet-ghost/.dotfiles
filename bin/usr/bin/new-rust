@@ -1,0 +1,237 @@
+#!/usr/bin/env bash
+
+# Rust Project Generator
+# Creates Cargo binary or library projects.
+
+set -euo pipefail
+
+BASE="#191724"
+SURFACE="#1f1d2e"
+OVERLAY="#26233a"
+MUTED="#6e6a86"
+SUBTLE="#908caa"
+TEXT="#e0def4"
+LOVE="#eb6f92"
+GOLD="#f6c177"
+PINE="#31748f"
+FOAM="#9ccfd8"
+IRIS="#c4a7e7"
+
+gum_header() {
+    gum style \
+        --foreground "$IRIS" \
+        --border "rounded" \
+        --border-foreground "$PINE" \
+        --align "center" \
+        --padding "1 4" \
+        --margin "1 0" \
+        "$@"
+}
+
+gum_info() {
+    gum style --foreground "$FOAM" " $*"
+}
+
+gum_success() {
+    gum style --foreground "$FOAM" --bold " $*"
+}
+
+gum_error() {
+    gum style --foreground "$LOVE" --bold " $*" >&2
+}
+
+gum_section() {
+    gum style --foreground "$GOLD" --bold "$*"
+}
+
+check_command() {
+    if ! command -v "$1" >/dev/null 2>&1; then
+        gum_error "Error: $1 is not installed"
+        [ -n "${2:-}" ] && gum_info "Install with: $2"
+        exit 1
+    fi
+}
+
+validate_project_name() {
+    local name="$1"
+    [[ "$name" =~ ^[a-z][a-z0-9_-]*$ ]]
+}
+
+show_help() {
+    cat << 'EOF'
+Rust Project Generator
+
+Usage:
+  new-rust                 Interactive mode
+  new-rust <project-name>  Skip project name prompt
+
+Alias:
+  rn                       Same as new-rust
+
+Project types:
+  Binary application or library crate.
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    show_help
+    exit 0
+fi
+
+ARG_PROJECT_NAME="${1:-}"
+
+check_command gum "pacman -S gum or brew install gum"
+check_command cargo "Install Rust with rustup, mise, or pacman -S rust"
+
+gum_header "Rust Project Generator" "Create Cargo binary or library projects"
+echo ""
+
+PROJECT_TYPE=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header "Select project type:" \
+    "Binary Application [Default]" \
+    "Library Crate")
+
+case "$PROJECT_TYPE" in
+    "Library Crate")
+        CARGO_KIND="--lib"
+        TYPE_LABEL="Library crate"
+        ;;
+    *)
+        CARGO_KIND="--bin"
+        TYPE_LABEL="Binary application"
+        ;;
+esac
+
+echo ""
+
+EDITION_CHOICE=$(gum choose \
+    --header.foreground "$GOLD" \
+    --cursor.foreground "$IRIS" \
+    --selected.foreground "$FOAM" \
+    --header "Select Rust edition:" \
+    "Rust 2024 [Default]" \
+    "Rust 2021")
+EDITION=$(sed -E 's/Rust ([0-9]+).*/\1/' <<< "$EDITION_CHOICE")
+
+echo ""
+gum_section "Project Configuration"
+echo ""
+
+if [ -n "$ARG_PROJECT_NAME" ]; then
+    PROJECT_NAME="$ARG_PROJECT_NAME"
+    if ! validate_project_name "$PROJECT_NAME"; then
+        gum_error "Invalid project name: $PROJECT_NAME"
+        gum_error "Use lowercase letters, numbers, underscores, and hyphens. Start with a letter."
+        exit 1
+    fi
+    gum_info "Using project name: $PROJECT_NAME"
+else
+    while true; do
+        PROJECT_NAME=$(gum input \
+            --prompt.foreground "$FOAM" \
+            --placeholder "my-rust-app" \
+            --header "Project name (lowercase, numbers, underscores, hyphens):" \
+            --header.foreground "$SUBTLE" \
+            --prompt "> ")
+
+        if [ -z "$PROJECT_NAME" ]; then
+            gum_error "Project name cannot be empty"
+            continue
+        fi
+
+        if validate_project_name "$PROJECT_NAME"; then
+            break
+        fi
+
+        gum_error "Invalid name. Use lowercase letters, numbers, underscores, and hyphens. Start with a letter."
+    done
+fi
+
+echo ""
+if gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$SUBTLE" \
+    --affirmative "Yes" \
+    --negative "No" \
+    "Initialize Git repository?"; then
+    VCS="git"
+else
+    VCS="none"
+fi
+
+echo ""
+gum_section "Project Summary"
+echo ""
+
+gum style \
+    --border "rounded" \
+    --border-foreground "$PINE" \
+    --padding "1 2" \
+    --margin "0 2" \
+    "$(gum style --foreground "$FOAM" "Type:") $TYPE_LABEL" \
+    "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
+    "$(gum style --foreground "$FOAM" "Edition:") $EDITION" \
+    "$(gum style --foreground "$FOAM" "VCS:") $VCS"
+
+echo ""
+
+if ! gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$LOVE" \
+    --affirmative "Create Project" \
+    --negative "Cancel" \
+    "Proceed with project creation?"; then
+    gum_error "Project creation cancelled"
+    exit 0
+fi
+
+if [ -e "$PROJECT_NAME" ]; then
+    gum_error "Path already exists: $PROJECT_NAME"
+    exit 1
+fi
+
+echo ""
+gum_info "Generating Cargo project..."
+echo ""
+
+gum spin \
+    --spinner dot \
+    --title " Creating Rust project..." \
+    --title.foreground "$IRIS" \
+    --spinner.foreground "$FOAM" \
+    -- cargo new "$CARGO_KIND" --edition "$EDITION" --vcs "$VCS" "$PROJECT_NAME"
+
+cd "$PROJECT_NAME"
+
+gum_success "Project structure created"
+echo ""
+
+gum style \
+    --foreground "$FOAM" \
+    --border "rounded" \
+    --border-foreground "$IRIS" \
+    --align "center" \
+    --width 70 \
+    --margin "1 2" \
+    --padding "1 4" \
+    "Project created successfully" \
+    "" \
+    "Location: $(pwd)" \
+    "Type: $TYPE_LABEL" \
+    "Edition: $EDITION" \
+    "" \
+    "Build: cargo build" \
+    "Run in Neovim: <leader>jf"
+
+echo ""
+if gum confirm \
+    --selected.foreground "$FOAM" \
+    --unselected.foreground "$SUBTLE" \
+    --affirmative "Open project" \
+    --negative "Done" \
+    "Open project in Neovim?"; then
+    nvim .
+fi
