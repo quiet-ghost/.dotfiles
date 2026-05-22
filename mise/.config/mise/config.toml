@@ -1,0 +1,15 @@
+[tools]
+bun = "latest"
+deno = "latest"
+flutter = "latest"
+go = "latest"
+java = "liberica-javafx-21.0.8+12"
+node = "25.9.0"
+python = "latest"
+ruby = "latest"
+
+[settings]
+idiomatic_version_file_enable_tools = ["ruby"]
+
+[settings.ruby]
+compile = false
