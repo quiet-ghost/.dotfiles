@@ -11,6 +11,7 @@
     "custom/timer",
     "custom/update",
     "custom/screenrecording-indicator",
+    "custom/voxtype",
   ],
   "modules-right": [
     "custom/ssh-indicator",
@@ -206,7 +207,7 @@
     "return-type": "json",
   },
   "tray": {
-    "icon-size": 12,
+    "icon-size": 16,
     "spacing": 12,
   },
   "cava": {

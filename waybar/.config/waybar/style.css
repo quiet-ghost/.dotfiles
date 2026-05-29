@@ -39,8 +39,28 @@
   margin: 0 7.5px;
 }
 
+#cpu,
+#battery,
+#pulseaudio,
+#custom-update,
+#bluetooth,
+#network,
+#custom-expand-icon,
+#custom-screenrecording-indicator,
+#custom-notification-silencing-indicator,
+#network,
+#pulseaudio,
+#cpu,
+#custom-voxtype {
+  font-size: 16px;
+}
+
+#custom-weather {
+  font-size: 20px;
+}
+
 #tray {
-  margin-right: 16px;
+  margin-right: 14px;
 }
 
 #bluetooth {
@@ -86,7 +106,6 @@ tooltip {
   min-width: 12px;
   margin-left: 5px;
   margin-right: 0;
-  font-size: 10px;
   padding-bottom: 1px;
 }
 

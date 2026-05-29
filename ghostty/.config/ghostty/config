@@ -1,5 +1,7 @@
 # Dynamic theme colors
 config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+cursor-color = #ffffff
+cursor-text = #191724
 
 # Font
 font-family = "Cascadia Code"
