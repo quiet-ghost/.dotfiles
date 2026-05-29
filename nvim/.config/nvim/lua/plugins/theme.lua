@@ -13,7 +13,8 @@ return {
       local function apply_overrides()
         local set_hl = vim.api.nvim_set_hl
 
-        set_hl(0, "Cursor", { fg = "#232136", bg = "#569fbc" })
+        set_hl(0, "Cursor", { fg = "#191724", bg = "#ffffff" })
+        set_hl(0, "TermCursor", { fg = "#191724", bg = "#ffffff" })
         set_hl(0, "LspInlayHint", { fg = "#908caa", bg = "NONE", italic = true })
         set_hl(0, "LspReferenceText", { bg = "#2f2c3c" })
         set_hl(0, "LspReferenceRead", { bg = "#2f2c3c" })

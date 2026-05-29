@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Unified Java Project Generator
-# Creates Maven, JavaFX, or Spring Boot projects
+# Creates Maven, JavaFX, Spring Boot, or Jakarta EE projects
 # 
 # Usage: 
 #   new-java                        - Interactive mode (all prompts)
@@ -81,6 +81,507 @@ check_command() {
         [ -n "$2" ] && gum_info "Install with: $2"
         exit 1
     fi
+}
+
+trim() {
+    local value="$1"
+    value="${value#${value%%[![:space:]]*}}"
+    value="${value%${value##*[![:space:]]}}"
+    printf '%s' "$value"
+}
+
+pascal_case() {
+    local input="$1"
+    local output=""
+    local part=""
+
+    IFS='-' read -ra parts <<< "$input"
+    for part in "${parts[@]}"; do
+        output+="${part^}"
+    done
+
+    printf '%s' "$output"
+}
+
+select_database_entries() {
+    local database="$1"
+    local prompt="$2"
+    local header="$3"
+    local temp_db
+    local display_list
+    local selected
+
+    display_list=$(echo "$database" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+        split($1, parts, ":")
+        id = parts[1]
+        category = parts[2]
+        gsub(/^[ \t]+|[ \t]+$/, "", id)
+        gsub(/^[ \t]+|[ \t]+$/, "", category)
+        description = $2
+        gsub(/^[ \t]+|[ \t]+$/, "", description)
+        printf "[%s] %s|%s\n", category, description, id
+    }')
+
+    temp_db=$(mktemp)
+    echo "$database" > "$temp_db"
+
+    selected=$(echo "$display_list" | fzf \
+        --multi \
+        --height=60% \
+        --border=rounded \
+        --prompt="$prompt" \
+        --header="$header" \
+        --preview="bash -c 'id=\$(echo {} | cut -d\"|\" -f2); grep \"^\$id:\" $temp_db | cut -d\"|\" -f2- | xargs'" \
+        --preview-window=down:3:wrap \
+        --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+        --color='header:italic:underline' \
+    ) || true
+
+    rm -f "$temp_db"
+    printf '%s' "$selected"
+}
+
+has_selected_id() {
+    local id="$1"
+    local selected_ids="$2"
+    [[ " $selected_ids " == *" $id "* ]]
+}
+
+normalize_jakarta_version() {
+    case "$1" in
+        "Jakarta EE 11"*) printf '11' ;;
+        "Jakarta EE 10"*) printf '10' ;;
+        "Jakarta EE 9.1"*) printf '9.1' ;;
+        "Jakarta EE 9"*) printf '9' ;;
+        "Java EE 8"*) printf '8' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+normalize_jakarta_profile() {
+    case "$1" in
+        "Core"*) printf 'core' ;;
+        "Web"*) printf 'web' ;;
+        "Platform"*|"Full"*) printf 'full' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+normalize_jakarta_server() {
+    case "$1" in
+        "None"*) printf 'none' ;;
+        "Tomcat 11"*"server"*) printf 'tomcat11-local' ;;
+        "Tomcat 11"*"client"*) printf 'tomcat11-remote' ;;
+        "Tomcat 10.1"*"server"*) printf 'tomcat101-local' ;;
+        "Tomcat 10.1"*"client"*) printf 'tomcat101-remote' ;;
+        "Tomcat 10"*"server"*) printf 'tomcat10-local' ;;
+        "Tomcat 10"*"client"*) printf 'tomcat10-remote' ;;
+        "Tomcat 9"*"server"*) printf 'tomcat9-local' ;;
+        "Tomcat 9"*"client"*) printf 'tomcat9-remote' ;;
+        "GlassFish"*) printf 'glassfish' ;;
+        "Payara"*) printf 'payara' ;;
+        "WildFly"*) printf 'wildfly' ;;
+        "Open Liberty"*) printf 'open-liberty' ;;
+        "TomEE"*) printf 'tomee' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+jakarta_set_versions() {
+    EE_IMPORT_PACKAGE="jakarta"
+    EE_PLATFORM_GROUP="jakarta.platform"
+    EE_PLATFORM_ARTIFACT="jakarta.jakartaee-api"
+    EE_WEB_ARTIFACT="jakarta.jakartaee-web-api"
+    EE_CORE_ARTIFACT="jakarta.jakartaee-core-api"
+    SERVLET_GROUP="jakarta.servlet"
+    SERVLET_ARTIFACT="jakarta.servlet-api"
+    JSP_GROUP="jakarta.servlet.jsp"
+    JSP_ARTIFACT="jakarta.servlet.jsp-api"
+    JSTL_GROUP="jakarta.servlet.jsp.jstl"
+    JSTL_ARTIFACT="jakarta.servlet.jsp.jstl-api"
+    WEBSOCKET_GROUP="jakarta.websocket"
+    WEBSOCKET_ARTIFACT="jakarta.websocket-api"
+    JAXRS_GROUP="jakarta.ws.rs"
+    JAXRS_ARTIFACT="jakarta.ws.rs-api"
+    JSONP_GROUP="jakarta.json"
+    JSONP_ARTIFACT="jakarta.json-api"
+    JSONB_GROUP="jakarta.json.bind"
+    JSONB_ARTIFACT="jakarta.json.bind-api"
+    CDI_GROUP="jakarta.enterprise"
+    CDI_ARTIFACT="jakarta.enterprise.cdi-api"
+    VALIDATION_GROUP="jakarta.validation"
+    VALIDATION_ARTIFACT="jakarta.validation-api"
+    PERSISTENCE_GROUP="jakarta.persistence"
+    PERSISTENCE_ARTIFACT="jakarta.persistence-api"
+    TRANSACTION_GROUP="jakarta.transaction"
+    TRANSACTION_ARTIFACT="jakarta.transaction-api"
+    EJB_GROUP="jakarta.ejb"
+    EJB_ARTIFACT="jakarta.ejb-api"
+    JMS_GROUP="jakarta.jms"
+    JMS_ARTIFACT="jakarta.jms-api"
+    MAIL_GROUP="jakarta.mail"
+    MAIL_ARTIFACT="jakarta.mail-api"
+    SECURITY_GROUP="jakarta.security.enterprise"
+    SECURITY_ARTIFACT="jakarta.security.enterprise-api"
+    FACES_GROUP="jakarta.faces"
+    FACES_ARTIFACT="jakarta.faces-api"
+    BATCH_GROUP="jakarta.batch"
+    BATCH_ARTIFACT="jakarta.batch-api"
+    CONCURRENCY_GROUP="jakarta.enterprise.concurrent"
+    CONCURRENCY_ARTIFACT="jakarta.enterprise.concurrent-api"
+    CONNECTOR_GROUP="jakarta.resource"
+    CONNECTOR_ARTIFACT="jakarta.resource-api"
+    ANNOTATION_GROUP="jakarta.annotation"
+    ANNOTATION_ARTIFACT="jakarta.annotation-api"
+    EL_GROUP="jakarta.el"
+    EL_ARTIFACT="jakarta.el-api"
+    INTERCEPTOR_GROUP="jakarta.interceptor"
+    INTERCEPTOR_ARTIFACT="jakarta.interceptor-api"
+    TOMCAT_LOCAL_CONTAINER="tomcat11x"
+    TOMCAT_REMOTE_CONTAINER="tomcat11x"
+    TOMCAT_VERSION="11.0.13"
+    JERSEY_VERSION="4.0.0-M4"
+    WELD_VERSION="6.0.3.Final"
+    HIBERNATE_VALIDATOR_VERSION="9.0.1.Final"
+    HIBERNATE_VERSION="7.1.6.Final"
+    ECLIPSELINK_VERSION="5.0.0-B11"
+    MOJARRA_VERSION="4.1.2"
+    YASSON_VERSION="3.0.4"
+    PARSSON_VERSION="1.1.7"
+
+    case "$JAKARTA_VERSION" in
+        10)
+            EE_API_VERSION="10.0.0"
+            SERVLET_VERSION="6.0.0"
+            JSP_VERSION="3.1.1"
+            JSTL_VERSION="3.0.2"
+            WEBSOCKET_VERSION="2.1.1"
+            JAXRS_VERSION="3.1.0"
+            JSONP_VERSION="2.1.3"
+            JSONB_VERSION="3.0.1"
+            CDI_VERSION="4.0.1"
+            VALIDATION_VERSION="3.0.2"
+            PERSISTENCE_VERSION="3.1.0"
+            TRANSACTION_VERSION="2.0.1"
+            EJB_VERSION="4.0.1"
+            JMS_VERSION="3.1.0"
+            MAIL_VERSION="2.1.3"
+            SECURITY_VERSION="3.0.0"
+            FACES_VERSION="4.0.1"
+            BATCH_VERSION="2.1.1"
+            CONCURRENCY_VERSION="3.0.2"
+            CONNECTOR_VERSION="2.1.0"
+            ANNOTATION_VERSION="2.1.1"
+            EL_VERSION="5.0.1"
+            INTERCEPTOR_VERSION="2.1.0"
+            TOMCAT_LOCAL_CONTAINER="tomcat10x"
+            TOMCAT_REMOTE_CONTAINER="tomcat10x"
+            TOMCAT_VERSION="10.1.48"
+            JERSEY_VERSION="3.1.11"
+            WELD_VERSION="5.1.6.Final"
+            HIBERNATE_VALIDATOR_VERSION="8.0.3.Final"
+            HIBERNATE_VERSION="6.6.33.Final"
+            ECLIPSELINK_VERSION="4.0.8"
+            MOJARRA_VERSION="4.0.11"
+            ;;
+        9.1|9)
+            EE_API_VERSION="$JAKARTA_VERSION.0"
+            SERVLET_VERSION="5.0.0"
+            JSP_VERSION="3.0.0"
+            JSTL_VERSION="2.0.0"
+            WEBSOCKET_VERSION="2.0.0"
+            JAXRS_VERSION="3.0.0"
+            JSONP_VERSION="2.0.1"
+            JSONB_VERSION="2.0.0"
+            CDI_VERSION="3.0.1"
+            VALIDATION_VERSION="3.0.2"
+            PERSISTENCE_VERSION="3.0.0"
+            TRANSACTION_VERSION="2.0.1"
+            EJB_VERSION="4.0.1"
+            JMS_VERSION="3.0.0"
+            MAIL_VERSION="2.0.1"
+            SECURITY_VERSION="2.0.0"
+            FACES_VERSION="3.0.0"
+            BATCH_VERSION="2.0.0"
+            CONCURRENCY_VERSION="2.0.0"
+            CONNECTOR_VERSION="2.0.0"
+            ANNOTATION_VERSION="2.0.0"
+            EL_VERSION="4.0.0"
+            INTERCEPTOR_VERSION="2.0.0"
+            TOMCAT_LOCAL_CONTAINER="tomcat10x"
+            TOMCAT_REMOTE_CONTAINER="tomcat10x"
+            TOMCAT_VERSION="10.1.48"
+            JERSEY_VERSION="3.0.16"
+            WELD_VERSION="4.0.3.Final"
+            HIBERNATE_VALIDATOR_VERSION="8.0.3.Final"
+            HIBERNATE_VERSION="6.6.33.Final"
+            ECLIPSELINK_VERSION="4.0.8"
+            MOJARRA_VERSION="3.0.7"
+            ;;
+        8)
+            EE_IMPORT_PACKAGE="javax"
+            EE_PLATFORM_GROUP="javax"
+            EE_PLATFORM_ARTIFACT="javaee-api"
+            EE_WEB_ARTIFACT="javaee-web-api"
+            EE_CORE_ARTIFACT="javaee-api"
+            EE_API_VERSION="8.0.1"
+            SERVLET_GROUP="javax.servlet"
+            SERVLET_ARTIFACT="javax.servlet-api"
+            SERVLET_VERSION="4.0.1"
+            JSP_GROUP="javax.servlet.jsp"
+            JSP_ARTIFACT="javax.servlet.jsp-api"
+            JSP_VERSION="2.3.3"
+            JSTL_GROUP="javax.servlet"
+            JSTL_ARTIFACT="jstl"
+            JSTL_VERSION="1.2"
+            WEBSOCKET_GROUP="javax.websocket"
+            WEBSOCKET_ARTIFACT="javax.websocket-api"
+            WEBSOCKET_VERSION="1.1"
+            JAXRS_GROUP="javax.ws.rs"
+            JAXRS_ARTIFACT="javax.ws.rs-api"
+            JAXRS_VERSION="2.1.1"
+            JSONP_GROUP="javax.json"
+            JSONP_ARTIFACT="javax.json-api"
+            JSONP_VERSION="1.1.4"
+            JSONB_GROUP="javax.json.bind"
+            JSONB_ARTIFACT="javax.json.bind-api"
+            JSONB_VERSION="1.0"
+            CDI_GROUP="javax.enterprise"
+            CDI_ARTIFACT="cdi-api"
+            CDI_VERSION="2.0.SP1"
+            VALIDATION_GROUP="javax.validation"
+            VALIDATION_ARTIFACT="validation-api"
+            VALIDATION_VERSION="2.0.1.Final"
+            PERSISTENCE_GROUP="javax.persistence"
+            PERSISTENCE_ARTIFACT="javax.persistence-api"
+            PERSISTENCE_VERSION="2.2"
+            TRANSACTION_GROUP="javax.transaction"
+            TRANSACTION_ARTIFACT="javax.transaction-api"
+            TRANSACTION_VERSION="1.3"
+            EJB_GROUP="javax.ejb"
+            EJB_ARTIFACT="javax.ejb-api"
+            EJB_VERSION="3.2.2"
+            JMS_GROUP="javax.jms"
+            JMS_ARTIFACT="javax.jms-api"
+            JMS_VERSION="2.0.1"
+            MAIL_GROUP="javax.mail"
+            MAIL_ARTIFACT="javax.mail-api"
+            MAIL_VERSION="1.6.2"
+            SECURITY_GROUP="javax.security.enterprise"
+            SECURITY_ARTIFACT="javax.security.enterprise-api"
+            SECURITY_VERSION="1.0"
+            FACES_GROUP="javax.faces"
+            FACES_ARTIFACT="javax.faces-api"
+            FACES_VERSION="2.3"
+            BATCH_GROUP="javax.batch"
+            BATCH_ARTIFACT="javax.batch-api"
+            BATCH_VERSION="1.0.1"
+            CONCURRENCY_GROUP="javax.enterprise.concurrent"
+            CONCURRENCY_ARTIFACT="javax.enterprise.concurrent-api"
+            CONCURRENCY_VERSION="1.0"
+            CONNECTOR_GROUP="javax.resource"
+            CONNECTOR_ARTIFACT="javax.resource-api"
+            CONNECTOR_VERSION="1.7.1"
+            ANNOTATION_GROUP="javax.annotation"
+            ANNOTATION_ARTIFACT="javax.annotation-api"
+            ANNOTATION_VERSION="1.3.2"
+            EL_GROUP="javax.el"
+            EL_ARTIFACT="javax.el-api"
+            EL_VERSION="3.0.0"
+            INTERCEPTOR_GROUP="javax.interceptor"
+            INTERCEPTOR_ARTIFACT="javax.interceptor-api"
+            INTERCEPTOR_VERSION="1.2.2"
+            TOMCAT_LOCAL_CONTAINER="tomcat9x"
+            TOMCAT_REMOTE_CONTAINER="tomcat9x"
+            TOMCAT_VERSION="9.0.111"
+            JERSEY_VERSION="2.47"
+            WELD_VERSION="3.1.9.Final"
+            HIBERNATE_VALIDATOR_VERSION="6.2.5.Final"
+            HIBERNATE_VERSION="5.6.15.Final"
+            ECLIPSELINK_VERSION="2.7.16"
+            MOJARRA_VERSION="2.3.23"
+            YASSON_VERSION="1.0.11"
+            PARSSON_VERSION="1.1.7"
+            ;;
+        *)
+            EE_API_VERSION="11.0.0"
+            SERVLET_VERSION="6.1.0"
+            JSP_VERSION="4.0.0"
+            JSTL_VERSION="3.0.2"
+            WEBSOCKET_VERSION="2.2.0"
+            JAXRS_VERSION="4.0.0"
+            JSONP_VERSION="2.1.3"
+            JSONB_VERSION="3.0.1"
+            CDI_VERSION="4.1.0"
+            VALIDATION_VERSION="3.1.1"
+            PERSISTENCE_VERSION="3.2.0"
+            TRANSACTION_VERSION="2.0.1"
+            EJB_VERSION="4.0.1"
+            JMS_VERSION="3.1.0"
+            MAIL_VERSION="2.1.3"
+            SECURITY_VERSION="4.0.0"
+            FACES_VERSION="4.1.0"
+            BATCH_VERSION="2.1.1"
+            CONCURRENCY_VERSION="3.1.1"
+            CONNECTOR_VERSION="2.1.0"
+            ANNOTATION_VERSION="3.0.0"
+            EL_VERSION="6.0.1"
+            INTERCEPTOR_VERSION="2.2.0"
+            ;;
+    esac
+}
+
+jakarta_add_dependency() {
+    local file="$1"
+    local group_id_dep="$2"
+    local artifact_id="$3"
+    local version="$4"
+    local scope="${5:-compile}"
+    local key="$group_id_dep:$artifact_id"
+
+    if [[ " $JAKARTA_DEP_KEYS " == *" $key "* ]]; then
+        return
+    fi
+
+    JAKARTA_DEP_KEYS="$JAKARTA_DEP_KEYS $key"
+    {
+        echo "        <dependency>"
+        echo "            <groupId>$group_id_dep</groupId>"
+        echo "            <artifactId>$artifact_id</artifactId>"
+        echo "            <version>$version</version>"
+        if [ "$scope" != "compile" ]; then
+            echo "            <scope>$scope</scope>"
+        fi
+        echo "        </dependency>"
+    } >> "$file"
+}
+
+jakarta_add_feature_dependency() {
+    local feature="$1"
+    local file="$2"
+
+    case "$feature" in
+        platform-api) jakarta_add_dependency "$file" "$EE_PLATFORM_GROUP" "$EE_PLATFORM_ARTIFACT" "$EE_API_VERSION" provided ;;
+        web-profile) jakarta_add_dependency "$file" "$EE_PLATFORM_GROUP" "$EE_WEB_ARTIFACT" "$EE_API_VERSION" provided ;;
+        core-profile) jakarta_add_dependency "$file" "$EE_PLATFORM_GROUP" "$EE_CORE_ARTIFACT" "$EE_API_VERSION" provided ;;
+        servlet) jakarta_add_dependency "$file" "$SERVLET_GROUP" "$SERVLET_ARTIFACT" "$SERVLET_VERSION" provided ;;
+        jsp) jakarta_add_dependency "$file" "$JSP_GROUP" "$JSP_ARTIFACT" "$JSP_VERSION" provided ;;
+        jstl) jakarta_add_dependency "$file" "$JSTL_GROUP" "$JSTL_ARTIFACT" "$JSTL_VERSION" ;;
+        expression-language) jakarta_add_dependency "$file" "$EL_GROUP" "$EL_ARTIFACT" "$EL_VERSION" provided ;;
+        websocket) jakarta_add_dependency "$file" "$WEBSOCKET_GROUP" "$WEBSOCKET_ARTIFACT" "$WEBSOCKET_VERSION" provided ;;
+        jax-rs) jakarta_add_dependency "$file" "$JAXRS_GROUP" "$JAXRS_ARTIFACT" "$JAXRS_VERSION" provided ;;
+        json-p) jakarta_add_dependency "$file" "$JSONP_GROUP" "$JSONP_ARTIFACT" "$JSONP_VERSION" provided ;;
+        json-b) jakarta_add_dependency "$file" "$JSONB_GROUP" "$JSONB_ARTIFACT" "$JSONB_VERSION" provided ;;
+        cdi) jakarta_add_dependency "$file" "$CDI_GROUP" "$CDI_ARTIFACT" "$CDI_VERSION" provided ;;
+        bean-validation) jakarta_add_dependency "$file" "$VALIDATION_GROUP" "$VALIDATION_ARTIFACT" "$VALIDATION_VERSION" provided ;;
+        jpa) jakarta_add_dependency "$file" "$PERSISTENCE_GROUP" "$PERSISTENCE_ARTIFACT" "$PERSISTENCE_VERSION" provided ;;
+        jta) jakarta_add_dependency "$file" "$TRANSACTION_GROUP" "$TRANSACTION_ARTIFACT" "$TRANSACTION_VERSION" provided ;;
+        ejb) jakarta_add_dependency "$file" "$EJB_GROUP" "$EJB_ARTIFACT" "$EJB_VERSION" provided ;;
+        jms) jakarta_add_dependency "$file" "$JMS_GROUP" "$JMS_ARTIFACT" "$JMS_VERSION" provided ;;
+        mail) jakarta_add_dependency "$file" "$MAIL_GROUP" "$MAIL_ARTIFACT" "$MAIL_VERSION" provided ;;
+        security) jakarta_add_dependency "$file" "$SECURITY_GROUP" "$SECURITY_ARTIFACT" "$SECURITY_VERSION" provided ;;
+        faces) jakarta_add_dependency "$file" "$FACES_GROUP" "$FACES_ARTIFACT" "$FACES_VERSION" provided ;;
+        batch) jakarta_add_dependency "$file" "$BATCH_GROUP" "$BATCH_ARTIFACT" "$BATCH_VERSION" provided ;;
+        concurrency) jakarta_add_dependency "$file" "$CONCURRENCY_GROUP" "$CONCURRENCY_ARTIFACT" "$CONCURRENCY_VERSION" provided ;;
+        connectors) jakarta_add_dependency "$file" "$CONNECTOR_GROUP" "$CONNECTOR_ARTIFACT" "$CONNECTOR_VERSION" provided ;;
+        annotations) jakarta_add_dependency "$file" "$ANNOTATION_GROUP" "$ANNOTATION_ARTIFACT" "$ANNOTATION_VERSION" provided ;;
+        interceptors) jakarta_add_dependency "$file" "$INTERCEPTOR_GROUP" "$INTERCEPTOR_ARTIFACT" "$INTERCEPTOR_VERSION" provided ;;
+        jersey-server) jakarta_add_dependency "$file" org.glassfish.jersey.containers jersey-container-servlet "$JERSEY_VERSION" ;;
+        jersey-client) jakarta_add_dependency "$file" org.glassfish.jersey.core jersey-client "$JERSEY_VERSION" ;;
+        jersey-json) jakarta_add_dependency "$file" org.glassfish.jersey.media jersey-media-json-jackson "$JERSEY_VERSION" ;;
+        jersey-hk2) jakarta_add_dependency "$file" org.glassfish.jersey.inject jersey-hk2 "$JERSEY_VERSION" ;;
+        jersey-cdi) jakarta_add_dependency "$file" org.glassfish.jersey.inject jersey-cdi2-se "$JERSEY_VERSION" ;;
+        weld-se) jakarta_add_dependency "$file" org.jboss.weld.se weld-se-core "$WELD_VERSION" ;;
+        hibernate-validator) jakarta_add_dependency "$file" org.hibernate.validator hibernate-validator "$HIBERNATE_VALIDATOR_VERSION" ;;
+        hibernate-orm) jakarta_add_dependency "$file" org.hibernate.orm hibernate-core "$HIBERNATE_VERSION" ;;
+        eclipselink) jakarta_add_dependency "$file" org.eclipse.persistence eclipselink "$ECLIPSELINK_VERSION" ;;
+        mojarra) jakarta_add_dependency "$file" org.glassfish jakarta.faces "$MOJARRA_VERSION" ;;
+        yasson) jakarta_add_dependency "$file" org.eclipse yasson "$YASSON_VERSION" ;;
+        parsson) jakarta_add_dependency "$file" org.eclipse.parsson parsson "$PARSSON_VERSION" ;;
+        postgresql) jakarta_add_dependency "$file" org.postgresql postgresql 42.7.8 ;;
+        mysql) jakarta_add_dependency "$file" com.mysql mysql-connector-j 9.5.0 ;;
+        h2) jakarta_add_dependency "$file" com.h2database h2 2.4.240 ;;
+        testcontainers) jakarta_add_dependency "$file" org.testcontainers testcontainers 1.21.3 test ;;
+        mockito) jakarta_add_dependency "$file" org.mockito mockito-core 5.20.0 test ;;
+        assertj) jakarta_add_dependency "$file" org.assertj assertj-core 3.27.6 test ;;
+        lombok) jakarta_add_dependency "$file" org.projectlombok lombok 1.18.42 provided ;;
+    esac
+}
+
+validate_jakarta_selection() {
+    local profile_count=0
+
+    if has_selected_id "core-profile" "$JAKARTA_SELECTED_FEATURES"; then
+        JAKARTA_PROFILE="core"
+        profile_count=$((profile_count + 1))
+    fi
+
+    if has_selected_id "web-profile" "$JAKARTA_SELECTED_FEATURES"; then
+        JAKARTA_PROFILE="web"
+        profile_count=$((profile_count + 1))
+    fi
+
+    if has_selected_id "platform-api" "$JAKARTA_SELECTED_FEATURES"; then
+        JAKARTA_PROFILE="full"
+        profile_count=$((profile_count + 1))
+    fi
+
+    if [ "$profile_count" -gt 1 ]; then
+        gum_error "Select only one Jakarta EE profile from the feature list."
+        exit 1
+    fi
+
+    if [ "$profile_count" -eq 0 ]; then
+        JAKARTA_PROFILE="custom"
+    fi
+
+    if [ "$JAKARTA_PROFILE" = "core" ] && { [ "$JAKARTA_VERSION" = "8" ] || [ "$JAKARTA_VERSION" = "9" ] || [ "$JAKARTA_VERSION" = "9.1" ]; }; then
+        gum_error "Core Profile requires Jakarta EE 10 or later."
+        exit 1
+    fi
+
+    if [ "$JAVA_VERSION" = "8" ] && { [ "$JAKARTA_VERSION" = "10" ] || [ "$JAKARTA_VERSION" = "11" ]; }; then
+        gum_error "Java 8 is not compatible with Jakarta EE 10 or 11."
+        exit 1
+    fi
+
+    if [ "$JAVA_VERSION" = "11" ] && [ "$JAKARTA_VERSION" = "11" ]; then
+        gum_error "Jakarta EE 11 requires Java 17 or 21."
+        exit 1
+    fi
+
+    case "$JAKARTA_SERVER" in
+        tomcat11-*)
+            if [ "$JAKARTA_VERSION" != "11" ]; then
+                gum_error "Tomcat 11 is for Jakarta EE 11."
+                exit 1
+            fi
+            ;;
+        tomcat101-*)
+            if [ "$JAKARTA_VERSION" != "10" ]; then
+                gum_error "Tomcat 10.1 is for Jakarta EE 10."
+                exit 1
+            fi
+            ;;
+        tomcat10-*)
+            if [ "$JAKARTA_VERSION" != "9.1" ] && [ "$JAKARTA_VERSION" != "9" ]; then
+                gum_error "Tomcat 10 is for Jakarta EE 9/9.1."
+                exit 1
+            fi
+            ;;
+        tomcat9-*)
+            if [ "$JAKARTA_VERSION" != "8" ]; then
+                gum_error "Tomcat 9 uses Java EE 8 javax APIs."
+                exit 1
+            fi
+            ;;
+        tomee)
+            if { [ "$JAKARTA_PROFILE" != "web" ] && [ "$JAKARTA_PROFILE" != "custom" ]; } || { [ "$JAKARTA_VERSION" != "8" ] && [ "$JAKARTA_VERSION" != "9.1" ]; }; then
+                gum_error "TomEE supports Web Profile/custom web specs for Java EE 8 or Jakarta EE 9.1 in this generator."
+                exit 1
+            fi
+            ;;
+    esac
 }
 
 # ============================================================================
@@ -291,6 +792,64 @@ EOF
 )
 
 # ============================================================================
+# Jakarta EE Feature Database
+# ============================================================================
+
+JAKARTA_FEATURE_DATABASE=$(cat << 'EOF'
+# PROFILES
+platform-api:PROFILES | Jakarta EE Platform API - Full enterprise API set
+web-profile:PROFILES | Jakarta EE Web Profile API - Servlet/JSP/CDI/JPA web stack
+core-profile:PROFILES | Jakarta EE Core Profile API - CDI, REST, JSON, annotations
+# WEB
+servlet:WEB | Servlet - HTTP request/response web applications
+jsp:WEB | JSP - Java server pages
+jstl:WEB | JSTL - JSP standard tag library
+expression-language:WEB | Expression Language - EL API for JSP/Faces
+websocket:WEB | WebSocket - Bidirectional web communication
+faces:WEB | Faces - Component-based server-side UI
+# REST
+jax-rs:REST | RESTful Web Services (JAX-RS) - REST API specification
+jersey-server:REST | Eclipse Jersey Server - JAX-RS implementation for Servlet containers
+jersey-client:REST | Eclipse Jersey Client - JAX-RS client API implementation
+jersey-json:REST | Jersey Jackson JSON - JSON support for Jersey
+jersey-hk2:REST | Jersey HK2 Injection - Jersey dependency injection runtime
+jersey-cdi:REST | Jersey CDI Integration - CDI bridge for Jersey
+# ENTERPRISE
+cdi:ENTERPRISE | CDI - Contexts and Dependency Injection
+bean-validation:ENTERPRISE | Bean Validation - Validate models and inputs
+jpa:ENTERPRISE | Persistence (JPA) - Object relational persistence API
+jta:ENTERPRISE | Transactions (JTA) - Transaction API
+ejb:ENTERPRISE | Enterprise Beans (EJB) - Enterprise component model
+jms:ENTERPRISE | Messaging (JMS) - Message queues and topics
+mail:ENTERPRISE | Mail - Email integration
+security:ENTERPRISE | Security - Jakarta Security API
+batch:ENTERPRISE | Batch - Batch processing API
+concurrency:ENTERPRISE | Concurrency - Managed executor services
+connectors:ENTERPRISE | Connectors - Resource adapter API
+annotations:ENTERPRISE | Annotations - Common annotations API
+interceptors:ENTERPRISE | Interceptors - Method interception API
+# IMPLEMENTATIONS
+weld-se:IMPLEMENTATIONS | Weld SE - CDI runtime useful for Tomcat/testing
+hibernate-validator:IMPLEMENTATIONS | Hibernate Validator - Bean Validation implementation
+hibernate-orm:IMPLEMENTATIONS | Hibernate ORM - JPA implementation
+eclipselink:IMPLEMENTATIONS | EclipseLink - JPA implementation
+mojarra:IMPLEMENTATIONS | Mojarra - Faces implementation
+yasson:IMPLEMENTATIONS | Yasson - JSON-B implementation
+parsson:IMPLEMENTATIONS | Parsson - JSON-P implementation
+# DATABASE
+h2:DATABASE | H2 - Embedded development database
+postgresql:DATABASE | PostgreSQL JDBC driver
+mysql:DATABASE | MySQL JDBC driver
+# TESTING
+testcontainers:TESTING | Testcontainers - Docker-backed integration tests
+mockito:TESTING | Mockito - Mocking framework
+assertj:TESTING | AssertJ - Fluent assertions
+# UTILITIES
+lombok:UTILITIES | Lombok - Reduce Java boilerplate
+EOF
+)
+
+# ============================================================================
 # Main Script
 # ============================================================================
 
@@ -326,7 +885,7 @@ check_command fzf "brew install fzf or pacman -S fzf"
 check_command mvn "brew install maven or pacman -S maven"
 
 # Welcome screen
-gum_header " Java Project Generator" "Create Maven, JavaFX, or Spring Boot projects"
+gum_header " Java Project Generator" "Create Maven, JavaFX, Spring Boot, or Jakarta EE projects"
 
 echo ""
 
@@ -338,10 +897,11 @@ PROJECT_TYPE=$(gum choose \
     --header " Select project type:" \
     " Maven (Standard Java)" \
     " JavaFX (GUI Application)" \
-    " Spring Boot (Web/API)")
+    " Spring Boot (Web/API)" \
+    " Jakarta EE (Enterprise/Web)")
 
 # Remove nerd font prefix for processing
-# Extract just the key identifier: Maven, JavaFX, or Spring
+# Extract just the key identifier: Maven, JavaFX, Spring, or Jakarta
 PROJECT_TYPE_CLEAN=$(echo "$PROJECT_TYPE" | sed 's/^[[:space:]]*//' | sed 's/ (.*//' | awk '{print $1}')
 
 echo ""
@@ -393,7 +953,7 @@ elif [ "$PROJECT_TYPE_CLEAN" = "JavaFX" ]; then
     DEFAULT_MAIN="App"
 fi
 
-if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then
+if [ "$PROJECT_TYPE_CLEAN" != "Spring" ] && [ "$PROJECT_TYPE_CLEAN" != "Jakarta" ]; then
     if [ -n "$ARG_MAIN_CLASS" ]; then
         # Use argument if provided
         MAIN_CLASS="$ARG_MAIN_CLASS"
@@ -433,6 +993,19 @@ if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then
     fi
 fi
 
+# JavaFX structure selection
+if [ "$PROJECT_TYPE_CLEAN" = "JavaFX" ]; then
+    echo ""
+    JAVAFX_STRUCTURE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select JavaFX structure:" \
+        " Basic (No FXML)" \
+        " FXML")
+    JAVAFX_STRUCTURE_CLEAN=$(echo "$JAVAFX_STRUCTURE" | sed 's/^[[:space:]]*//' | sed 's/ (.*//')
+fi
+
 # Spring Boot specific inputs
 if [ "$PROJECT_TYPE_CLEAN" = "Spring" ]; then
     echo ""
@@ -454,11 +1027,117 @@ if [ "$PROJECT_TYPE_CLEAN" = "Spring" ]; then
         --prompt " ")
 fi
 
+# Jakarta EE specific inputs
+if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then
+    echo ""
+    JAKARTA_TEMPLATE=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select Jakarta EE template:" \
+        " Web application" \
+        " REST service" \
+        " Library")
+    JAKARTA_TEMPLATE=$(trim "$JAKARTA_TEMPLATE")
+
+    echo ""
+    JAKARTA_VERSION_LABEL=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select Jakarta EE version:" \
+        " Jakarta EE 11" \
+        " Jakarta EE 10" \
+        " Jakarta EE 9.1" \
+        " Jakarta EE 9" \
+        " Java EE 8 (javax)")
+    JAKARTA_VERSION=$(normalize_jakarta_version "$(trim "$JAKARTA_VERSION_LABEL")")
+
+    echo ""
+    JAVA_VERSION=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select Java SE version:" \
+        "21" \
+        "17" \
+        "11" \
+        "8")
+    JAVA_VERSION=$(trim "$JAVA_VERSION")
+
+    echo ""
+    JAKARTA_SERVER_LABEL=$(gum choose \
+        --header.foreground "$GOLD" \
+        --cursor.foreground "$IRIS" \
+        --selected.foreground "$FOAM" \
+        --header " Select application server/runtime:" \
+        " None" \
+        " Tomcat 11 local server" \
+        " Tomcat 11 remote client" \
+        " Tomcat 10.1 local server" \
+        " Tomcat 10.1 remote client" \
+        " Tomcat 10 local server" \
+        " Tomcat 10 remote client" \
+        " Tomcat 9 local server" \
+        " Tomcat 9 remote client" \
+        " GlassFish" \
+        " Payara" \
+        " WildFly" \
+        " Open Liberty" \
+        " TomEE")
+    JAKARTA_SERVER=$(normalize_jakarta_server "$(trim "$JAKARTA_SERVER_LABEL")")
+
+    jakarta_set_versions
+
+    case "$JAKARTA_TEMPLATE" in
+        "REST service")
+            JAKARTA_DEFAULT_FEATURES="servlet jax-rs jersey-server jersey-json jersey-hk2 cdi weld-se"
+            ;;
+        "Web application")
+            JAKARTA_DEFAULT_FEATURES="servlet jsp"
+            ;;
+        *)
+            JAKARTA_DEFAULT_FEATURES=""
+            ;;
+    esac
+
+    echo ""
+    gum_section " Jakarta EE Feature Selection"
+    echo ""
+    gum_info "Template defaults will be included automatically: $JAKARTA_DEFAULT_FEATURES"
+
+    JAKARTA_SELECTED=$(select_database_entries \
+        "$JAKARTA_FEATURE_DATABASE" \
+        " Select Jakarta EE profile/features (TAB=multi-select, ENTER=confirm): " \
+        "Optional: select one broad profile. Or select individual web, REST, enterprise APIs, implementations, databases, and testing.")
+
+    JAKARTA_SELECTED_FEATURES="$JAKARTA_DEFAULT_FEATURES"
+    if [ -n "$JAKARTA_SELECTED" ]; then
+        while IFS= read -r display_line; do
+            feature_id=$(echo "$display_line" | cut -d'|' -f2)
+            if [ -n "$feature_id" ]; then
+                JAKARTA_SELECTED_FEATURES="$JAKARTA_SELECTED_FEATURES $feature_id"
+            fi
+        done <<< "$JAKARTA_SELECTED"
+    fi
+
+    if [[ "$JAKARTA_SERVER" == tomcat* ]] && [ "$JAKARTA_TEMPLATE" != "Library" ]; then
+        JAKARTA_SELECTED_FEATURES="$JAKARTA_SELECTED_FEATURES servlet"
+    fi
+
+    validate_jakarta_selection
+fi
+
 # Set base package
 GROUP_ID="dev.quietghost"
 
 # Calculate package name for Spring Boot
 if [ "$PROJECT_TYPE_CLEAN" = "Spring" ]; then
+    PACKAGE_NAME="$GROUP_ID.${PROJECT_NAME//-/}"
+fi
+
+# Calculate package name for Jakarta EE
+if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then
     PACKAGE_NAME="$GROUP_ID.${PROJECT_NAME//-/}"
 fi
 
@@ -475,7 +1154,12 @@ gum style \
     "$(gum style --foreground "$FOAM" "Type:") $PROJECT_TYPE_CLEAN" \
     "$(gum style --foreground "$FOAM" "Name:") $PROJECT_NAME" \
     "$(gum style --foreground "$FOAM" "Package:") $GROUP_ID" \
-    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then echo "$(gum style --foreground "$FOAM" "Main Class:") $MAIN_CLASS"; fi)"
+    "$(if [ "$PROJECT_TYPE_CLEAN" = "JavaFX" ]; then echo "$(gum style --foreground "$FOAM" "Structure:") $JAVAFX_STRUCTURE_CLEAN"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then echo "$(gum style --foreground "$FOAM" "Template:") $JAKARTA_TEMPLATE"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then echo "$(gum style --foreground "$FOAM" "Jakarta EE:") $JAKARTA_VERSION / $JAKARTA_PROFILE / Java $JAVA_VERSION"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then echo "$(gum style --foreground "$FOAM" "Runtime:") $JAKARTA_SERVER"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" = "Jakarta" ]; then echo "$(gum style --foreground "$FOAM" "Features:") $JAKARTA_SELECTED_FEATURES"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ] && [ "$PROJECT_TYPE_CLEAN" != "Jakarta" ]; then echo "$(gum style --foreground "$FOAM" "Main Class:") $MAIN_CLASS"; fi)"
 
 echo ""
 
@@ -658,7 +1342,14 @@ case "$PROJECT_TYPE_CLEAN" in
         gum_info "Generating JavaFX project..."
         echo ""
         
-        package_name=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
+        package_name="${PROJECT_NAME//-/}"
+        project_title=$(echo "$package_name" | sed 's/.*/\L&/; s/^./\U&/')
+
+        if [ "$JAVAFX_STRUCTURE_CLEAN" = "FXML" ]; then
+            javafx_archetype="javafx-archetype-fxml"
+        else
+            javafx_archetype="javafx-archetype-simple"
+        fi
         
         gum spin \
             --spinner dot \
@@ -667,7 +1358,7 @@ case "$PROJECT_TYPE_CLEAN" in
             --spinner.foreground "$FOAM" \
             -- mvn archetype:generate -B \
                 -DarchetypeGroupId=org.openjfx \
-                -DarchetypeArtifactId=javafx-archetype-fxml \
+                -DarchetypeArtifactId=$javafx_archetype \
                 -DarchetypeVersion=0.0.6 \
                 -DgroupId=$GROUP_ID \
                 -DartifactId=$PROJECT_NAME \
@@ -681,6 +1372,34 @@ case "$PROJECT_TYPE_CLEAN" in
         fi
         
         cd "$PROJECT_NAME"
+
+        app_file=$(find src/main/java -name "App.java" -type f)
+
+        if [ "$JAVAFX_STRUCTURE_CLEAN" = "Basic" ] && [ -n "$app_file" ]; then
+            cat > "$app_file" << EOF
+package $GROUP_ID.$package_name;
+
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
+
+public class App extends Application {
+    @Override
+    public void start(Stage primaryStage) {
+        Pane root = new Pane();
+        Scene scene = new Scene(root, 640, 480);
+        primaryStage.setTitle("$project_title");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+EOF
+        fi
         
         # Rename App.java if custom main class specified
         if [ "$MAIN_CLASS" != "App" ]; then
@@ -699,13 +1418,342 @@ case "$PROJECT_TYPE_CLEAN" in
                 fi
                 
                 sed -i "s/\bApp\b/${MAIN_CLASS}/g" pom.xml
-                find src/main/resources -name "*.fxml" -type f -exec sed -i "s/\bApp\b/${MAIN_CLASS}/g" {} \;
+
+                if [ "$JAVAFX_STRUCTURE_CLEAN" = "FXML" ]; then
+                    find src/main/resources -name "*.fxml" -type f -exec sed -i "s/\bApp\b/${MAIN_CLASS}/g" {} \;
+                fi
                 
                 gum_success "Successfully renamed all App references to ${MAIN_CLASS}"
             fi
         fi
         ;;
-        
+
+    "Jakarta")
+        gum_info "Generating Jakarta EE project..."
+        echo ""
+
+        if [ -d "$PROJECT_NAME" ]; then
+            echo ""
+            if ! gum confirm \
+                --selected.foreground "$FOAM" \
+                --unselected.foreground "$LOVE" \
+                "Directory '$PROJECT_NAME' exists. Overwrite?"; then
+                gum_error "Cancelled"
+                exit 0
+            fi
+            rm -rf "$PROJECT_NAME"
+        fi
+
+        mkdir -p "$PROJECT_NAME"
+        cd "$PROJECT_NAME"
+
+        PACKAGE_PATH="${PACKAGE_NAME//./\/}"
+        CLASS_BASE=$(pascal_case "$PROJECT_NAME")
+        ARTIFACT_PACKAGING="war"
+
+        if [ "$JAKARTA_TEMPLATE" = "Library" ]; then
+            ARTIFACT_PACKAGING="jar"
+        fi
+
+        mkdir -p "src/main/java/$PACKAGE_PATH" "src/test/java/$PACKAGE_PATH"
+        if [ "$ARTIFACT_PACKAGING" = "war" ]; then
+            mkdir -p src/main/webapp/WEB-INF
+        fi
+
+        deps_file=$(mktemp)
+        JAKARTA_DEP_KEYS=""
+
+        if [ "$JAKARTA_TEMPLATE" != "Library" ]; then
+            case "$JAKARTA_PROFILE" in
+                core) jakarta_add_feature_dependency core-profile "$deps_file" ;;
+                web) jakarta_add_feature_dependency web-profile "$deps_file" ;;
+                full) jakarta_add_feature_dependency platform-api "$deps_file" ;;
+            esac
+        fi
+
+        for feature in $JAKARTA_SELECTED_FEATURES; do
+            jakarta_add_feature_dependency "$feature" "$deps_file"
+        done
+
+        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-api 5.11.4 test
+        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-engine 5.11.4 test
+
+        deps_xml=$(cat "$deps_file")
+        rm -f "$deps_file"
+
+        tomcat_plugin=""
+        if [[ "$JAKARTA_SERVER" == tomcat*-local ]]; then
+            tomcat_plugin=$(cat << EOF
+            <plugin>
+                <groupId>org.codehaus.cargo</groupId>
+                <artifactId>cargo-maven3-plugin</artifactId>
+                <version>1.10.21</version>
+                <configuration>
+                    <container>
+                        <containerId>$TOMCAT_LOCAL_CONTAINER</containerId>
+                        <type>installed</type>
+                        <home>\${tomcat.home}</home>
+                    </container>
+                    <configuration>
+                        <type>existing</type>
+                        <home>\${tomcat.home}</home>
+                    </configuration>
+                </configuration>
+            </plugin>
+EOF
+)
+        elif [[ "$JAKARTA_SERVER" == tomcat*-remote ]]; then
+            tomcat_plugin=$(cat << EOF
+            <plugin>
+                <groupId>org.codehaus.cargo</groupId>
+                <artifactId>cargo-maven3-plugin</artifactId>
+                <version>1.10.21</version>
+                <configuration>
+                    <container>
+                        <containerId>$TOMCAT_REMOTE_CONTAINER</containerId>
+                        <type>remote</type>
+                    </container>
+                    <configuration>
+                        <type>runtime</type>
+                        <properties>
+                            <cargo.remote.username>\${tomcat.username}</cargo.remote.username>
+                            <cargo.remote.password>\${tomcat.password}</cargo.remote.password>
+                            <cargo.tomcat.manager.url>\${tomcat.manager.url}</cargo.tomcat.manager.url>
+                        </properties>
+                    </configuration>
+                </configuration>
+            </plugin>
+EOF
+)
+        fi
+
+        cat > pom.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>$GROUP_ID</groupId>
+    <artifactId>$PROJECT_NAME</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>$PROJECT_NAME</name>
+    <packaging>$ARTIFACT_PACKAGING</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>$JAVA_VERSION</maven.compiler.release>
+        <tomcat.home>\${env.CATALINA_HOME}</tomcat.home>
+        <tomcat.username>admin</tomcat.username>
+        <tomcat.password>password</tomcat.password>
+        <tomcat.manager.url>http://localhost:8080/manager/text</tomcat.manager.url>
+    </properties>
+
+    <dependencies>
+$deps_xml
+    </dependencies>
+
+    <build>
+        <finalName>$PROJECT_NAME</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+EOF
+
+        if [ "$ARTIFACT_PACKAGING" = "war" ]; then
+            cat >> pom.xml << EOF
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+            </plugin>
+EOF
+        fi
+
+        cat >> pom.xml << EOF
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
+$tomcat_plugin
+        </plugins>
+    </build>
+</project>
+EOF
+
+        if [ "$JAKARTA_TEMPLATE" = "Web application" ]; then
+            cat > "src/main/java/$PACKAGE_PATH/HelloServlet.java" << EOF
+package $PACKAGE_NAME;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+
+import $EE_IMPORT_PACKAGE.servlet.annotation.WebServlet;
+import $EE_IMPORT_PACKAGE.servlet.http.HttpServlet;
+import $EE_IMPORT_PACKAGE.servlet.http.HttpServletRequest;
+import $EE_IMPORT_PACKAGE.servlet.http.HttpServletResponse;
+
+@WebServlet("/hello-servlet")
+public class HelloServlet extends HttpServlet {
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("text/html;charset=UTF-8");
+
+        try (PrintWriter out = response.getWriter()) {
+            out.println("<html><body>");
+            out.println("<h1>Hello from Jakarta EE</h1>");
+            out.println("</body></html>");
+        }
+    }
+}
+EOF
+
+            cat > src/main/webapp/index.jsp << EOF
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>$PROJECT_NAME</title>
+</head>
+<body>
+<h1>Hello from Jakarta EE</h1>
+<p><a href="hello-servlet">Hello Servlet</a></p>
+</body>
+</html>
+EOF
+        elif [ "$JAKARTA_TEMPLATE" = "REST service" ]; then
+            cat > "src/main/java/$PACKAGE_PATH/HelloApplication.java" << EOF
+package $PACKAGE_NAME;
+
+import $EE_IMPORT_PACKAGE.ws.rs.ApplicationPath;
+import $EE_IMPORT_PACKAGE.ws.rs.core.Application;
+
+@ApplicationPath("/api")
+public class HelloApplication extends Application {
+}
+EOF
+
+            cat > "src/main/java/$PACKAGE_PATH/HelloResource.java" << EOF
+package $PACKAGE_NAME;
+
+import $EE_IMPORT_PACKAGE.ws.rs.GET;
+import $EE_IMPORT_PACKAGE.ws.rs.Path;
+import $EE_IMPORT_PACKAGE.ws.rs.Produces;
+import $EE_IMPORT_PACKAGE.ws.rs.core.MediaType;
+
+@Path("/hello-world")
+public class HelloResource {
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return "Hello, World!";
+    }
+}
+EOF
+
+            cat > src/main/webapp/index.html << EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>$PROJECT_NAME</title>
+</head>
+<body>
+<h1>Jakarta EE REST service</h1>
+<p><a href="api/hello-world">GET /api/hello-world</a></p>
+</body>
+</html>
+EOF
+        else
+            cat > "src/main/java/$PACKAGE_PATH/${CLASS_BASE}Library.java" << EOF
+package $PACKAGE_NAME;
+
+public final class ${CLASS_BASE}Library {
+    private ${CLASS_BASE}Library() {
+    }
+
+    public static String name() {
+        return "$PROJECT_NAME";
+    }
+}
+EOF
+        fi
+
+        cat > "src/test/java/$PACKAGE_PATH/${CLASS_BASE}Test.java" << EOF
+package $PACKAGE_NAME;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class ${CLASS_BASE}Test {
+    @Test
+    void projectIsGenerated() {
+        assertTrue(true);
+    }
+}
+EOF
+
+        cat > README.md << EOF
+# $PROJECT_NAME
+
+Generated Jakarta EE project.
+
+- Template: $JAKARTA_TEMPLATE
+- Jakarta EE version: $JAKARTA_VERSION
+- Profile/API scope: $JAKARTA_PROFILE
+- Java version: $JAVA_VERSION
+- Runtime: $JAKARTA_SERVER
+- Features: $JAKARTA_SELECTED_FEATURES
+
+## Build
+
+\`mvn clean package\`
+EOF
+
+        if [ "$JAKARTA_TEMPLATE" = "REST service" ]; then
+            cat >> README.md << EOF
+
+## Endpoint
+
+\`/api/hello-world\`
+EOF
+        elif [ "$JAKARTA_TEMPLATE" = "Web application" ]; then
+            cat >> README.md << EOF
+
+## Endpoint
+
+\`/hello-servlet\`
+EOF
+        fi
+
+        if [[ "$JAKARTA_SERVER" == tomcat*-local ]]; then
+            cat >> README.md << EOF
+
+## Run On Local Tomcat
+
+Set \`CATALINA_HOME\`, then run:
+
+\`mvn clean package cargo:run\`
+EOF
+        elif [[ "$JAKARTA_SERVER" == tomcat*-remote ]]; then
+            cat >> README.md << EOF
+
+## Deploy To Remote Tomcat
+
+Set \`tomcat.username\`, \`tomcat.password\`, and \`tomcat.manager.url\`, then run:
+
+\`mvn clean package cargo:deploy\`
+EOF
+        fi
+
+        gum_success "Jakarta EE project generated"
+        ;;
+
     "Spring")
         # Check Spring CLI
         check_command spring "sdk install springboot"
@@ -839,7 +1887,7 @@ gum style \
     " Project created successfully!" \
     "" \
     " Location: $(pwd)" \
-    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ]; then echo " Main class: ${MAIN_CLASS}.java"; fi)" \
+    "$(if [ "$PROJECT_TYPE_CLEAN" != "Spring" ] && [ "$PROJECT_TYPE_CLEAN" != "Jakarta" ]; then echo " Main class: ${MAIN_CLASS}.java"; fi)" \
     " Package: $GROUP_ID" \
     "" \
     "Opening in Neovim..."

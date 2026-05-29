@@ -114,7 +114,7 @@ main() {
     
     # Launch hypridle with the generated config
     log_info "Starting hypridle with $DEVICE_TYPE configuration"
-    exec hypridle -c "$CONFIG_FILE"
+    exec /usr/bin/hypridle -c "$CONFIG_FILE"
 }
 
 main "$@"
