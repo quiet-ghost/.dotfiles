@@ -17,15 +17,82 @@ local function find_pom_xml(start_dir)
   return nil, nil
 end
 
-local function is_javafx_maven_project(pom_path)
-  local file = io.open(pom_path, "r")
+local function read_file(path)
+  local file = io.open(path, "r")
   if not file then
-    return false
+    return nil
   end
 
   local content = file:read("*all")
   file:close()
+  return content
+end
+
+local function is_javafx_maven_project(content)
+  if not content then
+    return false
+  end
+
   return content:match("javafx") ~= nil
+end
+
+local function is_jakarta_war_project(content)
+  if not content or not content:match("<packaging>%s*war%s*</packaging>") then
+    return false
+  end
+
+  return content:find("jakarta.servlet", 1, true) ~= nil
+    or content:find("jakarta.ws.rs", 1, true) ~= nil
+    or content:find("jakarta.platform", 1, true) ~= nil
+    or content:find("javax.servlet", 1, true) ~= nil
+    or content:find("javax.ws.rs", 1, true) ~= nil
+end
+
+local function is_tomcat_cargo_project(content)
+  if not content then
+    return false
+  end
+
+  return content:find("cargo-maven3-plugin", 1, true) ~= nil and content:lower():find("tomcat", 1, true) ~= nil
+end
+
+local function is_tomcat_home(path)
+  if not path or path == "" then
+    return false
+  end
+
+  local stat = vim.uv or vim.loop
+  return stat.fs_stat(path .. "/bin/catalina.sh") ~= nil
+    and stat.fs_stat(path .. "/conf/server.xml") ~= nil
+    and stat.fs_stat(path .. "/lib") ~= nil
+end
+
+local function resolve_tomcat_home()
+  local home = os.getenv("HOME") or vim.fn.expand("~")
+  local candidates = {}
+  local env_catalina_home = os.getenv("CATALINA_HOME")
+  local env_tomcat_home = os.getenv("TOMCAT_HOME")
+
+  if env_catalina_home and env_catalina_home ~= "" then
+    table.insert(candidates, env_catalina_home)
+  end
+
+  if env_tomcat_home and env_tomcat_home ~= "" then
+    table.insert(candidates, env_tomcat_home)
+  end
+
+  table.insert(candidates, "/home/ghost/app/tomcat")
+  table.insert(candidates, home .. "/app/tomcat")
+  table.insert(candidates, home .. "/apps/tomcat")
+
+  for _, candidate in ipairs(candidates) do
+    local expanded = vim.fn.expand(candidate)
+    if is_tomcat_home(expanded) then
+      return expanded
+    end
+  end
+
+  return nil, candidates
 end
 
 local function resolve_java_tools()
@@ -150,7 +217,9 @@ function M.compile_and_run()
 
   local maven_dir, pom_path = find_pom_xml(dir)
   if maven_dir and pom_path then
-    if is_javafx_maven_project(pom_path) then
+    local pom_content = read_file(pom_path)
+
+    if is_javafx_maven_project(pom_content) then
       vim.notify("Maven JavaFX project detected - running with mvn", vim.log.levels.INFO)
       local maven_cmd = string.format(
         "cd %s && echo 'Running Maven JavaFX project...' && mvn clean javafx:run",
@@ -158,6 +227,42 @@ function M.compile_and_run()
       )
       run_in_tmux(maven_cmd, 20)
       vim.notify("Maven JavaFX running from " .. maven_dir, vim.log.levels.INFO)
+      return
+    end
+
+    if is_jakarta_war_project(pom_content) then
+      if is_tomcat_cargo_project(pom_content) then
+        local tomcat_home, tomcat_candidates = resolve_tomcat_home()
+        if not tomcat_home then
+          local checked = {}
+          for _, candidate in ipairs(tomcat_candidates or {}) do
+            if candidate and candidate ~= "" then
+              table.insert(checked, vim.fn.expand(candidate))
+            end
+          end
+          vim.notify(
+            "Tomcat home not found. Checked: " .. table.concat(checked, ", "),
+            vim.log.levels.ERROR
+          )
+          return
+        end
+
+        vim.notify("Jakarta EE Tomcat project detected - running with Maven Cargo", vim.log.levels.INFO)
+        local maven_cmd = string.format(
+          "cd %s && echo 'Running Jakarta EE project on Tomcat...' && mvn -Dtomcat.home=%s -DskipTests package cargo:run",
+          vim.fn.shellescape(maven_dir),
+          vim.fn.shellescape(tomcat_home)
+        )
+        run_in_tmux(maven_cmd, 30)
+        return
+      end
+
+      vim.notify("Jakarta EE WAR project detected - building package (no Tomcat runner configured)", vim.log.levels.INFO)
+      local maven_cmd = string.format(
+        "cd %s && echo 'Building Jakarta EE WAR...' && mvn -DskipTests package",
+        vim.fn.shellescape(maven_dir)
+      )
+      run_in_tmux(maven_cmd, 30)
       return
     end
 
@@ -213,6 +318,11 @@ function M.compile_only()
   if maven_dir and pom_path then
     local is_test_source = file:find("/src/test/java/", 1, true) ~= nil
     local phase = is_test_source and "test-compile" or "compile"
+    local pom_content = read_file(pom_path)
+    if not is_test_source and is_jakarta_war_project(pom_content) then
+      phase = "package"
+    end
+
     vim.notify("Maven project detected - compiling with mvn", vim.log.levels.INFO)
 
     local compile_cmd = string.format("cd %s && mvn -q -DskipTests %s", vim.fn.shellescape(maven_dir), phase)

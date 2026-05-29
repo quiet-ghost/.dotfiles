@@ -41,9 +41,11 @@ alias wtdd='wd --delete-remote'
 
 #Eza
 alias l="eza -l --icons --git -a"
-alias ls='eza --icons --long --git --group-directories-first'
-alias lt="eza --tree --level=2 --long --icons --git"
-alias ltree="eza --tree --level=2  --icons --git"
+alias ls='eza --icons --long --group-directories-first'
+alias lt="eza --tree --level=2 --long --icons"
+alias ltree="eza --tree --level=2  --icons"
+alias lsg='eza --icons --long --git --group-directories-first'
+alias ltg="eza --tree --level=2 --long --icons --git"
 
 #alias suffix
 alias -s json=jless
