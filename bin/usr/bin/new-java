@@ -1426,6 +1426,9 @@ EOF
                 gum_success "Successfully renamed all App references to ${MAIN_CLASS}"
             fi
         fi
+
+        sed -i "/<\/properties>/i\        <javafx.mainClass>$GROUP_ID.$package_name.$MAIN_CLASS</javafx.mainClass>" pom.xml
+        sed -i 's|<mainClass>.*</mainClass>|<mainClass>${javafx.mainClass}</mainClass>|' pom.xml
         ;;
 
     "Jakarta")
@@ -1475,57 +1478,11 @@ EOF
             jakarta_add_feature_dependency "$feature" "$deps_file"
         done
 
-        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-api 5.11.4 test
-        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-engine 5.11.4 test
+        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-api "\${junit.version}" test
+        jakarta_add_dependency "$deps_file" org.junit.jupiter junit-jupiter-engine "\${junit.version}" test
 
         deps_xml=$(cat "$deps_file")
         rm -f "$deps_file"
-
-        tomcat_plugin=""
-        if [[ "$JAKARTA_SERVER" == tomcat*-local ]]; then
-            tomcat_plugin=$(cat << EOF
-            <plugin>
-                <groupId>org.codehaus.cargo</groupId>
-                <artifactId>cargo-maven3-plugin</artifactId>
-                <version>1.10.21</version>
-                <configuration>
-                    <container>
-                        <containerId>$TOMCAT_LOCAL_CONTAINER</containerId>
-                        <type>installed</type>
-                        <home>\${tomcat.home}</home>
-                    </container>
-                    <configuration>
-                        <type>existing</type>
-                        <home>\${tomcat.home}</home>
-                    </configuration>
-                </configuration>
-            </plugin>
-EOF
-)
-        elif [[ "$JAKARTA_SERVER" == tomcat*-remote ]]; then
-            tomcat_plugin=$(cat << EOF
-            <plugin>
-                <groupId>org.codehaus.cargo</groupId>
-                <artifactId>cargo-maven3-plugin</artifactId>
-                <version>1.10.21</version>
-                <configuration>
-                    <container>
-                        <containerId>$TOMCAT_REMOTE_CONTAINER</containerId>
-                        <type>remote</type>
-                    </container>
-                    <configuration>
-                        <type>runtime</type>
-                        <properties>
-                            <cargo.remote.username>\${tomcat.username}</cargo.remote.username>
-                            <cargo.remote.password>\${tomcat.password}</cargo.remote.password>
-                            <cargo.tomcat.manager.url>\${tomcat.manager.url}</cargo.tomcat.manager.url>
-                        </properties>
-                    </configuration>
-                </configuration>
-            </plugin>
-EOF
-)
-        fi
 
         cat > pom.xml << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -1542,11 +1499,9 @@ EOF
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>$JAVA_VERSION</maven.compiler.release>
-        <tomcat.home>\${env.CATALINA_HOME}</tomcat.home>
-        <tomcat.username>admin</tomcat.username>
-        <tomcat.password>password</tomcat.password>
-        <tomcat.manager.url>http://localhost:8080/manager/text</tomcat.manager.url>
+        <maven.compiler.target>$JAVA_VERSION</maven.compiler.target>
+        <maven.compiler.source>$JAVA_VERSION</maven.compiler.source>
+        <junit.version>5.13.2</junit.version>
     </properties>
 
     <dependencies>
@@ -1554,7 +1509,6 @@ $deps_xml
     </dependencies>
 
     <build>
-        <finalName>$PROJECT_NAME</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -1579,35 +1533,61 @@ EOF
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
             </plugin>
-$tomcat_plugin
         </plugins>
     </build>
 </project>
 EOF
 
+        if [ "$ARTIFACT_PACKAGING" = "war" ]; then
+            if [ "$JAKARTA_VERSION" = "8" ]; then
+                cat > src/main/webapp/WEB-INF/web.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd"
+         version="4.0">
+</web-app>
+EOF
+            else
+                cat > src/main/webapp/WEB-INF/web.xml << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+</web-app>
+EOF
+            fi
+        fi
+
         if [ "$JAKARTA_TEMPLATE" = "Web application" ]; then
             cat > "src/main/java/$PACKAGE_PATH/HelloServlet.java" << EOF
 package $PACKAGE_NAME;
 
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 
-import $EE_IMPORT_PACKAGE.servlet.annotation.WebServlet;
-import $EE_IMPORT_PACKAGE.servlet.http.HttpServlet;
-import $EE_IMPORT_PACKAGE.servlet.http.HttpServletRequest;
-import $EE_IMPORT_PACKAGE.servlet.http.HttpServletResponse;
+import $EE_IMPORT_PACKAGE.servlet.http.*;
+import $EE_IMPORT_PACKAGE.servlet.annotation.*;
 
-@WebServlet("/hello-servlet")
+@WebServlet(name = "helloServlet", value = "/hello-servlet")
 public class HelloServlet extends HttpServlet {
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        response.setContentType("text/html;charset=UTF-8");
+    private String message;
 
-        try (PrintWriter out = response.getWriter()) {
-            out.println("<html><body>");
-            out.println("<h1>Hello from Jakarta EE</h1>");
-            out.println("</body></html>");
-        }
+    public void init() {
+        message = "Hello World!";
+    }
+
+    public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        response.setContentType("text/html");
+
+        // Hello
+        PrintWriter out = response.getWriter();
+        out.println("<html><body>");
+        out.println("<h1>" + message + "</h1>");
+        out.println("</body></html>");
+    }
+
+    public void destroy() {
     }
 }
 EOF
@@ -1617,11 +1597,13 @@ EOF
 <!DOCTYPE html>
 <html>
 <head>
-    <title>$PROJECT_NAME</title>
+    <title>JSP - Hello World</title>
 </head>
 <body>
-<h1>Hello from Jakarta EE</h1>
-<p><a href="hello-servlet">Hello Servlet</a></p>
+<h1><%= "Hello World!" %>
+</h1>
+<br/>
+<a href="hello-servlet">Hello Servlet</a>
 </body>
 </html>
 EOF
@@ -1698,6 +1680,55 @@ class ${CLASS_BASE}Test {
 }
 EOF
 
+        cat > .gitignore << 'EOF'
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+.kotlin
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+EOF
+
+        gum spin \
+            --spinner dot \
+            --title " Adding Maven wrapper..." \
+            --title.foreground "$IRIS" \
+            --spinner.foreground "$FOAM" \
+            -- mvn -q -N wrapper:wrapper -Dmaven=3.9.6
+
         cat > README.md << EOF
 # $PROJECT_NAME
 
@@ -1736,18 +1767,16 @@ EOF
 
 ## Run On Local Tomcat
 
-Set \`CATALINA_HOME\`, then run:
+Configure Tomcat in your IDE, or use this dotfiles Neovim Java runner from inside the project:
 
-\`mvn clean package cargo:run\`
+\`<leader>jf\`
 EOF
         elif [[ "$JAKARTA_SERVER" == tomcat*-remote ]]; then
             cat >> README.md << EOF
 
 ## Deploy To Remote Tomcat
 
-Set \`tomcat.username\`, \`tomcat.password\`, and \`tomcat.manager.url\`, then run:
-
-\`mvn clean package cargo:deploy\`
+Build the WAR with \`mvn clean package\`, then deploy \`target/$PROJECT_NAME-1.0-SNAPSHOT.war\` with your Tomcat Manager or IDE run configuration.
 EOF
         fi
 
