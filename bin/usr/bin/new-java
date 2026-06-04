@@ -456,6 +456,207 @@ jakarta_add_dependency() {
     } >> "$file"
 }
 
+maven_insert_dependencies() {
+    local pom_file="$1"
+    local deps_file="$2"
+    local temp_output
+
+    temp_output=$(mktemp)
+
+    if awk -v deps_file="$deps_file" '
+        function print_deps() {
+            while ((getline dep < deps_file) > 0) {
+                print dep
+            }
+            close(deps_file)
+        }
+
+        /<dependencyManagement>/ {
+            in_dependency_management = 1
+        }
+
+        /^[[:space:]]*<\/dependencies>[[:space:]]*$/ && !in_dependency_management && !inserted {
+            print_deps()
+            inserted = 1
+        }
+
+        /^[[:space:]]*<\/project>[[:space:]]*$/ && !inserted {
+            print "  <dependencies>"
+            print_deps()
+            print "  </dependencies>"
+            inserted = 1
+        }
+
+        {
+            print
+        }
+
+        /<\/dependencyManagement>/ {
+            in_dependency_management = 0
+        }
+
+        END {
+            if (!inserted) {
+                exit 1
+            }
+        }
+    ' "$pom_file" > "$temp_output"; then
+        mv "$temp_output" "$pom_file"
+        return 0
+    fi
+
+    rm -f "$temp_output"
+    return 1
+}
+
+maven_add_java_sql_module_requirement() {
+    local module_file
+    local temp_module
+
+    module_file=$(find src/main/java -name "module-info.java" -type f | head -1)
+
+    if [ -z "$module_file" ] || grep -q 'requires[[:space:]]\+java\.sql;' "$module_file"; then
+        return 0
+    fi
+
+    temp_module=$(mktemp)
+
+    if awk '
+        !inserted && /^[[:space:]]*}[[:space:]]*$/ {
+            print "    requires java.sql;"
+            inserted = 1
+        }
+
+        {
+            print
+        }
+
+        END {
+            if (!inserted) {
+                exit 1
+            }
+        }
+    ' "$module_file" > "$temp_module"; then
+        mv "$temp_module" "$module_file"
+        gum_success "Added java.sql module requirement"
+        return 0
+    fi
+
+    rm -f "$temp_module"
+    gum_error "Failed to update module-info.java for JDBC"
+    return 1
+}
+
+maven_select_and_add_dependencies() {
+    local display_list
+    local temp_db
+    local selected
+    local temp_deps
+    local selected_database=0
+
+    echo ""
+    gum_section " Dependency Selection"
+    echo ""
+
+    display_list=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
+        split($1, parts, ":")
+        category = parts[5]
+        gsub(/^[ \t]+|[ \t]+$/, "", category)
+        description = $2
+        gsub(/^[ \t]+|[ \t]+$/, "", description)
+        printf "[%s] %s\n", category, description
+    }')
+
+    temp_db=$(mktemp)
+    echo "$MAVEN_DEPENDENCY_DATABASE" > "$temp_db"
+
+    selected=$(echo "$display_list" | fzf \
+        --multi \
+        --height=60% \
+        --border=rounded \
+        --prompt=" Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
+        --header="Categories: TESTING, LOGGING, JSON, UTILITIES, HTTP, DATABASE, ORM, WEB, CLI, etc." \
+        --preview="bash -c 'desc=\$(echo {} | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | xargs'" \
+        --preview-window=down:3:wrap \
+        --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
+        --color='header:italic:underline' \
+    ) || true
+
+    rm -f "$temp_db"
+
+    if [ -z "$selected" ]; then
+        echo ""
+        gum_info "No additional dependencies selected"
+        return 0
+    fi
+
+    mapfile -t selected_deps <<< "$selected"
+    echo ""
+    gum_info "Adding ${#selected_deps[@]} dependencies..."
+
+    temp_deps=$(mktemp)
+
+    for display_line in "${selected_deps[@]}"; do
+        desc=$(echo "$display_line" | sed 's/^\[.*\] //')
+        original_line=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep "| $desc$")
+
+        if [ -z "$original_line" ]; then
+            gum_error "Warning: Could not find dependency for: $display_line"
+            continue
+        fi
+
+        dep_info=$(echo "$original_line" | cut -d'|' -f1 | xargs)
+        group_id_dep=$(echo "$dep_info" | cut -d: -f1)
+        artifact_id=$(echo "$dep_info" | cut -d: -f2)
+        version=$(echo "$dep_info" | cut -d: -f3)
+        scope=$(echo "$dep_info" | cut -d: -f4)
+        category=$(echo "$dep_info" | cut -d: -f5)
+
+        if [ "$category" = "DATABASE" ]; then
+            selected_database=1
+        fi
+
+        echo "    <dependency>" >> "$temp_deps"
+        echo "      <groupId>$group_id_dep</groupId>" >> "$temp_deps"
+        echo "      <artifactId>$artifact_id</artifactId>" >> "$temp_deps"
+        echo "      <version>$version</version>" >> "$temp_deps"
+
+        if [ "$scope" != "compile" ]; then
+            echo "      <scope>$scope</scope>" >> "$temp_deps"
+        fi
+
+        echo "    </dependency>" >> "$temp_deps"
+    done
+
+    if maven_insert_dependencies pom.xml "$temp_deps"; then
+        gum_success "Dependencies added successfully"
+    else
+        gum_error "Failed to add dependencies to pom.xml"
+        rm -f "$temp_deps"
+        exit 1
+    fi
+
+    rm -f "$temp_deps"
+
+    if [ "$selected_database" -eq 1 ]; then
+        maven_add_java_sql_module_requirement || exit 1
+    fi
+
+    if echo "$selected" | grep -q "\[UTILITIES\] Lombok"; then
+        gum_info "Configuring Lombok annotation processor..."
+        sed -i '/<artifactId>maven-compiler-plugin<\/artifactId>/a\
+          <configuration>\
+            <annotationProcessorPaths>\
+              <path>\
+                <groupId>org.projectlombok</groupId>\
+                <artifactId>lombok</artifactId>\
+                <version>1.18.36</version>\
+              </path>\
+            </annotationProcessorPaths>\
+          </configuration>' pom.xml
+    fi
+}
+
 jakarta_add_feature_dependency() {
     local feature="$1"
     local file="$2"
@@ -1207,104 +1408,7 @@ case "$PROJECT_TYPE_CLEAN" in
         
         cd "$PROJECT_NAME"
         
-        echo ""
-        gum_section " Dependency Selection"
-        echo ""
-        
-        # Transform database for fzf
-        display_list=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep -v "^#" | grep -v "^$" | awk -F'|' '{
-            split($1, parts, ":")
-            category = parts[5]
-            gsub(/^[ \t]+|[ \t]+$/, "", category)
-            description = $2
-            gsub(/^[ \t]+|[ \t]+$/, "", description)
-            printf "[%s] %s\n", category, description
-        }')
-        
-        # Create temporary file for preview
-        temp_db=$(mktemp)
-        echo "$MAVEN_DEPENDENCY_DATABASE" > "$temp_db"
-        
-        selected=$(echo "$display_list" | fzf \
-            --multi \
-            --height=60% \
-            --border=rounded \
-            --prompt=" Select dependencies (TAB=multi-select, ENTER=confirm, ESC=skip): " \
-            --header="Categories: TESTING, LOGGING, JSON, UTILITIES, HTTP, DATABASE, ORM, WEB, CLI, etc." \
-            --preview="bash -c 'desc=\$(echo {} | sed \"s/^\\\[.*\\\] //\"); grep \"| \$desc\$\" $temp_db | cut -d\"|\" -f1 | xargs'" \
-            --preview-window=down:3:wrap \
-            --bind='ctrl-a:select-all,ctrl-d:deselect-all' \
-            --color='header:italic:underline' \
-        ) || true
-        
-        rm -f "$temp_db"
-        
-        # Process selected dependencies
-        if [ -n "$selected" ]; then
-            mapfile -t selected_deps <<< "$selected"
-            echo ""
-            gum_info "Adding ${#selected_deps[@]} dependencies..."
-            
-            temp_deps=$(mktemp)
-            
-            for display_line in "${selected_deps[@]}"; do
-                desc=$(echo "$display_line" | sed 's/^\[.*\] //')
-                original_line=$(echo "$MAVEN_DEPENDENCY_DATABASE" | grep "| $desc$")
-                
-                if [ -z "$original_line" ]; then
-                    gum_error "Warning: Could not find dependency for: $display_line"
-                    continue
-                fi
-                
-                dep_info=$(echo "$original_line" | cut -d'|' -f1 | xargs)
-                group_id_dep=$(echo "$dep_info" | cut -d: -f1)
-                artifact_id=$(echo "$dep_info" | cut -d: -f2)
-                version=$(echo "$dep_info" | cut -d: -f3)
-                scope=$(echo "$dep_info" | cut -d: -f4)
-                
-                echo "    <dependency>" >> "$temp_deps"
-                echo "      <groupId>$group_id_dep</groupId>" >> "$temp_deps"
-                echo "      <artifactId>$artifact_id</artifactId>" >> "$temp_deps"
-                echo "      <version>$version</version>" >> "$temp_deps"
-                
-                if [ "$scope" != "compile" ]; then
-                    echo "      <scope>$scope</scope>" >> "$temp_deps"
-                fi
-                
-                echo "    </dependency>" >> "$temp_deps"
-            done
-            
-            temp_pom=$(mktemp)
-            cp pom.xml "$temp_pom"
-            dep_line=$(grep -n "</dependencies>" "$temp_pom" | head -1 | cut -d: -f1)
-            
-            if [ -n "$dep_line" ]; then
-                head -n $((dep_line - 1)) "$temp_pom" > pom.xml
-                cat "$temp_deps" >> pom.xml
-                tail -n +$dep_line "$temp_pom" >> pom.xml
-                gum_success "Dependencies added successfully"
-            fi
-            
-            rm -f "$temp_deps" "$temp_pom"
-            
-            # Lombok special handling
-            if echo "$selected" | grep -q "\[UTILITIES\] Lombok"; then
-                gum_info "Configuring Lombok annotation processor..."
-                sed -i '/<artifactId>maven-compiler-plugin<\/artifactId>/a\
-          <configuration>\
-            <annotationProcessorPaths>\
-              <path>\
-                <groupId>org.projectlombok</groupId>\
-                <artifactId>lombok</artifactId>\
-                <version>1.18.36</version>\
-              </path>\
-            </annotationProcessorPaths>\
-          </configuration>' pom.xml
-            fi
-        else
-            echo ""
-            gum_info "No additional dependencies selected (JUnit 5 is included by default)"
-        fi
+        maven_select_and_add_dependencies
         
         # Update Java version to 21
         gum_info "Setting Java version to 21..."
@@ -1372,6 +1476,8 @@ case "$PROJECT_TYPE_CLEAN" in
         fi
         
         cd "$PROJECT_NAME"
+
+        maven_select_and_add_dependencies
 
         app_file=$(find src/main/java -name "App.java" -type f)
 

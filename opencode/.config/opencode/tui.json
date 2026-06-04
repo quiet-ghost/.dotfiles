@@ -1,4 +1,5 @@
 {
   "$schema": "https://opencode.ai/tui.json",
-  "theme": "rosepine"
+  "theme": "rosepine",
+  "plugin": [["./plugins/caveman-tui.tsx", { "keybind": "<leader>v" }]]
 }
