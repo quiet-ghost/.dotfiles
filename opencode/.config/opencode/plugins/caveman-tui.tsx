@@ -47,7 +47,7 @@ function parseConfig(options: Record<string, unknown> | undefined): Config {
 
 function parseMode(input: string): Mode | undefined {
   const [raw] = input.trim().toLowerCase().split(/\s+/);
-  if (!raw || raw === "on") return { kind: "enabled", level: "full" };
+  if (!raw || raw === "on") return { kind: "enabled", level: "ultra" };
   if (raw === "off" || raw === "stop" || raw === "normal") return { kind: "disabled" };
   if (isLevel(raw)) return { kind: "enabled", level: raw };
   return undefined;
@@ -58,7 +58,7 @@ function modeKey(sessionID: string): string {
 }
 
 function defaultMode(): Mode {
-  return { kind: "enabled", level: "full" };
+  return { kind: "enabled", level: "ultra" };
 }
 
 function readMode(api: TuiPluginApi, sessionID: string): Mode {
