@@ -19,10 +19,11 @@ return {
 
     telescope.setup({
       defaults = {
-        borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
+        -- borderchars = { " ", " ", " ", " ", " ", " ", " ", " " },
+        borderchars = { "─", "│", "─", "│", "┌", "┐", "┘", "└" },
         prompt_prefix = "  ",
         selection_caret = " ",
-        entry_prefix = "  ",
+        -- entry_prefix = "  ",
         layout_strategy = "horizontal",
         file_ignore_patterns = {
           "node_modules/*",
@@ -30,12 +31,12 @@ return {
         layout_config = {
           horizontal = {
             prompt_position = "bottom",
-            width = { padding = 0 },
-            height = { padding = 0 },
+            -- width = { padding = 0 },
+            -- height = { padding = 0 },
             preview_width = 0.55,
           },
-          width = 0.87,
-          height = 0.80,
+          -- width = 0.87,
+          -- height = 0.80,
         },
         sorting_strategy = "descending",
         winblend = 0,
