@@ -33,7 +33,7 @@ return {
         enabled = true, -- Keep your scrolling animation disabled
       },
       dashboard = {
-        enabled = true,
+        enabled = false,
         preset = {
           header = [[
 ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██╗███╗   ███╗
