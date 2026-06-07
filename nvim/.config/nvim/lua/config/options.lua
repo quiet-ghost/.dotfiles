@@ -1,6 +1,7 @@
 vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 
+vim.opt.shortmess:remove("I")
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.mouse = "a"
