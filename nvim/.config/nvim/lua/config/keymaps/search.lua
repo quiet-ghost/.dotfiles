@@ -12,17 +12,17 @@ map("n", "<leader>fh", function()
   require("telescope.builtin").help_tags()
 end)
 
-map("n", "<leader>fg", function()
+map("n", "<leader>fG", function()
   require("utils.multi-grep")()
-end)
+end, { desc = "Multi-Grep" })
+
+map("n", "<leader>fg", function()
+  require("telescope.builtin").git_files()
+end, { desc = "Git Files" })
 
 map("n", "<leader>fb", function()
   require("telescope.builtin").buffers()
 end)
-
-map("n", "<leader>fl", function()
-  require("telescope.builtin").colorscheme()
-end, { desc = "Select Colorscheme" })
 
 map("n", "<leader>fj", function()
   require("telescope.builtin").current_buffer_fuzzy_find()
@@ -30,7 +30,7 @@ end, { desc = "Search in current buffer" })
 
 map("n", "<leader>gw", function()
   require("telescope.builtin").grep_string()
-end)
+end, { desc = "Grep String" })
 
 map("n", "<leader>fa", function()
   ---@diagnostic disable-next-line: param-type-mismatch
