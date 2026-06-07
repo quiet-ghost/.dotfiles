@@ -11,9 +11,7 @@ const LEVELS = [
 
 type Level = (typeof LEVELS)[number];
 
-type SessionMode =
-  | { kind: "enabled"; level: Level }
-  | { kind: "disabled" };
+type SessionMode = { kind: "enabled"; level: Level } | { kind: "disabled" };
 
 type CavemanOptions = {
   enabled: boolean;
@@ -22,7 +20,7 @@ type CavemanOptions = {
 
 const DEFAULT_OPTIONS: CavemanOptions = {
   enabled: true,
-  level: "full",
+  level: "ultra",
 };
 
 const sessionModes = new Map<string, SessionMode>();
@@ -33,7 +31,9 @@ function isLevel(value: string): value is Level {
 
 function parseOptions(options: PluginOptions | undefined): CavemanOptions {
   const enabled =
-    typeof options?.enabled === "boolean" ? options.enabled : DEFAULT_OPTIONS.enabled;
+    typeof options?.enabled === "boolean"
+      ? options.enabled
+      : DEFAULT_OPTIONS.enabled;
   const level =
     typeof options?.level === "string" && isLevel(options.level)
       ? options.level
@@ -63,20 +63,28 @@ function instructions(level: Level): string {
   const levelRule: Record<Level, string> = {
     lite: "Intensity lite: no filler or hedging; keep articles and full professional sentences.",
     full: "Intensity full: drop articles, fragments OK, short synonyms preferred.",
-    ultra: "Intensity ultra: abbreviate common technical terms, use arrows for cause/effect, one word when enough.",
-    "wenyan-lite": "Intensity wenyan-lite: semi-classical Chinese register; drop filler but keep understandable grammar.",
-    "wenyan-full": "Intensity wenyan-full: maximum classical Chinese terseness with classical particles where useful.",
-    "wenyan-ultra": "Intensity wenyan-ultra: extreme terse classical Chinese feel while preserving technical meaning.",
+    ultra:
+      "Intensity ultra: abbreviate common technical terms, use arrows for cause/effect, one word when enough.",
+    "wenyan-lite":
+      "Intensity wenyan-lite: semi-classical Chinese register; drop filler but keep understandable grammar.",
+    "wenyan-full":
+      "Intensity wenyan-full: maximum classical Chinese terseness with classical particles where useful.",
+    "wenyan-ultra":
+      "Intensity wenyan-ultra: extreme terse classical Chinese feel while preserving technical meaning.",
   };
 
   return [...base, levelRule[level]].join("\n");
 }
 
-function parseCommand(argumentsText: string, options: CavemanOptions): SessionMode | "status" | undefined {
+function parseCommand(
+  argumentsText: string,
+  options: CavemanOptions,
+): SessionMode | "status" | undefined {
   const [raw] = argumentsText.trim().toLowerCase().split(/\s+/);
   if (!raw) return { kind: "enabled", level: options.level };
   if (raw === "status") return "status";
-  if (raw === "off" || raw === "stop" || raw === "normal") return { kind: "disabled" };
+  if (raw === "off" || raw === "stop" || raw === "normal")
+    return { kind: "disabled" };
   if (raw === "on") return { kind: "enabled", level: options.level };
   if (isLevel(raw)) return { kind: "enabled", level: raw };
   return undefined;
@@ -86,7 +94,10 @@ function modeLabel(mode: SessionMode): string {
   return mode.kind === "enabled" ? `enabled (${mode.level})` : "disabled";
 }
 
-function replaceCommandResponse(parts: { type: string; text?: string }[], message: string): void {
+function replaceCommandResponse(
+  parts: { type: string; text?: string }[],
+  message: string,
+): void {
   for (const part of parts) {
     if (part.type === "text") {
       part.text = message;
@@ -113,7 +124,10 @@ export const CavemanPlugin: Plugin = async (_ctx, rawOptions) => {
       }
 
       if (parsed === "status") {
-        replaceCommandResponse(output.parts, `Caveman ${modeLabel(modeFor(input.sessionID, options))}.`);
+        replaceCommandResponse(
+          output.parts,
+          `Caveman ${modeLabel(modeFor(input.sessionID, options))}.`,
+        );
         return;
       }
 

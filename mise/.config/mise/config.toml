@@ -5,9 +5,11 @@ flutter = { version = "latest", platforms = { linux-arm64 = { url = 'https://sto
 go = "latest"
 java = "liberica-javafx-25.0.3+11"
 node = "latest"
-python = "latest"
+python = "3.12.13"
 ruby = "latest"
 rust = "latest"
+zig = "latest"
+zls = "latest"
 
 [settings]
 idiomatic_version_file_enable_tools = ["ruby"]
