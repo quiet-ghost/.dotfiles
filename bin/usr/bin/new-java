@@ -90,6 +90,39 @@ trim() {
     printf '%s' "$value"
 }
 
+detect_java_major_version() {
+    local raw_version=""
+    local major_version=""
+
+    raw_version=$(mvn -v 2>/dev/null | sed -n 's/^Java version: \([^,]*\).*/\1/p' | head -n 1)
+
+    if [ -z "$raw_version" ] && command -v javac &> /dev/null; then
+        raw_version=$(javac -version 2>&1 | sed -n 's/^javac \([^ ]*\).*/\1/p' | head -n 1)
+    fi
+
+    if [[ "$raw_version" == 1.* ]]; then
+        major_version=$(printf '%s' "$raw_version" | cut -d. -f2)
+    else
+        major_version=$(printf '%s' "$raw_version" | sed 's/[^0-9].*$//')
+    fi
+
+    if [[ "$major_version" =~ ^[0-9]+$ ]]; then
+        printf '%s' "$major_version"
+        return 0
+    fi
+
+    return 1
+}
+
+set_maven_compiler_version() {
+    local pom_file="$1"
+    local java_version="$2"
+
+    sed -i "s/<maven\.compiler\.release>[0-9]*<\/maven\.compiler\.release>/<maven.compiler.release>$java_version<\/maven.compiler.release>/" "$pom_file"
+    sed -i "s/<maven\.compiler\.source>[0-9]*<\/maven\.compiler\.source>/<maven.compiler.source>$java_version<\/maven.compiler.source>/" "$pom_file"
+    sed -i "s/<maven\.compiler\.target>[0-9]*<\/maven\.compiler\.target>/<maven.compiler.target>$java_version<\/maven.compiler.target>/" "$pom_file"
+}
+
 pascal_case() {
     local input="$1"
     local output=""
@@ -1476,6 +1509,15 @@ case "$PROJECT_TYPE_CLEAN" in
         fi
         
         cd "$PROJECT_NAME"
+
+        JAVA_VERSION=$(detect_java_major_version) || {
+            gum_error "Failed to detect Java version from Maven or javac. pom.xml was generated, but compiler settings were not updated."
+            gum_info "Set JAVA_HOME to your JDK or ensure javac is available, then update pom.xml manually."
+            exit 1
+        }
+
+        gum_info "Setting Java compiler version to $JAVA_VERSION..."
+        set_maven_compiler_version pom.xml "$JAVA_VERSION"
 
         maven_select_and_add_dependencies
 
