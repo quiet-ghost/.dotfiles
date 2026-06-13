@@ -44,7 +44,8 @@ return {
     local cwd = vim.uv.cwd()
     local basename = vim.fs.basename(cwd)
     _99.setup({
-      model = "openai/gpt-5.5-fast",
+      provider = _99.Providers.CursorAgentProvider,
+      model = "composer-2.5-fast",
       logger = {
         level = _99.DEBUG,
         path = "/tmp/" .. basename .. ".99.debug",
