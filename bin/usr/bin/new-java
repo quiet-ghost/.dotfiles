@@ -1657,6 +1657,7 @@ $deps_xml
     </dependencies>
 
     <build>
+        <finalName>\${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -1924,7 +1925,7 @@ EOF
 
 ## Deploy To Remote Tomcat
 
-Build the WAR with \`mvn clean package\`, then deploy \`target/$PROJECT_NAME-1.0-SNAPSHOT.war\` with your Tomcat Manager or IDE run configuration.
+Build the WAR with \`mvn clean package\`, then deploy \`target/$PROJECT_NAME.war\` with your Tomcat Manager or IDE run configuration.
 EOF
         fi
 
