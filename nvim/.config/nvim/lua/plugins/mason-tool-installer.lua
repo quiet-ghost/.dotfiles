@@ -19,6 +19,9 @@ return {
         "gofumpt",
         "gomodifytags",
         "impl",
+        "xcode-build-server",
+        "swiftformat",
+        "swiftlint",
       }
 
       for _, tool in ipairs(tools) do

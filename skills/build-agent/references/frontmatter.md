@@ -19,13 +19,14 @@ permission:
 
 ### description
 
-| Constraint | Value |
-| ---------- | ----- |
-| Required in practice | Yes |
-| Max length | 1024 characters |
-| Min recommended | 50 characters |
+| Constraint           | Value           |
+| -------------------- | --------------- |
+| Required in practice | Yes             |
+| Max length           | 1024 characters |
+| Min recommended      | 50 characters   |
 
 **Rules:**
+
 - State WHAT the agent does
 - State WHEN to use it
 - Use task words other agents can match on
@@ -92,7 +93,7 @@ Caps agentic iterations before the model must respond with text only. Useful for
 ### model
 
 ```yaml
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 ```
 
 Set only when the role materially benefits from a specific model. Otherwise inherit defaults.
@@ -133,7 +134,7 @@ tools:
 ---
 description: Drafts and edits technical documentation. Use when writing README files, guides, onboarding docs, or API documentation.
 mode: subagent
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 temperature: 0.2
 permission:
   edit: allow
@@ -141,7 +142,6 @@ permission:
   webfetch: allow
 steps: 6
 ---
-
 You are a technical writer.
 
 Write documentation that is accurate, structured, easy to navigate, and useful to the intended reader. Prefer plain language, clear examples, and explicit assumptions.
@@ -149,16 +149,16 @@ Write documentation that is accurate, structured, easy to navigate, and useful t
 
 ## Validation Checklist
 
-| Check | Requirement |
-| ----- | ----------- |
-| Starts with `---` | Line 1, no preceding blank lines |
-| Has `description:` | Required in practice |
-| Description quality | Includes what + when |
-| Has `mode:` | Explicitly chosen |
-| Uses `permission:` | Preferred for new agents |
-| Uses `hidden:` correctly | Only meaningful for subagents |
-| Uses `steps:` correctly | Optional, but realistic if present |
-| Prompt body is focused | Role, method, quality bar |
+| Check                    | Requirement                        |
+| ------------------------ | ---------------------------------- |
+| Starts with `---`        | Line 1, no preceding blank lines   |
+| Has `description:`       | Required in practice               |
+| Description quality      | Includes what + when               |
+| Has `mode:`              | Explicitly chosen                  |
+| Uses `permission:`       | Preferred for new agents           |
+| Uses `hidden:` correctly | Only meaningful for subagents      |
+| Uses `steps:` correctly  | Optional, but realistic if present |
+| Prompt body is focused   | Role, method, quality bar          |
 
 ## See Also
 

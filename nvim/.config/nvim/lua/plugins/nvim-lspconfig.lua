@@ -12,6 +12,11 @@ return {
     opts.servers.omnisharp = { enabled = false }
     opts.servers.ts_ls = { enabled = false }
 
+    opts.servers.sourcekit = vim.tbl_deep_extend("force", opts.servers.sourcekit or {}, {
+      mason = false,
+      filetypes = { "swift" },
+    })
+
     opts.servers.clangd = vim.tbl_deep_extend("force", opts.servers.clangd or {}, {
       cmd = {
         "clangd",

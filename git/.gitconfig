@@ -27,4 +27,20 @@
 	required = true
 
 [core]
+  pager = delta
   excludesFile = /home/ghost/.gitignore
+
+[interactive]
+  diffFilter = delta --color-only
+
+[delta]
+  navigate = true
+  line-numbers = true
+  side-by-side = true
+  syntax-theme = rose-pine
+
+[merge]
+  conflictstyle = zdiff3
+
+[diff]
+  colorMoved = default
