@@ -33,6 +33,7 @@ return {
         "rst",
         "sql",
         "svelte",
+        "swift",
         "git_config",
         "hyprlang",
         "fish",

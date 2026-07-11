@@ -1,6 +1,8 @@
 # ============================================================================
 # ENVIRONMENT VARIABLES & PATH CONFIGURATION
 # ============================================================================
+# Boot.dev configuration
+export PATH="$PATH:$HOME/personal/Learning/Boot/Course 2 Linux/worldbanc/private/bin"
 
 # Oh My Zsh installation path
 export ZSH="$HOME/.oh-my-zsh"
@@ -181,3 +183,6 @@ unalias ls 2>/dev/null
 
 # Load custom aliases (loaded last to override everything)
 source ~/.dotfiles/zsh/aliases.zsh
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"

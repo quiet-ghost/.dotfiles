@@ -44,8 +44,8 @@ return {
     local cwd = vim.uv.cwd()
     local basename = vim.fs.basename(cwd)
     _99.setup({
-      provider = _99.Providers.CursorAgentProvider,
-      model = "composer-2.5-fast",
+      provider = _99.Providers.OpenCodeProvider,
+      model = "opencode/kimi-k2.7-code",
       logger = {
         level = _99.DEBUG,
         path = "/tmp/" .. basename .. ".99.debug",

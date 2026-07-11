@@ -1,11 +1,13 @@
 ---
 name: spec-planner
-description: Dialogue-driven spec development through skeptical questioning and iterative refinement. Triggers: "spec this out", feature planning, architecture decisions, "is this worth it?" questions, RFC/design doc creation, work scoping. Invoke Librarian for unfamiliar tech/frameworks/APIs.
+description: Dialogue-driven spec development through skeptical questioning and iterative refinement. Use when the user says "spec this out", asks for feature planning, architecture decisions, RFC/design docs, or work scoping. Invoke Librarian for unfamiliar tech/frameworks/APIs.
 ---
 
 # Spec Planner
 
 Produce implementation-ready specs through rigorous dialogue and honest trade-off analysis.
+
+For TypeScript, architecture, refactor, or API design specs, use the `tech-spec` skill style: typed contracts, explicit seams, entrypoint-to-side-effect call stacks, data-flow traces, and a vertical red-green-refactor test plan. Load `coding-standards` topic references that match the touched concerns.
 
 ## Core Philosophy
 
@@ -125,6 +127,18 @@ Use appropriate template from [templates.md](./references/templates.md):
 - **ADR** — Architecture decisions
 - **RFC** — Larger proposals
 
+For implementation specs, include the tech-spec essentials:
+
+| Section | Requirement |
+|---------|-------------|
+| Types/contracts | New or changed domain types, inputs/outputs, function signatures, adapter interfaces, typed failures |
+| Seams/boundaries | What crosses each boundary and what each layer may know |
+| Data flow | Raw input → parser → domain/service → adapter → projection/response |
+| Call stacks | Entrypoint to side effects, including failure/cancellation/retry paths when relevant |
+| Tests | Vertical RGR slices through public interfaces or real seams |
+
+Do not invent requirements, migrations, compatibility paths, or APIs to make the spec look complete. Mark unknowns as open questions.
+
 **Transition:** Spec produced → REFINE
 
 ---
@@ -140,6 +154,9 @@ Run completeness check:
 | Acceptance testable | Each criterion pass/fail verifiable |
 | Dependencies ordered | Clear what blocks what |
 | Types defined | Data shapes specified (not "some object") |
+| Call stacks traced | Affected behavior has entrypoint-to-side-effect flow |
+| Boundaries parsed | Untrusted inputs and runtime hops have parser/projection strategy |
+| Test slices vertical | Tests are ordered red-green-refactor behavior slices |
 | Effort estimated | Each deliverable has S/M/L/XL |
 | Risks identified | At least 2 risks with mitigations |
 | Open questions | Resolved OR assigned owner |
