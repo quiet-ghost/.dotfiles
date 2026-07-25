@@ -1,6 +1,6 @@
 ---
-model: openai/gpt-5.4
-reasoningEffort: high
+model: openai/gpt-5.6-sol
+reasoningEffort: medium
 description: ALWAYS use this when writing docs
 ---
 

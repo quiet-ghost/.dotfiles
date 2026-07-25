@@ -8,9 +8,9 @@ font-family = "Cascadia Code"
 font-size = 15
 font-feature = +calt
 
-# Window
-window-padding-x = 14
-window-padding-y = 14
+# Window — tight padding so herdr/tmux fill the surface
+window-padding-x = 0
+window-padding-y = 0
 confirm-close-surface=false
 resize-overlay = never
 copy-on-select = clipboard

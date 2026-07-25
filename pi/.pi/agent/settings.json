@@ -1,0 +1,21 @@
+{
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "medium",
+  "enabledModels": [
+    "xai/grok-4.5:high",
+    "openai/gpt-5.6-sol:medium"
+  ],
+  "theme": "dark",
+  "skills": [
+    "~/.dotfiles/skills"
+  ],
+  "packages": [
+    "npm:@plannotator/pi-extension@0.24.2",
+    "npm:pi-mcp-adapter"
+  ],
+  "lastChangelogVersion": "0.82.0",
+  "outputPad": 0,
+  "treeFilterMode": "default",
+  "hideThinkingBlock": true
+}

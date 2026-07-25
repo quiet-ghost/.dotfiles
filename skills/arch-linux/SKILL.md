@@ -1,6 +1,6 @@
 ---
 name: arch-linux
-description: Manage Arch Linux systems safely: full-system pacman upgrades, routine maintenance, systemd/journal diagnostics, and live-ISO recovery with arch-chroot. Use for package management, failed services, boot issues, mirror/keyring problems, and post-upgrade breakage on Arch hosts.
+description: "Manage Arch Linux systems safely: full-system pacman upgrades, routine maintenance, systemd/journal diagnostics, and live-ISO recovery with arch-chroot. Use for package management, failed services, boot issues, mirror/keyring problems, and post-upgrade breakage on Arch hosts."
 references:
   - references/README.md
   - references/maintenance.md

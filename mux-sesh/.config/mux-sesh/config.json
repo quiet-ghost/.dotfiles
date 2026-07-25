@@ -27,10 +27,14 @@
     "quietghost",
     "Boots",
     "Boot",
-    "herdr"
+    "herdr",
+    "opengit",
+    "_quietghost",
+    "TwitchChat"
   ],
   "icons": {
     "tmux": "",
+    "herdr": "",
     "configured": "",
     "project": "",
     "opencode": ""
