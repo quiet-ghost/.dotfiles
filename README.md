@@ -9,7 +9,7 @@ Personal configuration files for Arch Linux with Hyprland, managed using [GNU St
 - **Terminal**: [Ghostty](https://ghostty.org/)
 - **Shell**: Zsh
 - **Editor**: [Neovim](https://neovim.io/) ([LazyVim](https://www.lazyvim.org/))
-- **Multiplexer**: [Tmux](https://github.com/tmux/tmux)
+- **Multiplexer**: [Herdr](https://herdr.dev) (primary) / [Tmux](https://github.com/tmux/tmux)
 
 ## Components
 
@@ -17,6 +17,7 @@ Personal configuration files for Arch Linux with Hyprland, managed using [GNU St
 
 - **hypr/** - Hyprland window manager configuration with custom keybindings, startup scripts, and theming
 - **nvim/** - Neovim configuration based on LazyVim with custom plugins and Java development setup
+- **herdr/** - [Herdr](https://herdr.dev) terminal workspace manager config, including persistent Twitch chat pane toggle (`Alt+Shift+C`)
 - **tmux/** - Tmux configuration with session management and custom scripts
 - **zsh/** - Zsh shell configuration
 

@@ -55,35 +55,6 @@ branch_name_for_path() {
   git -C "$path" branch --show-current
 }
 
-herdr_workspace_for_path() {
-  local path="$1"
-
-  if ! command -v herdr >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
-    return 0
-  fi
-
-  herdr workspace list 2>/dev/null |
-    jq -r --arg path "$path" \
-      '.result.workspaces[]? | select(.worktree.checkout_path == $path) | .workspace_id' |
-    head -n1
-}
-
-close_herdr_workspace() {
-  local path="$1"
-  local workspace_id
-
-  workspace_id="$(herdr_workspace_for_path "$path")"
-  if [[ -z "$workspace_id" ]]; then
-    return 0
-  fi
-
-  echo "Closing Herdr workspace: $workspace_id"
-  if ! herdr workspace close "$workspace_id" >/dev/null; then
-    printf 'Error: Failed to close Herdr workspace %s; worktree was not removed\n' "$workspace_id" >&2
-    exit 1
-  fi
-}
-
 # Check if we're in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo "Error: Not in a git repository"
@@ -160,9 +131,6 @@ if [[ -n "$BRANCH_NAME" ]] && git show-ref --verify --quiet "refs/heads/${BRANCH
     DELETE_BRANCH=true
   fi
 fi
-
-# Close any workspace using the checkout before deleting its directory.
-close_herdr_workspace "$WORKTREE_ABS_PATH"
 
 # Remove the worktree
 echo "Removing worktree: $WORKTREE_PATH"

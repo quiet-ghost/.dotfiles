@@ -1,0 +1,315 @@
+# Ghost herdr config - mirrored from tmux habits where possible
+# Reload: herdr server reload-config
+# Keys help: prefix+?
+
+onboarding = false
+
+[theme]
+name = "rose-pine"
+auto_switch = false
+
+[theme.custom]
+accent = "#c4a7e7"
+panel_bg = "#191724"
+
+[terminal]
+new_cwd = "follow"
+shell_mode = "auto"
+
+[update]
+channel = "stable"
+version_check = true
+manifest_check = true
+
+[keys]
+prefix = "ctrl+space"
+
+# Session
+detach = "prefix+q"
+help = "prefix+?"
+settings = "prefix+shift+s"
+reload_config = "prefix+r"
+
+# Workspaces ≈ sessions (mux-sesh surface)
+workspace_picker = ["prefix+s", "prefix+w"]
+goto = "prefix+g"
+new_workspace = "prefix+shift+n"
+rename_workspace = "prefix+shift+w"
+close_workspace = "prefix+shift+d"
+new_worktree = "prefix+shift+g"
+switch_workspace = "prefix+shift+1..9"
+
+# Tabs ≈ windows (1-based feel)
+# Digits live on shift layer; base row is < { [ ( = & ) ] } > — see symbol commands below.
+# Do not use bare alt+1..9 (Omarchy workspace binds).
+new_tab = ["prefix+c", "ctrl+alt+c"]
+previous_tab = ["prefix+p", "ctrl+alt+p"]
+next_tab = ["prefix+n", "ctrl+alt+n"]
+switch_tab = ["prefix+1..9", "ctrl+alt+1..9"]
+rename_tab = "prefix+comma"
+close_tab = "prefix+shift+x"
+
+# Panes - prefix hjkl + safe direct fallback
+focus_pane_left = ["prefix+h", "ctrl+alt+h"]
+focus_pane_down = ["prefix+j", "ctrl+alt+j"]
+focus_pane_up = ["prefix+k", "ctrl+alt+k"]
+focus_pane_right = ["prefix+l", "ctrl+alt+l"]
+swap_pane_left = "prefix+shift+h"
+swap_pane_down = "prefix+shift+j"
+swap_pane_up = "prefix+shift+k"
+swap_pane_right = "prefix+shift+l"
+cycle_pane_next = "prefix+tab"
+cycle_pane_previous = "prefix+shift+tab"
+last_pane = "prefix+semicolon"
+split_vertical = ["prefix+v", "prefix+|", "ctrl+alt+d"]
+split_horizontal = ["prefix+minus", "ctrl+alt+shift+d"]
+close_pane = "prefix+x"
+zoom = ["prefix+z", "ctrl+alt+z"]
+resize_mode = "prefix+shift+r"
+toggle_sidebar = "prefix+b"
+copy_mode = "prefix+["
+rename_pane = "prefix+shift+p"
+
+# Navigate-mode (workspace picker open)
+navigate_workspace_up = "up"
+navigate_workspace_down = "down"
+navigate_pane_left = "h"
+navigate_pane_down = "j"
+navigate_pane_up = "k"
+navigate_pane_right = "l"
+
+# Smart Vim/Herdr navigation and resizing
+
+[[keys.command]]
+key = "ctrl+h"
+type = "plugin_action"
+command = "herdr-splits.nav-left"
+description = "navigate left (vim/herdr)"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "plugin_action"
+command = "herdr-splits.nav-down"
+description = "navigate down (vim/herdr)"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "plugin_action"
+command = "herdr-splits.nav-up"
+description = "navigate up (vim/herdr)"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "plugin_action"
+command = "herdr-splits.nav-right"
+description = "navigate right (vim/herdr)"
+
+[[keys.command]]
+key = "alt+h"
+type = "plugin_action"
+command = "herdr-splits.resize-left"
+description = "resize left (vim/herdr)"
+
+[[keys.command]]
+key = "alt+j"
+type = "plugin_action"
+command = "herdr-splits.resize-down"
+description = "resize down (vim/herdr)"
+
+[[keys.command]]
+key = "alt+k"
+type = "plugin_action"
+command = "herdr-splits.resize-up"
+description = "resize up (vim/herdr)"
+
+[[keys.command]]
+key = "alt+l"
+type = "plugin_action"
+command = "herdr-splits.resize-right"
+description = "resize right (vim/herdr)"
+
+# Tool overlays
+# Transient TUIs: type=popup (tmux display-popup twin). Temp zoomed: type=pane.
+
+[[keys.command]]
+key = "alt+g"
+type = "pane"
+command = "lazygit"
+description = "lazygit"
+
+# Govee (tmux Alt+i popup twin; 80%×80%)
+# Absolute path: herdr popup PATH lacks ~/.cache/.bun/bin.
+[[keys.command]]
+key = "alt+i"
+type = "popup"
+command = "$HOME/.cache/.bun/bin/govee-lights"
+description = "govee lights"
+width = "80%"
+height = "80%"
+
+[[keys.command]]
+key = "alt+u"
+type = "pane"
+command = "zsh -ic ghui"
+description = "ghui"
+
+# OpenCode (90%×90%; Alt+d or Ctrl+b then q detaches native Herdr attachment)
+[[keys.command]]
+key = "alt+o"
+type = "popup"
+command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode"
+description = "opencode session"
+width = "90%"
+height = "90%"
+
+# Pi (90%×90%; Alt+d or Ctrl+b then q detaches native Herdr attachment)
+[[keys.command]]
+key = "alt+shift+o"
+type = "popup"
+command = "$HOME/.config/herdr/scripts/agent-popup.sh pi"
+description = "pi session"
+width = "90%"
+height = "90%"
+
+# Tab jump via base-layer number-row symbols (tmux M-C-< { [ … twin)
+# shift-layer digits use switch_tab = ctrl+alt+1..9
+[[keys.command]]
+key = "ctrl+alt+<"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 1"
+description = "switch tab 1 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+{"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 2"
+description = "switch tab 2 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+["
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 3"
+description = "switch tab 3 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+("
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 4"
+description = "switch tab 4 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+="
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 5"
+description = "switch tab 5 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+&"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 6"
+description = "switch tab 6 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+)"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 7"
+description = "switch tab 7 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+]"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 8"
+description = "switch tab 8 (base layer)"
+
+[[keys.command]]
+key = "ctrl+alt+}"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/focus-tab-n.sh 9"
+description = "switch tab 9 (base layer)"
+
+# Workspace picker (mux-sesh twin: fuzzy switch + create)
+[[keys.command]]
+key = "alt+w"
+type = "popup"
+# command = "$HOME/.config/herdr/scripts/workspace-picker.sh"
+command = "$HOME/.local/share/mise/installs/node/26.2.0/bin/mux-sesh"
+description = "workspace picker (switch/create)"
+width = "70%"
+height = "70%"
+
+# x-cli tweet composer (tmux C-$ popup twin; 65%×65%, not fullscreen)
+# Absolute path: herdr popup PATH lacks ~/.cache/.bun/bin (bare "x-cli" → exit 127 flash-close).
+[[keys.command]]
+key = "ctrl+$"
+type = "popup"
+command = "$HOME/.cache/.bun/bin/x-cli"
+description = "compose tweet with x-cli"
+width = "65%"
+height = "65%"
+
+# Twitch Chat (persistent pane; Alt+Shift+C toggles join/break — tmux M-C twin)
+[[keys.command]]
+key = "alt+shift+c"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/twitch-chat-pane.sh"
+description = "toggle twitch chat pane"
+
+# Kill whole herdr server (tmux kill-session-ish)
+[[keys.command]]
+key = "prefix+shift+q"
+type = "shell"
+command = "herdr server stop"
+description = "stop herdr server"
+
+[ui]
+sidebar_width = 28
+sidebar_min_width = 18
+sidebar_max_width = 40
+sidebar_start_collapsed = true
+# compact = narrow status rail when collapsed; hidden = 0 width
+sidebar_collapsed_mode = "compact"
+mouse_capture = true
+host_cursor = "auto"
+redraw_on_focus_gained = true
+mouse_scroll_lines = 3
+confirm_close = true
+prompt_new_tab_name = true
+prompt_new_workspace_name = true
+pane_borders = true
+pane_gaps = false
+show_agent_labels_on_pane_borders = true
+hide_tab_bar_when_single_tab = true
+agent_panel_sort = "spaces"
+accent = "#c4a7e7"
+
+
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
+
+[ui.toast.herdr]
+position = "bottom-right"
+
+[ui.toast.clipboard]
+enabled = true
+position = "bottom-center"
+
+[ui.sound]
+enabled = false
+
+[session]
+resume_agents_on_restore = true
+
+[remote]
+manage_ssh_config = true
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+[experimental]
+allow_nested =  true
+kitty_graphics = true 
+pane_history = true
+
+[advanced]
+scrollback_limit_bytes = 10485760

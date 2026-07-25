@@ -1,6 +1,6 @@
 ---
-model: openai/gpt-5.4
-reasoningEffort: medium
+model: openai/gpt-5.6-sol
+reasoningEffort: high
 mode: subagent
 description: ALWAYS use this when writing bi-annual performance reviews.
 ---

@@ -8,6 +8,7 @@
       "~/.config/opencode/**": "allow",
       "~/.dotfiles/**": "allow",
       "~/Code/**": "allow",
+      "~/.plannotator/**": "allow",
       "~/.local/share/opencode/mcp-auth.json": "deny"
     },
     "read": {
@@ -128,7 +129,15 @@
   },
   "theme": "rosepine",
   "model": "xai/grok-4.5",
-  "plugin": [],
+  "plugin": [
+    [
+      "@plannotator/opencode@latest",
+      {
+        "workflow": "plan-agent",
+        "planningAgents": ["plan"]
+      }
+    ]
+  ],
   "mcp": {
     "backstage": {
       "type": "remote",
@@ -179,6 +188,12 @@
       "type": "local",
       "command": ["npx", "-y", "@dmmulroy/overseer", "mcp"],
       "enabled": false
+    },
+    "linear": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp",
+      "enabled": true,
+      "oauth": {}
     }
   }
 }

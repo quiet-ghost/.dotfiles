@@ -19,6 +19,55 @@ local java_debug_path = mason_path .. "/java-debug-adapter"
 local java_test_path = mason_path .. "/java-test"
 local jdtls_bin = mason_path .. "/jdtls/bin/jdtls"
 
+-- Latest Lombok jar from local Maven repo (for jdtls annotation processing)
+local function find_lombok_jar()
+  local pattern = home .. "/.m2/repository/org/projectlombok/lombok/*/lombok-*.jar"
+  local candidates = {}
+  for _, path in ipairs(vim.fn.glob(pattern, false, true)) do
+    if
+      path ~= ""
+      and not path:match("%-sources%.jar$")
+      and not path:match("%-javadoc%.jar$")
+      and vim.fn.filereadable(path) == 1
+    then
+      table.insert(candidates, path)
+    end
+  end
+  if #candidates == 0 then
+    return nil
+  end
+
+  local function version_parts(path)
+    local ver = path:match("lombok%-(%d+%.%d+%.%d+)")
+    if not ver then
+      return { 0, 0, 0 }
+    end
+    local major, minor, patch = ver:match("(%d+)%.(%d+)%.(%d+)")
+    return { tonumber(major) or 0, tonumber(minor) or 0, tonumber(patch) or 0 }
+  end
+
+  table.sort(candidates, function(a, b)
+    local va, vb = version_parts(a), version_parts(b)
+    for i = 1, 3 do
+      if va[i] ~= vb[i] then
+        return va[i] < vb[i]
+      end
+    end
+    return false
+  end)
+
+  return candidates[#candidates]
+end
+
+local lombok_jar = find_lombok_jar()
+if not lombok_jar and not vim.g.lombok_jar_warned then
+  vim.g.lombok_jar_warned = true
+  vim.notify(
+    "Lombok jar not found under ~/.m2; @Data/@Getter will look undefined in jdtls",
+    vim.log.levels.WARN
+  )
+end
+
 -- Root/workspace
 local current_file = vim.api.nvim_buf_get_name(0)
 if current_file == "" then
@@ -344,14 +393,21 @@ if not managed_root then
   }
 end
 
+local cmd = {
+  jdtls_bin,
+}
+if lombok_jar then
+  table.insert(cmd, "--jvm-arg=-javaagent:" .. lombok_jar)
+end
+vim.list_extend(cmd, {
+  "-configuration",
+  jdtls_path .. "/config_linux",
+  "-data",
+  workspace_dir,
+})
+
 local config = {
-  cmd = {
-    jdtls_bin,
-    "-configuration",
-    jdtls_path .. "/config_linux",
-    "-data",
-    workspace_dir,
-  },
+  cmd = cmd,
 
   root_dir = root_dir,
   settings = {

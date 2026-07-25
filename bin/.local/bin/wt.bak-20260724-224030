@@ -1,24 +1,22 @@
 #!/usr/bin/env bash
-# Git worktree manager - Create or switch to worktrees with multiplexer integration
-# Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [branch-name]
+# Git worktree manager - Create or switch to worktrees with tmux integration
+# Usage: wt [--exec <command>] [--window-name <name>] [branch-name]
 
 set -euo pipefail
 
 WORKTREE_DIR=".worktrees"
 EXEC_COMMAND=""
 EXEC_WINDOW_NAME="task"
-MUX_MODE="auto"
 
 usage() {
   cat <<'EOF'
-Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [branch-name]
+Usage: wt [--exec <command>] [--window-name <name>] [branch-name]
 
 Create or switch to a git worktree.
 
 Options:
-  -x, --exec <command>        Run command in a multiplexer tab/window
-  -n, --window-name <name>    Tab/window name to use with --exec (default: task)
-  -m, --mux <mode>            Integration: auto, herdr, tmux, or none (default: auto)
+  -x, --exec <command>        Run command in a tmux window for the worktree
+  -n, --window-name <name>    Tmux window name to use with --exec (default: task)
   -h, --help                  Show this help message
 EOF
 }
@@ -39,21 +37,6 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       EXEC_WINDOW_NAME="$2"
-      shift 2
-      ;;
-    -m|--mux)
-      if [[ $# -lt 2 ]]; then
-        printf 'Error: %s requires a mode\n' "$1" >&2
-        exit 1
-      fi
-      MUX_MODE="$2"
-      case "$MUX_MODE" in
-        auto|herdr|tmux|none) ;;
-        *)
-          printf 'Error: invalid mux mode %s (expected auto, herdr, tmux, or none)\n' "$MUX_MODE" >&2
-          exit 1
-          ;;
-      esac
       shift 2
       ;;
     -h|--help)
@@ -188,25 +171,10 @@ cd "$REPO_ROOT"
 # Get project name (repo directory name)
 PROJECT_NAME=$(basename "$REPO_ROOT")
 
-# Prefer Herdr when nested unless explicitly overridden.
-if [[ "$MUX_MODE" == "auto" ]]; then
-  if [[ -n "${HERDR_ENV:-}" || -n "${HERDR_SOCKET_PATH:-}" ]]; then
-    MUX_MODE="herdr"
-  elif [[ -n "${TMUX:-}" ]]; then
-    MUX_MODE="tmux"
-  else
-    MUX_MODE="none"
-  fi
-fi
-
-if [[ "$MUX_MODE" == "herdr" ]] && ! command -v herdr >/dev/null 2>&1; then
-  printf 'Error: herdr is required for --mux herdr\n' >&2
-  exit 1
-fi
-
-if [[ "$MUX_MODE" == "tmux" ]] && ! command -v tmux >/dev/null 2>&1; then
-  printf 'Error: tmux is required for --mux tmux\n' >&2
-  exit 1
+# Check if we're inside tmux
+IN_TMUX=false
+if [ -n "$TMUX" ]; then
+  IN_TMUX=true
 fi
 
 # Ensure .worktrees directory exists
@@ -243,7 +211,7 @@ if [ -z "${1:-}" ]; then
   git branch -a | grep -v HEAD | sed 's/^../  /'
   
   echo ""
-  echo "Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] <branch-name>"
+  echo "Usage: wt [--exec <command>] [--window-name <name>] <branch-name>"
   exit 0
 fi
 
@@ -291,103 +259,6 @@ switch_to_tmux_session() {
   tmux switch-client -t "$session_name"
 }
 
-herdr_tab_name_exists() {
-  local workspace_id="$1"
-  local tab_name="$2"
-
-  herdr tab list --workspace "$workspace_id" 2>/dev/null |
-    jq -e --arg name "$tab_name" '.result.tabs[]? | select(.label == $name)' >/dev/null
-}
-
-unique_herdr_tab_name() {
-  local workspace_id="$1"
-  local base_name="$2"
-  local candidate="$base_name"
-  local suffix=2
-
-  while herdr_tab_name_exists "$workspace_id" "$candidate"; do
-    candidate="${base_name}-${suffix}"
-    suffix=$((suffix + 1))
-  done
-
-  printf '%s\n' "$candidate"
-}
-
-run_command_in_herdr_workspace() {
-  local workspace_id="$1"
-  local worktree_path="$2"
-  local command="$3"
-  local requested_tab_name="$4"
-  local tab_name created pane_id
-
-  tab_name="$(unique_herdr_tab_name "$workspace_id" "$requested_tab_name")"
-  echo "Opening Herdr tab '$tab_name' in workspace '$WORKTREE_DISPLAY_NAME'"
-  created="$(
-    herdr tab create \
-      --workspace "$workspace_id" \
-      --cwd "$worktree_path" \
-      --label "$tab_name" \
-      --focus
-  )"
-  pane_id="$(jq -er '.result.root_pane.pane_id' <<<"$created")"
-  herdr pane run "$pane_id" "$command" >/dev/null
-}
-
-open_herdr_worktree() {
-  local worktree_path="$1"
-  local opened workspace_id
-
-  if [[ -n "$EXEC_COMMAND" ]] && ! command -v jq >/dev/null 2>&1; then
-    printf 'Error: jq is required for wt --exec with Herdr\n' >&2
-    exit 1
-  fi
-
-  opened="$(
-    herdr worktree open \
-      --cwd "$REPO_ROOT" \
-      --path "$worktree_path" \
-      --label "$WORKTREE_DISPLAY_NAME" \
-      --focus \
-      --json
-  )"
-
-  if [[ -n "$EXEC_COMMAND" ]]; then
-    workspace_id="$(jq -er '.result.workspace.workspace_id' <<<"$opened")"
-    run_command_in_herdr_workspace \
-      "$workspace_id" \
-      "$worktree_path" \
-      "$EXEC_COMMAND" \
-      "$EXEC_WINDOW_NAME"
-  fi
-}
-
-open_worktree_in_mux() {
-  local branch_name="$1"
-  local worktree_path="$2"
-  local session_name
-
-  case "$MUX_MODE" in
-    herdr)
-      open_herdr_worktree "$worktree_path"
-      ;;
-    tmux)
-      session_name="$(session_name_for_branch "$branch_name")"
-      ensure_tmux_session "$session_name" "$worktree_path"
-      if [[ -n "$EXEC_COMMAND" ]]; then
-        run_command_in_tmux_session "$session_name" "$worktree_path" "$EXEC_COMMAND" "$EXEC_WINDOW_NAME"
-      fi
-      switch_to_tmux_session "$session_name"
-      ;;
-    none)
-      if [[ -n "$EXEC_COMMAND" ]]; then
-        printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
-      else
-        echo "cd $WORKTREE_PATH"
-      fi
-      ;;
-  esac
-}
-
 run_command_in_tmux_session() {
   local session_name="$1"
   local worktree_path="$2"
@@ -407,7 +278,21 @@ if [ -d "$WORKTREE_PATH" ]; then
   echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
   setup_worktree_env_files
   
-  open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+  # If in tmux, create/switch to session
+  if [ "$IN_TMUX" = true ]; then
+    SESSION_NAME="$(session_name_for_branch "$BRANCH_NAME")"
+    ensure_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH"
+    if [[ -n "$EXEC_COMMAND" ]]; then
+      run_command_in_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH" "$EXEC_COMMAND" "$EXEC_WINDOW_NAME"
+    fi
+    switch_to_tmux_session "$SESSION_NAME"
+  else
+    if [[ -n "$EXEC_COMMAND" ]]; then
+      printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
+    else
+      echo "cd $WORKTREE_PATH"
+    fi
+  fi
   exit 0
 fi
 
@@ -475,4 +360,18 @@ setup_worktree_env_files
 echo ""
 echo "✓ Worktree created successfully!"
 
-open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+# If in tmux, create new session and switch to it
+if [ "$IN_TMUX" = true ]; then
+  SESSION_NAME="$(session_name_for_branch "$BRANCH_NAME")"
+  ensure_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH"
+  if [[ -n "$EXEC_COMMAND" ]]; then
+    run_command_in_tmux_session "$SESSION_NAME" "$WORKTREE_ABS_PATH" "$EXEC_COMMAND" "$EXEC_WINDOW_NAME"
+  fi
+  switch_to_tmux_session "$SESSION_NAME"
+else
+  if [[ -n "$EXEC_COMMAND" ]]; then
+    printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
+  else
+    echo "cd $WORKTREE_PATH"
+  fi
+fi
