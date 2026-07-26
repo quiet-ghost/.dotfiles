@@ -1,0 +1,139 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Move workspaces off Elgato capture-card mirror so it never hosts a real desktop.
+# Safe no-op when Elgato absent. Idempotent.
+
+readonly TAG="hypr-elgato-sanitize"
+readonly ELGATO_DESC="Elgato 4K X"
+readonly ACER_DESC="Acer Technologies XV272U W2 B5400FDEC4223"
+readonly ODYSSEY_DESC="Samsung Electric Company Odyssey G81SF HNAY402474"
+
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+fi
+
+log_info() {
+  echo "[INFO] $1" | systemd-cat -t "$TAG" -p info 2>/dev/null || echo "[INFO] $1"
+}
+
+log_warn() {
+  echo "[WARN] $1" | systemd-cat -t "$TAG" -p warning 2>/dev/null || echo "[WARN] $1"
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    log_warn "missing command: $1"
+    exit 0
+  }
+}
+
+need_cmd hyprctl
+need_cmd jq
+
+monitors_json() {
+  hyprctl monitors all -j 2>/dev/null || hyprctl monitors -j 2>/dev/null || echo "[]"
+}
+
+workspaces_json() {
+  hyprctl workspaces -j 2>/dev/null || echo "[]"
+}
+
+monitor_name_by_desc() {
+  local pattern="$1"
+  monitors_json | jq -r --arg p "$pattern" '
+    .[] | select((.description // "") | contains($p)) | .name
+  ' | head -n1
+}
+
+monitor_is_mirror() {
+  local name="$1"
+  monitors_json | jq -e --arg n "$name" '
+    .[] | select(.name == $n) | (.mirrorOf // "none") != "none" and (.mirrorOf // "none") != ""
+  ' >/dev/null 2>&1
+}
+
+dispatch() {
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log_info "dry-run: hyprctl dispatch $*"
+    return 0
+  fi
+  hyprctl dispatch "$@" >/dev/null 2>&1 || true
+}
+
+target_for_workspace() {
+  local id="$1"
+  local acer="$2"
+  local odyssey="$3"
+
+  case "$id" in
+    1 | 6 | 7 | 8 | 9 | 10)
+      if [[ -n "$acer" ]]; then
+        echo "$acer"
+      else
+        echo "$odyssey"
+      fi
+      ;;
+    2 | 3 | 4 | 5)
+      if [[ -n "$odyssey" ]]; then
+        echo "$odyssey"
+      else
+        echo "$acer"
+      fi
+      ;;
+    *)
+      if [[ -n "$odyssey" ]]; then
+        echo "$odyssey"
+      else
+        echo "$acer"
+      fi
+      ;;
+  esac
+}
+
+main() {
+  local elgato acer odyssey
+  elgato="$(monitor_name_by_desc "$ELGATO_DESC")"
+  acer="$(monitor_name_by_desc "$ACER_DESC")"
+  odyssey="$(monitor_name_by_desc "$ODYSSEY_DESC")"
+
+  if [[ -z "$elgato" ]]; then
+    exit 0
+  fi
+
+  if [[ -z "$acer" && -z "$odyssey" ]]; then
+    log_warn "Elgato present but no Acer/Odyssey target found"
+    exit 0
+  fi
+
+  local moved=0
+  local ws_id ws_mon target
+  while IFS=$'\t' read -r ws_id ws_mon; do
+    [[ -n "$ws_id" ]] || continue
+    [[ "$ws_mon" == "$elgato" ]] || continue
+
+    target="$(target_for_workspace "$ws_id" "$acer" "$odyssey")"
+    [[ -n "$target" && "$target" != "$elgato" ]] || continue
+
+    log_info "move workspace $ws_id: $elgato -> $target"
+    dispatch moveworkspacetomonitor "$ws_id" "$target"
+    moved=$((moved + 1))
+  done < <(workspaces_json | jq -r '.[] | "\(.id)\t\(.monitor)"')
+
+  local focused
+  focused="$(monitors_json | jq -r '.[] | select(.focused == true) | .name' | head -n1)"
+  if [[ "$focused" == "$elgato" ]] || monitor_is_mirror "$focused"; then
+    local focus_target="${odyssey:-$acer}"
+    if [[ -n "$focus_target" ]]; then
+      log_info "focus away from mirror: $focus_target"
+      dispatch focusmonitor "$focus_target"
+    fi
+  fi
+
+  if [[ "$moved" -gt 0 ]]; then
+    log_info "sanitized $moved workspace(s) off $elgato"
+  fi
+}
+
+main "$@"

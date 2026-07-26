@@ -1,0 +1,30 @@
+{
+  "imports": [
+    "codex",
+    "opencode"
+  ],
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "directTools": true
+    },
+    "grep_app": {
+      "url": "https://mcp.grep.app",
+      "directTools": true
+    },
+    "opensrc": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "opensrc-mcp"
+      ],
+      "directTools": true
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp",
+      "auth": "oauth",
+      "oauth": {},
+      "directTools": true
+    }
+  }
+}

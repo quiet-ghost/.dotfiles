@@ -1,6 +1,7 @@
 # Private environment files containing API keys and secrets
 .env.private
 *.env.private
+/pi/.pi/agent/auth.json
 .stfolder
 
 #config backups

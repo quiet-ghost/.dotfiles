@@ -8,8 +8,6 @@ export PATH="$PATH:$HOME/personal/Learning/Boot/Course 2 Linux/worldbanc/private
 export ZSH="$HOME/.oh-my-zsh"
 
 # PATH exports (consolidated)
-export PATH="$HOME/.cache/.bun/bin:$PATH"
-export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/usr/bin:$PATH"
 export PATH="$PATH:/home/ghost/.lmstudio/bin"
 
@@ -45,6 +43,8 @@ source $ZSH/oh-my-zsh.sh
 
 # mise (formerly rtx) - runtime version manager
 eval "$(mise activate zsh)"
+export BUN_INSTALL_BIN="$HOME/.local/share/bun/bin"
+export PATH="$HOME/.local/bin:$HOME/.local/share/bun/bin:$PATH"
 
 # direnv - per-directory environment loading
 if command -v direnv >/dev/null 2>&1; then

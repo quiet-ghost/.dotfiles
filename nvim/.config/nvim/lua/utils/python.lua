@@ -1,8 +1,9 @@
 local M = {}
+local mux = require("utils.mux")
 
 -- Configuration (matching cpp.lua pattern)
 local config = {
-  pane_size = 40,  -- 40% as requested
+  pane_size = 30, -- Keep 70% of the layout for the editor.
   python_fallback = "python3",
   venv_dirs = { ".venv", "venv", "virtualenv", "env" },
   title_format = "python: %s",
@@ -208,17 +209,15 @@ local function build_execution_command(project_type, framework, run_mode, python
   return cmd
 end
 
--- Helper: Run in tmux pane
-local function run_in_tmux(command, title)
-  local tmux_cmd = string.format(
-    [[tmux split-window -h -l %d "cd '%s' && echo '--- %s ---' && echo '' && %s; echo ''; echo 'Press Enter to close...'; read"]],
-    config.pane_size,
-    vim.fn.getcwd(),
-    title,
-    command
-  )
-  
-  vim.fn.system(tmux_cmd)
+-- Helper: Run in the active multiplexer.
+local function run_in_split(command, title)
+  return mux.run_in_split({
+    command = command,
+    title = title,
+    cwd = vim.fn.getcwd(),
+    percent = config.pane_size,
+    direction = "right",
+  })
 end
 
 -- Main compile and run function
@@ -236,10 +235,8 @@ function M.compile_and_run()
   -- Save file
   vim.cmd("w")
   
-  -- Check tmux
-  local in_tmux = os.getenv("TMUX") ~= nil
-  if not in_tmux then
-    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+  -- Check for a supported multiplexer.
+  if not mux.ensure() then
     return
   end
   
@@ -261,9 +258,9 @@ function M.compile_and_run()
   -- Build execution command
   local command = build_execution_command(project_type, framework, run_mode, python_path, target, project_root)
   
-  -- Run in tmux
+  -- Run in the active multiplexer.
   local title = string.format(config.title_format, filename)
-  run_in_tmux(command, title)
+  run_in_split(command, title)
   
   vim.notify(string.format("Running Python %s: %s", framework, filename), vim.log.levels.INFO)
 end

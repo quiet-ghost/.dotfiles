@@ -1,0 +1,2 @@
+[install]
+globalBinDir = "/home/ghost/.local/share/bun/bin"

@@ -1,4 +1,5 @@
 local M = {}
+local mux = require("utils.mux")
 
 local uv = vim.uv or vim.loop
 
@@ -11,10 +12,10 @@ local config = {
   default_compiler = "g++",
   build_dir = "build",
   pane_sizes = {
-    cmake = 40, -- CMake terminal projects
-    gui = 20, -- GUI apps open their own windows
-    make = 35, -- Make projects
-    single_file = 45, -- Single file compilation
+    cmake = 30,
+    gui = 30,
+    make = 30,
+    single_file = 30,
   },
   title_formats = {
     cmake = "cmake: %s",
@@ -332,20 +333,15 @@ local function get_current_file_info()
   }
 end
 
--- Create tmux pane and run command
-local function run_in_tmux(command, pane_size, title, cwd)
-  cwd = cwd or vim.fn.getcwd()
-  local escaped_cwd = cwd:gsub("'", "'\\''")
-  
-  local tmux_cmd = string.format(
-    [[tmux split-window -h -l %d "cd '%s' && echo '--- %s ---' && echo '' && %s; echo ''; echo 'Press Enter to close...'; read"]],
-    pane_size,
-    escaped_cwd,
-    title,
-    command
-  )
-
-  vim.fn.system(tmux_cmd)
+-- Create a multiplexer pane and run command.
+local function run_in_split(command, pane_size, title, cwd)
+  return mux.run_in_split({
+    command = command,
+    title = title,
+    cwd = cwd or vim.fn.getcwd(),
+    percent = pane_size,
+    direction = "right",
+  })
 end
 
 -- CMake project runner
@@ -389,7 +385,7 @@ local function run_cmake(root)
     local pane_size = gui_project and config.pane_sizes.gui or config.pane_sizes.cmake
     local title = string.format(title_format, project_name)
     vim.notify(string.format("Running CMake project: %s", project_name), vim.log.levels.INFO)
-    run_in_tmux(run_cmd, pane_size, title, root)
+    run_in_split(run_cmd, pane_size, title, root)
   else
     error("No executable found in build directory")
   end
@@ -431,7 +427,7 @@ local function run_qmake(root)
   if executable then
     vim.g.cpp_last_executable = executable
     local title = string.format(config.title_formats.gui, vim.fn.fnamemodify(root, ":t"))
-    run_in_tmux(shell_quote(executable), config.pane_sizes.gui, title, root)
+    run_in_split(shell_quote(executable), config.pane_sizes.gui, title, root)
   else
     error("No executable found in qmake build directory")
   end
@@ -466,7 +462,7 @@ local function run_make(root)
     local project_name = vim.fn.fnamemodify(root, ":t")
     local title = string.format(config.title_formats.make, project_name)
     vim.notify(string.format("Running Make project: %s", project_name), vim.log.levels.INFO)
-    run_in_tmux(quoted_exe, config.pane_sizes.make, title, root)
+    run_in_split(quoted_exe, config.pane_sizes.make, title, root)
   else
     error("No executable found after make")
   end
@@ -546,15 +542,14 @@ local function run_single_file()
   local title = string.format(config.title_formats.single_file, file_info.filename)
   vim.notify(string.format("Compiling and running C++ file: %s", file_info.filename), vim.log.levels.INFO)
   
-  run_in_tmux(full_cmd, config.pane_sizes.single_file, title)
+  run_in_split(full_cmd, config.pane_sizes.single_file, title)
 end
 
 -- Main compile and run function
 function M.compile_and_run()
   vim.cmd("write")
 
-  if not os.getenv("TMUX") then
-    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+  if not mux.ensure() then
     return
   end
 
