@@ -1,4 +1,5 @@
 local M = {}
+local mux = require("utils.mux")
 
 local FALLBACK_JAVA_HOME = "/home/ghost/.local/share/mise/installs/java/liberica-javafx-17.0.16+12"
 
@@ -177,22 +178,19 @@ local function relative_path(path, root)
   return vim.fn.fnamemodify(path, ":t")
 end
 
-local function run_in_tmux(command, pane_size)
-  local tmux_cmd = string.format(
-    [[tmux split-window -h -l %d%% "%s; echo ''; echo 'Press Enter to close...'; read"]],
-    pane_size,
-    command
-  )
-  vim.fn.system(tmux_cmd)
+local function run_in_split(command, pane_size)
+  return mux.run_in_split({
+    command = command,
+    percent = pane_size,
+    direction = "right",
+  })
 end
 
-local function run_jakarta_tomcat_in_tmux(maven_dir, tomcat_home)
+local function run_jakarta_tomcat_in_mux(maven_dir, tomcat_home)
   local base_dir = maven_dir .. "/target/nvim-tomcat"
   local ready_file = base_dir .. "/.ready"
   local failed_file = base_dir .. "/.failed"
   local context_file = base_dir .. "/.context"
-  local project_name = vim.fn.fnamemodify(maven_dir, ":t")
-  local window_name = "jakarta-" .. project_name
   local maven_command = vim.fn.executable(maven_dir .. "/mvnw") == 1 and "./mvnw" or "mvn"
 
   local compile_steps = table.concat({
@@ -248,32 +246,37 @@ local function run_jakarta_tomcat_in_tmux(maven_dir, tomcat_home)
     "echo ''",
     "echo 'Press Enter to close server pane...'",
     "read",
+    "exit",
   }, "; ")
 
-  local current_pane = vim.fn.system({ "tmux", "display-message", "-p", "#{pane_id}" }):gsub("%s+", "")
-  local compile_pane = vim.fn.system({
-    "tmux",
-    "split-window",
-    "-h",
-    "-p",
-    "30",
-    "-P",
-    "-F",
-    "#{pane_id}",
-    "-c",
-    maven_dir,
-    compile_cmd,
+  local current_pane = mux.current_pane_id()
+  local compile_pane = mux.split({
+    direction = "right",
+    percent = 30,
+    target_pane = current_pane,
+    cwd = maven_dir,
+    focus = false,
   })
-  compile_pane = compile_pane:gsub("%s+", "")
-  if compile_pane == "" then
-    vim.notify("Failed to create tmux pane for Jakarta runner", vim.log.levels.ERROR)
+  if not compile_pane then
+    vim.notify("Failed to create compile pane for Jakarta runner", vim.log.levels.ERROR)
+    return
+  end
+  if not mux.run(compile_pane, compile_cmd) then
     return
   end
 
-  vim.fn.system({ "tmux", "split-window", "-v", "-p", "50", "-t", compile_pane, "-c", maven_dir, server_cmd })
-  if current_pane ~= "" then
-    vim.fn.system({ "tmux", "select-pane", "-t", current_pane })
+  local server_pane = mux.split({
+    direction = "down",
+    percent = 50,
+    target_pane = compile_pane,
+    cwd = maven_dir,
+    focus = false,
+  })
+  if not server_pane then
+    vim.notify("Failed to create server pane for Jakarta runner", vim.log.levels.ERROR)
+    return
   end
+  mux.run(server_pane, server_cmd)
 end
 
 local function build_single_file_commands(file, dir, entry, javac_path, java_path)
@@ -298,8 +301,7 @@ function M.compile_and_run()
 
   vim.cmd("w")
 
-  if not os.getenv("TMUX") then
-    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+  if not mux.ensure() then
     return
   end
 
@@ -320,7 +322,7 @@ function M.compile_and_run()
         entry.fqcn,
         vim.fn.shellescape(entry.fqcn)
       )
-      run_in_tmux(maven_cmd, 20)
+      run_in_split(maven_cmd, 30)
       vim.notify("Maven JavaFX running (" .. entry.fqcn .. ")", vim.log.levels.INFO)
       return
     end
@@ -339,7 +341,7 @@ function M.compile_and_run()
       end
 
       vim.notify("Jakarta EE WAR project detected - building and running Tomcat", vim.log.levels.INFO)
-      run_jakarta_tomcat_in_tmux(maven_dir, tomcat_home)
+      run_jakarta_tomcat_in_mux(maven_dir, tomcat_home)
       return
     end
 
@@ -354,7 +356,7 @@ function M.compile_and_run()
       classpath_scope
     )
 
-    run_in_tmux(maven_cmd, 30)
+    run_in_split(maven_cmd, 30)
     vim.notify("Maven Java running (" .. entry.fqcn .. ")", vim.log.levels.INFO)
     return
   end
@@ -369,7 +371,7 @@ function M.compile_and_run()
     run_cmd
   )
 
-  run_in_tmux(command, is_javafx_file and 20 or 30)
+  run_in_split(command, 30)
 
   if is_javafx_file then
     vim.notify("JavaFX running (class: " .. entry.fqcn .. ")", vim.log.levels.INFO)

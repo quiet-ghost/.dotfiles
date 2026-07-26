@@ -128,7 +128,6 @@
     "webfetch": "ask"
   },
   "theme": "rosepine",
-  "model": "xai/grok-4.5",
   "plugin": [
     [
       "@plannotator/opencode@latest",

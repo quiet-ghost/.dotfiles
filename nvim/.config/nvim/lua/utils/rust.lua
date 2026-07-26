@@ -1,10 +1,11 @@
 local M = {}
+local mux = require("utils.mux")
 
 local config = {
   edition = "2024",
   pane_sizes = {
-    cargo = 40,
-    single_file = 45,
+    cargo = 30,
+    single_file = 30,
   },
   title_formats = {
     cargo = "cargo: %s",
@@ -45,16 +46,14 @@ local function relative_path(path, root)
   return vim.fn.fnamemodify(path, ":t")
 end
 
-local function run_in_tmux(command, pane_size, title, cwd)
-  cwd = cwd or vim.fn.getcwd()
-  local shell_command = string.format(
-    "cd %s && echo %s && echo '' && %s; echo ''; echo 'Press Enter to close...'; read",
-    vim.fn.shellescape(cwd),
-    vim.fn.shellescape("--- " .. title .. " ---"),
-    command
-  )
-
-  vim.fn.system({ "tmux", "split-window", "-h", "-l", tostring(pane_size), shell_command })
+local function run_in_split(command, pane_size, title, cwd)
+  return mux.run_in_split({
+    command = command,
+    title = title,
+    cwd = cwd or vim.fn.getcwd(),
+    percent = pane_size,
+    direction = "right",
+  })
 end
 
 local function find_single_bin(root)
@@ -106,7 +105,7 @@ local function run_cargo_project(root, file)
   local title_format = is_test and config.title_formats.cargo_test or config.title_formats.cargo
   local title = string.format(title_format, project_name)
 
-  run_in_tmux(command, config.pane_sizes.cargo, title, root)
+  run_in_split(command, config.pane_sizes.cargo, title, root)
 
   if is_test then
     vim.notify("Cargo library detected - running tests: " .. project_name, vim.log.levels.INFO)
@@ -136,7 +135,7 @@ local function run_single_file(file, filename, basename, dir)
   local run_cmd = vim.fn.shellescape(output)
   local title = string.format(config.title_formats.single_file, filename)
 
-  run_in_tmux(compile_cmd .. " && " .. run_cmd, config.pane_sizes.single_file, title, dir)
+  run_in_split(compile_cmd .. " && " .. run_cmd, config.pane_sizes.single_file, title, dir)
   vim.notify("Compiling and running Rust file: " .. filename, vim.log.levels.INFO)
 end
 
@@ -153,8 +152,7 @@ function M.compile_and_run()
 
   vim.cmd("write")
 
-  if not os.getenv("TMUX") then
-    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+  if not mux.ensure() then
     return
   end
 

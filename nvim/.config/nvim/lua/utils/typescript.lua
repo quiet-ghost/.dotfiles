@@ -1,7 +1,8 @@
 local M = {}
+local mux = require("utils.mux")
 
 local config = {
-  pane_size = 40,
+  pane_size = 30,
   title_format = "typescript: %s",
   root_markers = { "package.json", "tsconfig.json", "jsconfig.json", "bun.lock", "bun.lockb" },
 }
@@ -70,15 +71,14 @@ local function build_typecheck_command(root, file)
   return vim.fn.shellescape(tsc) .. " --noEmit " .. vim.fn.shellescape(file)
 end
 
-local function run_in_tmux(command, title, cwd)
-  local shell_command = string.format(
-    "cd %s && echo %s && echo '' && %s; echo ''; echo 'Press Enter to close...'; read",
-    vim.fn.shellescape(cwd),
-    vim.fn.shellescape("--- " .. title .. " ---"),
-    command
-  )
-
-  vim.fn.system({ "tmux", "split-window", "-h", "-l", tostring(config.pane_size), shell_command })
+local function run_in_split(command, title, cwd)
+  return mux.run_in_split({
+    command = command,
+    title = title,
+    cwd = cwd,
+    percent = config.pane_size,
+    direction = "right",
+  })
 end
 
 function M.compile_and_run()
@@ -95,8 +95,7 @@ function M.compile_and_run()
 
   vim.cmd("write")
 
-  if not os.getenv("TMUX") then
-    vim.notify("Not in tmux! Run from terminal instead.", vim.log.levels.ERROR)
+  if not mux.ensure() then
     return
   end
 
@@ -113,7 +112,7 @@ function M.compile_and_run()
   local command = typecheck_cmd and (typecheck_cmd .. " && " .. run_cmd) or run_cmd
   local title = string.format(config.title_format, filename)
 
-  run_in_tmux(command, title, root)
+  run_in_split(command, title, root)
 
   if typecheck_cmd then
     vim.notify("Type-checking and running TypeScript file: " .. filename, vim.log.levels.INFO)

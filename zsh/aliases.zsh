@@ -74,6 +74,9 @@ alias tk='tmux-kill-session'
 alias ts='tmux-switch-session'
 alias ta='tmux attach -t quietghost'
 
+# Herdr
+alias ha='herdr'
+
 # Directory navigation
 alias p='cd ~/personal'
 alias pl='cd ~/personal/Learning'

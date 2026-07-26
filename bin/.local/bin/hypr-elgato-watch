@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Watch Hyprland monitor events and re-sanitize Elgato mirror workspace ownership.
+
+readonly TAG="hypr-elgato-watch"
+readonly SANITIZE="${HOME}/.local/bin/hypr-elgato-sanitize"
+readonly DEBOUNCE_SEC=1
+
+log_info() {
+  echo "[INFO] $1" | systemd-cat -t "$TAG" -p info 2>/dev/null || echo "[INFO] $1"
+}
+
+log_warn() {
+  echo "[WARN] $1" | systemd-cat -t "$TAG" -p warning 2>/dev/null || echo "[WARN] $1"
+}
+
+if [[ ! -x "$SANITIZE" ]]; then
+  log_warn "sanitize script missing or not executable: $SANITIZE"
+  exit 0
+fi
+
+if [[ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]]; then
+  log_warn "HYPRLAND_INSTANCE_SIGNATURE unset; not in Hyprland session"
+  exit 0
+fi
+
+SOCKET="${XDG_RUNTIME_DIR}/hypr/${HYPRLAND_INSTANCE_SIGNATURE}/.socket2.sock"
+if [[ ! -S "$SOCKET" ]]; then
+  log_warn "hypr socket2 missing: $SOCKET"
+  exit 0
+fi
+
+if ! command -v socat >/dev/null 2>&1; then
+  log_warn "socat not installed"
+  exit 0
+fi
+
+run_sanitize() {
+  sleep "$DEBOUNCE_SEC"
+  "$SANITIZE" || true
+}
+
+log_info "watching monitor events on $SOCKET"
+# Initial pass in case Elgato already present
+"$SANITIZE" || true
+
+socat -U - "UNIX-CONNECT:${SOCKET}" | while IFS= read -r event; do
+  case "$event" in
+    monitoradded\>\>* | monitoraddedv2\>\>* | monitorremoved\>\>* | monitorremovedv2\>\>*)
+      log_info "event: $event"
+      run_sanitize &
+      ;;
+  esac
+done
