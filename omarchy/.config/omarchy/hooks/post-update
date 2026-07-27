@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Keep secret-service / cookie encryption stable across omarchy updates.
+set -euo pipefail
+
+PORTAL_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/xdg-desktop-portal"
+PORTAL_CONF="$PORTAL_DIR/hyprland-portals.conf"
+ENV_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d"
+ENV_CONF="$ENV_DIR/99-chromium-secret.conf"
+KEYRING_DEFAULT="$HOME/.local/share/keyrings/default"
+
+mkdir -p "$PORTAL_DIR" "$ENV_DIR" "$HOME/.local/share/keyrings"
+
+if [[ ! -f "$PORTAL_CONF" ]]; then
+  cat >"$PORTAL_CONF" <<'EOF'
+[preferred]
+default=hyprland;gtk
+org.freedesktop.impl.portal.Secret=gnome-keyring
+EOF
+  echo "[post-update] restored xdg Secret portal -> gnome-keyring"
+elif grep -q '^org.freedesktop.impl.portal.Secret=' "$PORTAL_CONF"; then
+  sed -i 's/^org\.freedesktop\.impl\.portal\.Secret=.*/org.freedesktop.impl.portal.Secret=gnome-keyring/' "$PORTAL_CONF"
+elif grep -q '^\[preferred\]$' "$PORTAL_CONF"; then
+  sed -i '/^\[preferred\]$/a org.freedesktop.impl.portal.Secret=gnome-keyring' "$PORTAL_CONF"
+else
+  cat >>"$PORTAL_CONF" <<'EOF'
+
+[preferred]
+org.freedesktop.impl.portal.Secret=gnome-keyring
+EOF
+fi
+
+if [[ ! -f "$ENV_CONF" ]]; then
+  cat >"$ENV_CONF" <<'EOF'
+CHROME_PASSWORD_STORE=gnome-libsecret
+PASSWORD_STORE=gnome-libsecret
+EOF
+  echo "[post-update] restored chromium password-store env"
+fi
+
+# Keep default collection pointer stable (do not recreate empty Default_Keyring)
+if [[ ! -f "$KEYRING_DEFAULT" ]]; then
+  printf 'Default_Keyring\n' >"$KEYRING_DEFAULT"
+  echo "[post-update] restored keyrings/default -> Default_Keyring"
+fi
+
+# Quarantine legacy plaintext keyring format if it reappears
+legacy="$HOME/.local/share/keyrings/Default_keyring.keyring"
+if [[ -f "$legacy" ]] && head -c 16 "$legacy" 2>/dev/null | grep -q '\[keyring\]'; then
+  mv "$legacy" "$legacy.invalid-old-format.$(date +%s%N)"
+  echo "[post-update] quarantined invalid legacy keyring format"
+fi
+
+systemctl --user enable gnome-keyring-daemon.service >/dev/null 2>&1 || true
+
+# Restart portals only if running (avoid failing offline hooks)
+if systemctl --user is-active --quiet xdg-desktop-portal.service; then
+  systemctl --user try-restart gnome-keyring-daemon.service xdg-desktop-portal.service xdg-desktop-portal-gtk.service >/dev/null 2>&1 || true
+  echo "[post-update] restarted keyring + portals"
+fi

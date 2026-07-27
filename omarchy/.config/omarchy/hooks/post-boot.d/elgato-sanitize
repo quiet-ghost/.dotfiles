@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Keep Elgato capture-card mirror from owning normal workspaces after boot.
+if [[ -x "${HOME}/.local/bin/hypr-elgato-sanitize" ]]; then
+  "${HOME}/.local/bin/hypr-elgato-sanitize" || true
+fi
