@@ -2,6 +2,12 @@
 .env.private
 *.env.private
 /pi/.pi/agent/auth.json
+/pi/.pi/agent/mcp-cache.json
+/pi/.pi/agent/mcp-npx-cache.json
+/pi/.pi/agent/mcp-onboarding.json
+/pi/.pi/agent/sessions/
+.env
+.dev.vars
 .stfolder
 
 #config backups
@@ -26,6 +32,8 @@ tmp/
 *.tmp
 *.temp
 node_modules/
+__pycache__/
+*.pyc
 bin/.local/bin/coderabbit
 
 # Git worktrees
