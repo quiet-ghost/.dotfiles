@@ -21,9 +21,6 @@ export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"
 # Load private environment variables
 [[ -f ~/.env.private ]] && source ~/.env.private
 
-# Source additional environment configuration
-. "$HOME/.local/share/../bin/env"
-
 # ============================================================================
 # OH MY ZSH CONFIGURATION
 # ============================================================================

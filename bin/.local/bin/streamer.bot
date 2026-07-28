@@ -1,3 +1,0 @@
-#!/bin/bash
-cd /home/ghost-server/.local/lib/streamer.bot
-DISABLE_MANGOHUD=1 WINEPREFIX=/home/ghost-server/.local/lib/streamer.bot/pfx wine Streamer.bot.exe >/dev/null 2>&1

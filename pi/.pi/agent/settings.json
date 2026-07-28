@@ -1,7 +1,7 @@
 {
-  "defaultProvider": "xai",
-  "defaultModel": "grok-4.5",
-  "defaultThinkingLevel": "high",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "medium",
   "enabledModels": [
     "xai/grok-4.5:high",
     "openai-codex/gpt-5.6-sol:medium"

@@ -81,12 +81,14 @@ stow -D nvim
 
 Located in `bin/.local/bin/` and `bin/usr/bin/`:
 
-- **arch-install-ai-tool** - Automated AI development tools installation (deprecated due to using omarchy, but has same functionality)
-- **arch-install-dev-env** - Development environment setup script (deprecated due to using omarchy, but has same functionality)
-- **tmux-sessionizer** - Fuzzy find and jump to project directories in tmux
-- **mux-sesh** - [Advanced tmux session management](https://github.com/quiet-ghost/mux-sesh)
-- **hypridle-launcher** - Custom idle management launcher
-- **kill-process** - Interactive process killer
+- **Project aliases and workflows** - `gh-issue-create-smart`, `gh-pr-create-smart`, `gh-pr-review-session`, `gh-repo-path`, `repo-init`, `wd`, `wl`, `wt`, `wtdd`, `wti`, and `wtpr`
+- **Display automation** - `hypr-display-monitor`, `hypr-display-switch`, `hypr-elgato-sanitize`, and `hypr-elgato-watch`
+- **Hypridle and timer helpers** - `hypridle`, `hypridle-launcher`, and `omarchy-timer`
+- **Pi helper** - `pi`
+- **Tmux helpers** - `tmux-kill-session`, `tmux-sessionizer`, and `tmux-switch-session`
+- **System/project helpers** - `aur-install`, `cookiecutter-cpp`, `install_javafx_template.sh`, `kill-process`, `lutris`, `new-clion`, `new-cpp`, `new-java`, and `new-rust`
+
+Third-party binaries, package-manager outputs, `node_modules`, generated wrappers, and secrets do not belong in this Stow package.
 
 ## Directory Structure
 
