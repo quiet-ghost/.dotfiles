@@ -84,9 +84,8 @@
   "clock": {
     "format": "{:%A %d - %I:%M }",
     // "format-alt": "{:%m.%d - %H:%M}",
-    "tooltip": false,
+    "tooltip": true,
     "tooltip-format": "<tt><big>{calendar}</big></tt>",
-    "on-click": "pkill -x waycal || waycal",
     "on-click-right": "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select",
   },
   "custom/timer": {

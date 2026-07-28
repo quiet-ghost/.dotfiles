@@ -6,6 +6,35 @@ REPO=""
 TEMPLATE_SELECTOR=""
 EXTRA_ARGS=()
 
+run_editor() {
+  local editor="$1"
+  local draft_file="$2"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    printf 'python3 is required to parse VISUAL/EDITOR safely\n' >&2
+    return 1
+  fi
+
+  python3 - "$editor" "$draft_file" <<'PY'
+import os
+import shlex
+import sys
+
+try:
+    command = shlex.split(sys.argv[1])
+except ValueError as error:
+    raise SystemExit(f"Invalid VISUAL/EDITOR value: {error}")
+
+if not command:
+    raise SystemExit("VISUAL/EDITOR must name an editor")
+
+try:
+    os.execvp(command[0], [*command, sys.argv[2]])
+except OSError as error:
+    raise SystemExit(f"Could not launch editor {command[0]!r}: {error.strerror}")
+PY
+}
+
 usage() {
   cat <<'EOF'
 Usage: gh-issue-create-smart [options] [-- <gh issue create args>]
@@ -566,7 +595,7 @@ main() {
   render_draft "$template_file" "$metadata_file" "$draft_file"
 
   editor="${VISUAL:-${EDITOR:-nvim}}"
-  eval "$editor \"$draft_file\""
+  run_editor "$editor" "$draft_file"
 
   title="$(parse_draft "$metadata_file" "$draft_file" "$body_file")"
 
