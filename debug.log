@@ -1,3 +1,0 @@
-1:58PM INFO <cmd/root.go:102> Logging to debug.log
-1:58PM INFO <cmd/root.go:104> Running in repo repo=/home/ghost/.dotfiles
-1:58PM FATA <cmd/root.go:226> Failed starting the TUI could not open a new TTY: open /dev/tty: no such device or address="missing value"
