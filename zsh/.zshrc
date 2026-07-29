@@ -11,6 +11,10 @@ export ZSH="$HOME/.oh-my-zsh"
 export PATH="$HOME/usr/bin:$PATH"
 export PATH="$PATH:/home/ghost/.lmstudio/bin"
 
+# Browser for gh/xdg-open (Helium)
+export BROWSER=helium-browser
+
+
 # Go configuration
 export GOPATH="$HOME/go"
 export PATH="$GOPATH/bin:$PATH"
