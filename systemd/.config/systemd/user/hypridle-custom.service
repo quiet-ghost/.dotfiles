@@ -1,8 +1,11 @@
 [Unit]
 Description=Hypridle with custom launcher (desktop/laptop detection)
 Documentation=https://wiki.hyprland.org/Hypr-Ecosystem/hypridle
+# Optional backup path. Prefer Omarchy uwsm-app -- hypridle + PATH wrapper.
+# Keep disabled unless autostart path fails.
 PartOf=graphical-session.target
 After=graphical-session.target
+ConditionPathExists=%h/.local/bin/hypridle-launcher
 
 [Service]
 Type=simple
@@ -11,4 +14,4 @@ Restart=on-failure
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

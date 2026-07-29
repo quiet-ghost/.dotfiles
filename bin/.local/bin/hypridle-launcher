@@ -2,6 +2,10 @@
 
 # Hypridle launcher - Detects device type and launches with appropriate config
 # Syncs across devices via stow - automatically configures for laptop vs desktop
+#
+# Intended entrypoints (one only):
+#   - Omarchy autostart: uwsm-app -- hypridle  (resolves to ~/.local/bin/hypridle wrapper)
+#   - Direct: ~/.local/bin/hypridle-launcher
 
 set -euo pipefail
 
@@ -75,6 +79,25 @@ listener {
 EOF
 }
 
+stop_other_hypridle() {
+    # Replace stock / leftover hypridle. Never signal our eventual exec target
+    # until replacements are gone (uwsm may start stock slightly later).
+    local i
+    for i in 1 2 3 4 5 6; do
+        if ! pgrep -x hypridle >/dev/null 2>&1; then
+            return 0
+        fi
+        log_info "stopping existing hypridle (try $i)"
+        pkill -x hypridle 2>/dev/null || true
+        sleep 0.5
+    done
+    if pgrep -x hypridle >/dev/null 2>&1; then
+        log_info "force-stopping remaining hypridle"
+        pkill -9 -x hypridle 2>/dev/null || true
+        sleep 0.3
+    fi
+}
+
 main() {
     local device_type config_dir config_file
     device_type=$(detect_device_type)
@@ -91,12 +114,7 @@ main() {
         generate_desktop_config >"$config_file"
     fi
 
-    # Drop stock hypridle started via PATH that prefers /usr/bin
-    if pgrep -x hypridle >/dev/null; then
-        log_info "stopping existing hypridle"
-        pkill -x hypridle || true
-        sleep 0.3
-    fi
+    stop_other_hypridle
 
     log_info "exec /usr/bin/hypridle -c $config_file"
     exec /usr/bin/hypridle -c "$config_file"
