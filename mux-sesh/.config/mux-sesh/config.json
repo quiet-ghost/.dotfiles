@@ -18,17 +18,23 @@
   "color_scheme": "dark",
   "auto_update": true,
   "dir_length": 1,
-  "hidden_sessions": ["scratch", "tmp*"],
+  "hidden_sessions": [
+    "scratch",
+    "tmp*"
+  ],
   "pinned_sessions": [
     "quietghost",
     "Boots",
-    "Boot",
     "opengit",
     "_quietghost",
-    "TwitchChat"
+    "~",
+    "Boot",
+    "TwitchChat",
+    "ghost-wms",
+    "mux-sesh"
   ],
   "icons": {
-    "tmux": "",
+    "tmux": "",
     "herdr": "",
     "configured": "",
     "project": "",
@@ -105,4 +111,3 @@
     }
   ]
 }
-

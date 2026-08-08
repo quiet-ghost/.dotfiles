@@ -1,6 +1,9 @@
 local M = {}
 
 function M.create_new_file()
+  local current_file = vim.api.nvim_buf_get_name(0)
+  local current_dir = current_file ~= "" and vim.fs.dirname(current_file) or vim.fn.getcwd()
+
   -- Create a centered floating window for input
   local width = 60
   local height = 1
@@ -41,11 +44,14 @@ function M.create_new_file()
       vim.api.nvim_win_close(win, true)
 
       if input and input ~= "" then
-        local dir = vim.fn.fnamemodify(input, ":h")
-        if dir ~= "." then
-          vim.fn.mkdir(dir, "p")
+        local path = input
+        if vim.fn.fnamemodify(path, ":h") == "." then
+          path = vim.fs.joinpath(current_dir, path)
         end
-        vim.cmd("edit " .. input)
+
+        path = vim.fn.fnamemodify(path, ":p")
+        vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+        vim.cmd.edit(vim.fn.fnameescape(path))
       end
     end,
     noremap = true,
