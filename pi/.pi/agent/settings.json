@@ -17,7 +17,7 @@
     "npm:@plannotator/pi-extension",
     "npm:pi-web-access"
   ],
-  "lastChangelogVersion": "0.82.1",
+  "lastChangelogVersion": "0.83.0",
   "outputPad": 0,
   "treeFilterMode": "default",
   "hideThinkingBlock": true

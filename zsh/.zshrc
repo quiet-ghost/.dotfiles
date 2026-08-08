@@ -1,26 +1,29 @@
 # ============================================================================
 # ENVIRONMENT VARIABLES & PATH CONFIGURATION
 # ============================================================================
-# Boot.dev configuration
-export PATH="$PATH:$HOME/personal/Learning/Boot/Course 2 Linux/worldbanc/private/bin"
+typeset -U path PATH
+path=(
+  "$HOME/.local/bin"
+  "$HOME/usr/bin"
+  "$HOME/go/bin"
+  "$HOME/personal/Learning/Boot/Course 2 Linux/worldbanc/private/bin"
+  "$HOME/.lmstudio/bin"
+  $path
+)
 
 # Oh My Zsh installation path
 export ZSH="$HOME/.oh-my-zsh"
 
-# PATH exports (consolidated)
-export PATH="$HOME/usr/bin:$PATH"
-export PATH="$PATH:/home/ghost/.lmstudio/bin"
-
 # Browser for gh/xdg-open (Helium)
 export BROWSER=helium-browser
 
-
 # Go configuration
 export GOPATH="$HOME/go"
-export PATH="$GOPATH/bin:$PATH"
 
 # Java - let mise manage JAVA_HOME dynamically
-export JAVA_HOME="$(mise where java 2>/dev/null || echo '')"
+if command -v mise >/dev/null 2>&1; then
+  export JAVA_HOME="$(mise where java 2>/dev/null)"
+fi
 
 # Load private environment variables
 [[ -f ~/.env.private ]] && source ~/.env.private
@@ -33,7 +36,7 @@ ZSH_THEME=""
 zstyle ':omz:update' mode auto
 
 # Plugins
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting fast-syntax-highlighting zsh-autocomplete)
+plugins=(git zsh-autosuggestions fast-syntax-highlighting zsh-autocomplete)
 
 # Load Oh My Zsh
 source $ZSH/oh-my-zsh.sh
@@ -43,9 +46,11 @@ source $ZSH/oh-my-zsh.sh
 # ============================================================================
 
 # mise (formerly rtx) - runtime version manager
-eval "$(mise activate zsh)"
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
 export BUN_INSTALL_BIN="$HOME/.local/share/bun/bin"
-export PATH="$HOME/.local/bin:$HOME/.local/share/bun/bin:$PATH"
+path=("$BUN_INSTALL_BIN" $path)
 
 # direnv - per-directory environment loading
 if command -v direnv >/dev/null 2>&1; then
@@ -72,8 +77,8 @@ if command -v fzf >/dev/null 2>&1; then
 fi
 
 # Starship prompt
-eval "$(starship init zsh)"
-eval "$(atuin init zsh --disable-up-arrow)"
+command -v starship >/dev/null 2>&1 && eval "$(starship init zsh)"
+command -v atuin >/dev/null 2>&1 && eval "$(atuin init zsh --disable-up-arrow)"
 
 # ============================================================================
 # KEY BINDINGS
@@ -183,7 +188,9 @@ auto_venv
 unalias ls 2>/dev/null
 
 # Load custom aliases (loaded last to override everything)
-source ~/.dotfiles/zsh/aliases.zsh
+source "$HOME/.dotfiles/zsh/aliases.zsh"
 
 # Generated for envman. Do not edit.
 [ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+typeset -U path PATH

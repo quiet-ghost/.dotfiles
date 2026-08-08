@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Git worktree manager - Create or switch to worktrees with multiplexer integration
-# Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [branch-name]
+# Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [--no-fetch] [branch-name]
 
 set -euo pipefail
 
@@ -8,19 +8,33 @@ WORKTREE_DIR=".worktrees"
 EXEC_COMMAND=""
 EXEC_WINDOW_NAME="task"
 MUX_MODE="auto"
+DO_FETCH=true
+
+declare -A BRANCH_WORKTREE_PATH=()
 
 usage() {
   cat <<'EOF'
-Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [branch-name]
+Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [--no-fetch] [branch-name]
 
 Create or switch to a git worktree.
+
+With no branch name: fetch remotes, then interactively pick a worktree/branch.
+Remote-only branches are tracked and checked out into .worktrees/.
 
 Options:
   -x, --exec <command>        Run command in a multiplexer tab/window
   -n, --window-name <name>    Tab/window name to use with --exec (default: task)
   -m, --mux <mode>            Integration: auto, herdr, tmux, or none (default: auto)
+      --no-fetch              Skip git fetch before listing/selecting
   -h, --help                  Show this help message
 EOF
+}
+
+require_gum() {
+  if ! command -v gum >/dev/null 2>&1; then
+    printf 'Error: gum is required\n' >&2
+    exit 1
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -55,6 +69,10 @@ while [[ $# -gt 0 ]]; do
           ;;
       esac
       shift 2
+      ;;
+    --no-fetch)
+      DO_FETCH=false
+      shift
       ;;
     -h|--help)
       usage
@@ -229,29 +247,6 @@ else
   echo "${WORKTREE_DIR}/" >> .gitignore
 fi
 
-# If no argument, show current worktrees and available branches
-if [ -z "${1:-}" ]; then
-  echo "=== Current Worktrees ==="
-  if [ -d "$WORKTREE_DIR" ] && [ "$(ls -A "$WORKTREE_DIR" 2>/dev/null)" ]; then
-    git worktree list | grep "$WORKTREE_DIR" || echo "  No worktrees found"
-  else
-    echo "  No worktrees found"
-  fi
-  
-  echo ""
-  echo "=== Available Branches ==="
-  git branch -a | grep -v HEAD | sed 's/^../  /'
-  
-  echo ""
-  echo "Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] <branch-name>"
-  exit 0
-fi
-
-BRANCH_NAME="$1"
-WORKTREE_PATH="$(worktree_path_for_branch "$BRANCH_NAME")"
-WORKTREE_ABS_PATH="${REPO_ROOT}/${WORKTREE_PATH}"
-WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
-
 window_name_exists() {
   local session_name="$1"
   local window_name="$2"
@@ -361,6 +356,20 @@ open_herdr_worktree() {
   fi
 }
 
+run_command_in_tmux_session() {
+  local session_name="$1"
+  local worktree_path="$2"
+  local command="$3"
+  local requested_window_name="$4"
+  local window_name
+  local window_index
+
+  window_name="$(unique_window_name "$session_name" "$requested_window_name")"
+  echo "Opening tmux window '$window_name' in session '$session_name'"
+  window_index="$(tmux new-window -P -F '#{window_index}' -d -t "$session_name:" -n "$window_name" -c "$worktree_path" "$command")"
+  tmux select-window -t "${session_name}:${window_index}"
+}
+
 open_worktree_in_mux() {
   local branch_name="$1"
   local worktree_path="$2"
@@ -388,91 +397,292 @@ open_worktree_in_mux() {
   esac
 }
 
-run_command_in_tmux_session() {
-  local session_name="$1"
-  local worktree_path="$2"
-  local command="$3"
-  local requested_window_name="$4"
-  local window_name
-  local window_index
+fetch_remotes() {
+  if [[ "$DO_FETCH" != "true" ]]; then
+    return 0
+  fi
 
-  window_name="$(unique_window_name "$session_name" "$requested_window_name")"
-  echo "Opening tmux window '$window_name' in session '$session_name'"
-  window_index="$(tmux new-window -P -F '#{window_index}' -d -t "$session_name:" -n "$window_name" -c "$worktree_path" "$command")"
-  tmux select-window -t "${session_name}:${window_index}"
+  echo "Fetching remotes..."
+  git fetch --all --prune
 }
 
-# Check if worktree already exists
-if [ -d "$WORKTREE_PATH" ]; then
-  echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
-  setup_worktree_env_files
-  
-  open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
-  exit 0
-fi
+# Populate BRANCH_WORKTREE_PATH[branch] = absolute path
+load_worktree_map() {
+  BRANCH_WORKTREE_PATH=()
+  local path="" branch="" bare="" detached=""
 
-# Check if branch exists
-if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
-  echo "Creating worktree from existing branch: $BRANCH_NAME"
-  mkdir -p "$(dirname "$WORKTREE_ABS_PATH")"
-  git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
-else
-  echo "Branch '$BRANCH_NAME' does not exist."
-  echo ""
-  
-  # Get list of branches for base selection
+  while IFS= read -r line; do
+    case "$line" in
+      worktree\ *)
+        path="${line#worktree }"
+        branch=""
+        bare=""
+        detached=""
+        ;;
+      branch\ *)
+        branch="${line#branch refs/heads/}"
+        ;;
+      bare)
+        bare=1
+        ;;
+      detached)
+        detached=1
+        ;;
+      "")
+        if [[ -n "$path" && -z "$bare" && -z "$detached" && -n "$branch" ]]; then
+          BRANCH_WORKTREE_PATH["$branch"]="$path"
+        fi
+        path=""
+        branch=""
+        bare=""
+        detached=""
+        ;;
+    esac
+  done < <(git worktree list --porcelain; printf '\n')
+}
+
+# Print remote-tracking refs as: <remote> <branch>
+list_remote_branches() {
+  local ref rest remote branch
+
+  while IFS= read -r ref; do
+    rest="${ref#refs/remotes/}"
+    remote="${rest%%/*}"
+    branch="${rest#*/}"
+    if [[ "$branch" == "HEAD" ]]; then
+      continue
+    fi
+    printf '%s %s\n' "$remote" "$branch"
+  done < <(git for-each-ref --format='%(refname)' refs/remotes/)
+}
+
+# Prefer origin. Prints: <remote> <start-point>  e.g. origin origin/foo
+find_remote_ref() {
+  local branch_name="$1"
+  local remote branch
+  local found_remote="" found_start=""
+
+  while read -r remote branch; do
+    if [[ "$branch" != "$branch_name" ]]; then
+      continue
+    fi
+    if [[ "$remote" == "origin" ]]; then
+      printf '%s %s/%s\n' "$remote" "$remote" "$branch"
+      return 0
+    fi
+    if [[ -z "$found_remote" ]]; then
+      found_remote="$remote"
+      found_start="${remote}/${branch}"
+    fi
+  done < <(list_remote_branches)
+
+  if [[ -n "$found_remote" ]]; then
+    printf '%s %s\n' "$found_remote" "$found_start"
+    return 0
+  fi
+
+  return 1
+}
+
+select_base_branch() {
+  local current_branch branches selected_base branch
+
+  require_gum
+
   current_branch=$(git branch --show-current)
-  
-  # Build branch list for gum choose
   branches=()
   [ -n "$current_branch" ] && branches+=("$current_branch (current)")
-  
+
   if git show-ref --verify --quiet refs/heads/main; then
     [ "$current_branch" != "main" ] && branches+=("main")
   fi
-  
+
   if git show-ref --verify --quiet refs/heads/master; then
     [ "$current_branch" != "master" ] && branches+=("master")
   fi
-  
-  # Add other branches
+
   while IFS= read -r branch; do
-    branch=$(echo "$branch" | sed 's/^..//' | xargs)
-    if [[ "$branch" != "$current_branch" && "$branch" != "main" && "$branch" != "master" && ! "$branch" =~ ^remotes/ ]]; then
+    [[ -z "$branch" ]] && continue
+    if [[ "$branch" != "$current_branch" && "$branch" != "main" && "$branch" != "master" ]]; then
       branches+=("$branch")
     fi
-  done < <(git branch | grep -v HEAD)
-  
+  done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+
   if [ ${#branches[@]} -eq 0 ]; then
-    echo "Error: No branches available as base"
+    echo "Error: No branches available as base" >&2
     exit 1
   fi
-  
-  echo "Select base branch for '$BRANCH_NAME':"
+
+  echo "Select base branch:" >&2
   selected_base=$(printf '%s\n' "${branches[@]}" | gum choose)
-  
+
   if [ -z "$selected_base" ]; then
-    echo "Cancelled."
+    echo "Cancelled." >&2
     exit 1
   fi
-  
-  # Remove " (current)" suffix if present
-  selected_base=$(echo "$selected_base" | sed 's/ (current)$//')
 
-  echo "Creating new branch '$BRANCH_NAME' from '$selected_base'..."
+  selected_base="${selected_base% (current)}"
+  printf '%s\n' "$selected_base"
+}
+
+prompt_new_branch_name() {
+  local name
+
+  require_gum
+  name="$(gum input --placeholder "new-branch-name" --prompt "Branch: ")"
+  if [[ -z "$name" ]]; then
+    echo "Cancelled." >&2
+    exit 1
+  fi
+  printf '%s\n' "$name"
+}
+
+pick_branch_interactively() {
+  local labels=()
+  local branch path remote label selected
+  local -A seen=()
+  local -A label_to_branch=()
+  local new_label="✦  create new branch…"
+
+  require_gum
+  load_worktree_map
+
+  for branch in "${!BRANCH_WORKTREE_PATH[@]}"; do
+    path="${BRANCH_WORKTREE_PATH[$branch]}"
+    if [[ "$path" == "$REPO_ROOT" ]]; then
+      label=$(printf '●  %-9s  %s' "main" "$branch")
+    else
+      label=$(printf '●  %-9s  %s' "worktree" "$branch")
+    fi
+    labels+=("$label")
+    label_to_branch["$label"]="$branch"
+    seen["$branch"]=1
+  done
+
+  while IFS= read -r branch; do
+    [[ -z "$branch" ]] && continue
+    if [[ -n "${seen[$branch]:-}" ]]; then
+      continue
+    fi
+    label=$(printf '○  %-9s  %s' "local" "$branch")
+    labels+=("$label")
+    label_to_branch["$label"]="$branch"
+    seen["$branch"]=1
+  done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+
+  while read -r remote branch; do
+    [[ -z "$branch" ]] && continue
+    if [[ -n "${seen[$branch]:-}" ]]; then
+      continue
+    fi
+    label=$(printf '◌  %-9s  %s' "$remote" "$branch")
+    labels+=("$label")
+    label_to_branch["$label"]="$branch"
+    seen["$branch"]=1
+  done < <(list_remote_branches)
+
+  labels+=("$new_label")
+
+  selected="$(printf '%s\n' "${labels[@]}" | gum choose --height 20)"
+
+  if [[ -z "$selected" ]]; then
+    echo "Cancelled." >&2
+    exit 1
+  fi
+
+  if [[ "$selected" == "$new_label" ]]; then
+    prompt_new_branch_name
+    return 0
+  fi
+
+  if [[ -z "${label_to_branch[$selected]:-}" ]]; then
+    printf 'Error: unknown selection %s\n' "$selected" >&2
+    exit 1
+  fi
+
+  printf '%s\n' "${label_to_branch[$selected]}"
+}
+
+finish_worktree() {
+  if command -v mise > /dev/null 2>&1; then
+    echo "Running mise trust for worktree..."
+    mise trust "$WORKTREE_PATH" 2>/dev/null || true
+  fi
+
+  setup_worktree_env_files
+
+  echo ""
+  echo "✓ Worktree ready: $WORKTREE_DISPLAY_NAME"
+
+  open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+}
+
+create_worktree_for_branch() {
+  local remote_info remote start_point selected_base
+
+  load_worktree_map
+
+  # Already checked out somewhere — open that path
+  if [[ -n "${BRANCH_WORKTREE_PATH[$BRANCH_NAME]:-}" ]]; then
+    WORKTREE_ABS_PATH="${BRANCH_WORKTREE_PATH[$BRANCH_NAME]}"
+    if [[ "$WORKTREE_ABS_PATH" == "$REPO_ROOT" ]]; then
+      WORKTREE_PATH="."
+    else
+      WORKTREE_PATH="${WORKTREE_ABS_PATH#"$REPO_ROOT"/}"
+    fi
+    WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
+    echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
+    setup_worktree_env_files
+    open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+    exit 0
+  fi
+
+  # Path under .worktrees already present
+  if [ -d "$WORKTREE_PATH" ]; then
+    echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
+    setup_worktree_env_files
+    open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+    exit 0
+  fi
+
   mkdir -p "$(dirname "$WORKTREE_ABS_PATH")"
+
+  if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
+    echo "Creating worktree from existing branch: $BRANCH_NAME"
+    git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
+    finish_worktree
+    exit 0
+  fi
+
+  if remote_info="$(find_remote_ref "$BRANCH_NAME")"; then
+    remote="${remote_info%% *}"
+    start_point="${remote_info#* }"
+    echo "Creating worktree tracking $remote/$BRANCH_NAME"
+    git worktree add --track -b "$BRANCH_NAME" "$WORKTREE_PATH" "$start_point"
+    finish_worktree
+    exit 0
+  fi
+
+  echo "Branch '$BRANCH_NAME' does not exist locally or on a remote."
+  echo ""
+  selected_base="$(select_base_branch)"
+  echo "Creating new branch '$BRANCH_NAME' from '$selected_base'..."
   git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "$selected_base"
+  finish_worktree
+}
+
+# --- main ---
+
+fetch_remotes
+
+if [ -z "${1:-}" ]; then
+  BRANCH_NAME="$(pick_branch_interactively)"
+else
+  BRANCH_NAME="$1"
 fi
 
-# Trust the worktree with mise
-if command -v mise > /dev/null 2>&1; then
-  echo "Running mise trust for worktree..."
-  mise trust "$WORKTREE_PATH" 2>/dev/null || true
-fi
+WORKTREE_PATH="$(worktree_path_for_branch "$BRANCH_NAME")"
+WORKTREE_ABS_PATH="${REPO_ROOT}/${WORKTREE_PATH}"
+WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
 
-setup_worktree_env_files
-
-echo ""
-echo "✓ Worktree created successfully!"
-
-open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
+create_worktree_for_branch
