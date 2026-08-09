@@ -1,9 +1,0 @@
-tunnel: ${HOSTNAME}-tunnel
-credentials-file: ~/.cloudflared/${HOSTNAME}-tunnel.json
-
-ingress:
-  - hostname: ${HOSTNAME}.quietghost.dev
-    service: http://localhost:8080
-  - hostname: ${HOSTNAME}-obs.quietghost.dev
-    service: http://localhost:3000
-  - service: http_status:404

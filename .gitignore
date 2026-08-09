@@ -1,6 +1,13 @@
 # Private environment files containing API keys and secrets
 .env.private
 *.env.private
+*.pem
+*.key
+*.p12
+*.pfx
+**/.ssh/id_*
+**/.cloudflared/*.json
+**/credentials*.json
 /pi/.pi/agent/auth.json
 /pi/.pi/agent/mcp-cache.json
 /pi/.pi/agent/mcp-npx-cache.json
@@ -10,8 +17,21 @@
 .dev.vars
 .stfolder
 
-#config backups
-.backup/
+# Runtime state and generated output
+*.log
+/herdr/.config/herdr/session*.json
+/herdr/.config/herdr/plugins.json
+/herdr/.config/herdr/release-notes.json
+/herdr/.config/herdr/.plugins.lock
+/opencode/.config/opencode/logs/
+/pi/.pi/agent/models-store.json
+/nvim/.config/nvim/.jdtls-out/
+/omarchy/.config/omarchy/current/
+
+# Backups and sync-conflict artifacts
+/.backup/
+/backups/
+**/*.sync-conflict-*
 
 # OS generated files
 .DS_Store

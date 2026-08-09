@@ -54,20 +54,23 @@ sudo pacman -S stow git
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/dotfiles.git ~/.dotfiles
+git clone --recurse-submodules https://github.com/yourusername/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ```
 
 Use stow to symlink configurations:
 
 ```bash
-# Install all configurations
+# Install all normal Stow packages
 stow */
 
 # Install specific configuration
 stow nvim
 stow hypr
 stow tmux
+
+# Cloudflared is stateful and must be installed separately
+./cloudflared/install.sh
 ```
 
 ### Remove Configurations
@@ -96,8 +99,7 @@ Third-party binaries, package-manager outputs, `node_modules`, generated wrapper
 .
 ├── .config/          # Application configurations (stow target)
 ├── .local/bin/       # User binaries (stow target)
-├── backups/          # Configuration backups
 └── usr/bin/          # System-level scripts
 ```
 
-Each top-level directory follows the stow pattern where subdirectories mirror the home directory structure.
+Each normal top-level package follows the Stow pattern where subdirectories mirror the home directory structure. Runtime logs, sessions, generated caches, backups, and sync-conflict artifacts are intentionally excluded from Git.
