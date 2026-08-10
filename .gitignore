@@ -8,13 +8,38 @@
 **/.ssh/id_*
 **/.cloudflared/*.json
 **/credentials*.json
+# Pi credentials, sessions, package installs, and machine-local state
 /pi/.pi/agent/auth.json
+/pi/.pi/agent/trust.json
+/pi/.pi/agent/models-store.json
+/pi/.pi/agent/sessions/
+/pi/.pi/agent/git/
+/pi/.pi/agent/npm/*
+!/pi/.pi/agent/npm/.gitignore
+/pi/.pi/agent/todos/
+/pi/.pi/.pi/todos/
+/pi/.pi/agent/opencode-cloudflare.local.jsonc
+/pi/.pi/agent/mcp-oauth/
+/pi/.pi/agent/mcp-auth.json
 /pi/.pi/agent/mcp-cache.json
 /pi/.pi/agent/mcp-npx-cache.json
 /pi/.pi/agent/mcp-onboarding.json
-/pi/.pi/agent/sessions/
+/pi/.pi/agent/extensions/**/node_modules/
+/pi/.pi/coverage/
+/pi/.pi/out/
+/pi/.pi/dist/
+/pi/.pi/*.tgz
+/pi/.pi/*.tsbuildinfo
+/pi/.pi/.npmrc
+
+# Local environment files
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .dev.vars
+.dev.vars.*
 .stfolder
 
 # Runtime state and generated output

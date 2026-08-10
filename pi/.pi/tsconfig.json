@@ -1,13 +1,18 @@
 {
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "module": "ESNext",
+    "lib": ["ESNext"],
+    "module": "Preserve",
+    "moduleDetection": "force",
     "moduleResolution": "Bundler",
     "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "strict": true,
-    "target": "ES2023"
+    "target": "ESNext",
+    "verbatimModuleSyntax": true
   },
   "include": ["agent/extensions/**/*.ts"]
 }
