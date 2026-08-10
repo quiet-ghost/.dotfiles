@@ -15,9 +15,10 @@
   ],
   "packages": [
     "npm:@plannotator/pi-extension",
+    "npm:pi-mcp-adapter@2.13.0",
     "npm:pi-web-access"
   ],
-  "lastChangelogVersion": "0.83.0",
+  "lastChangelogVersion": "0.84.1",
   "outputPad": 0,
   "treeFilterMode": "default",
   "hideThinkingBlock": true

@@ -1,0 +1,47 @@
+# Dependencies and build output
+node_modules/
+agent/extensions/**/node_modules/
+out/
+dist/
+coverage/
+*.tgz
+*.lcov
+*.tsbuildinfo
+.npmrc
+
+# Logs and caches
+logs/
+*.log
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+.eslintcache
+.cache/
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.dev.vars
+.dev.vars.*
+
+# Pi credentials, sessions, package installs, and machine-local state
+agent/auth.json
+agent/trust.json
+agent/models-store.json
+agent/sessions/
+agent/git/
+agent/npm/*
+!agent/npm/.gitignore
+agent/todos/
+.pi/todos/
+agent/opencode-cloudflare.local.jsonc
+agent/mcp-oauth/
+agent/mcp-auth.json
+agent/mcp-cache.json
+agent/mcp-npx-cache.json
+agent/mcp-onboarding.json
+
+# Editor and OS files
+.idea/
+.DS_Store
