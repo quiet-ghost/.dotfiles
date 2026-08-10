@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Force Odyssey G81SF onto 4K@240 after Hypr/Aquamarine boot.
+# Cold start often rejects 3840x2160@240 (atomic Invalid argument) and
+# silently lands on 119.88; a 1440p@240 → 4K@240 bounce makes DSC stick.
+# Safe no-op when Odyssey absent or already >=200Hz.
+
+readonly TAG="hypr-odyssey-240"
+readonly ODYSSEY_DESC="Samsung Electric Company Odyssey G81SF HNAY402474"
+readonly TARGET_MODE="3840x2160@240"
+readonly TARGET_POS="0x0"
+readonly TARGET_SCALE="1.5"
+readonly BOUNCE_MODE="2560x1440@240"
+readonly BOUNCE_SCALE="1"
+readonly MIN_OK_HZ=200
+readonly SETTLE_SECS="${HYPR_ODYSSEY_240_SETTLE:-3}"
+readonly RETRIES="${HYPR_ODYSSEY_240_RETRIES:-2}"
+
+log_info() {
+  echo "[INFO] $1" | systemd-cat -t "$TAG" -p info 2>/dev/null || echo "[INFO] $1"
+}
+
+log_warn() {
+  echo "[WARN] $1" | systemd-cat -t "$TAG" -p warning 2>/dev/null || echo "[WARN] $1"
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || {
+    log_warn "missing command: $1"
+    exit 0
+  }
+}
+
+need_cmd hyprctl
+need_cmd jq
+
+monitors_json() {
+  hyprctl monitors all -j 2>/dev/null || hyprctl monitors -j 2>/dev/null || echo "[]"
+}
+
+odyssey_json() {
+  monitors_json | jq -c --arg p "$ODYSSEY_DESC" '
+    [.[] | select((.description // "") | contains($p))] | .[0] // empty
+  '
+}
+
+refresh_hz() {
+  local mon="$1"
+  jq -r '(.refreshRate // 0) | tonumber' <<<"$mon" 2>/dev/null || echo 0
+}
+
+apply_monitor() {
+  local mode="$1" pos="$2" scale="$3"
+  hyprctl keyword monitor "desc:${ODYSSEY_DESC},${mode},${pos},${scale}" >/dev/null 2>&1 || true
+}
+
+already_ok() {
+  local mon hz
+  mon="$(odyssey_json)"
+  [[ -n "$mon" ]] || return 1
+  hz="$(refresh_hz "$mon")"
+  awk -v h="$hz" -v m="$MIN_OK_HZ" 'BEGIN { exit !(h+0 >= m) }'
+}
+
+bounce_once() {
+  log_info "bounce ${BOUNCE_MODE} → ${TARGET_MODE}"
+  apply_monitor "$BOUNCE_MODE" "$TARGET_POS" "$BOUNCE_SCALE"
+  sleep 0.7
+  apply_monitor "$TARGET_MODE" "$TARGET_POS" "$TARGET_SCALE"
+  sleep 0.7
+}
+
+main() {
+  sleep "$SETTLE_SECS"
+
+  local mon
+  mon="$(odyssey_json)"
+  if [[ -z "$mon" ]]; then
+    log_info "Odyssey not connected; exit"
+    exit 0
+  fi
+
+  if already_ok; then
+    log_info "already >=${MIN_OK_HZ}Hz; exit"
+    exit 0
+  fi
+
+  local attempt hz
+  for attempt in $(seq 1 "$RETRIES"); do
+    hz="$(refresh_hz "$(odyssey_json)")"
+    log_info "attempt ${attempt}/${RETRIES}: current ${hz}Hz"
+    bounce_once
+    if already_ok; then
+      hz="$(refresh_hz "$(odyssey_json)")"
+      log_info "ok @ ${hz}Hz"
+      exit 0
+    fi
+  done
+
+  hz="$(refresh_hz "$(odyssey_json)")"
+  log_warn "still ${hz}Hz after ${RETRIES} bounce(s)"
+  exit 0
+}
+
+main "$@"
