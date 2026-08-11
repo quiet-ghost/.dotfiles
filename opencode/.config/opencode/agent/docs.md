@@ -1,5 +1,5 @@
 ---
-model: openai/gpt-5.6-sol
+model: openai/gpt-5.6-luna
 reasoningEffort: medium
 description: ALWAYS use this when writing docs
 ---
