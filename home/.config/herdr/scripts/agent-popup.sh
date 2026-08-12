@@ -46,37 +46,15 @@ sanitize_name() {
 
 path_suffix() {
 	local current_path="$1"
-	local repo_root common_dir common_root repo_name worktree_name
 
-	repo_root=$(cd "$current_path" && git rev-parse --show-toplevel 2>/dev/null || true)
-	if [ -z "$repo_root" ]; then
-		sanitize_name "$(basename "$current_path")"
+	if [[ -f "$HOME/.local/lib/wt-paths.sh" ]]; then
+		# shellcheck source=/dev/null
+		source "$HOME/.local/lib/wt-paths.sh"
+		wt_path_suffix "$current_path"
 		return
 	fi
 
-	common_dir=$(cd "$current_path" && git rev-parse --git-common-dir 2>/dev/null || true)
-	if [ -n "$common_dir" ]; then
-		common_root=$(dirname "$(cd "$current_path" && realpath "$common_dir")")
-	else
-		common_root="$repo_root"
-	fi
-
-	repo_name=$(sanitize_name "$(basename "$common_root")")
-
-	case "$repo_root" in
-	"$common_root/.worktrees/"*)
-		worktree_name="${repo_root#"$common_root/.worktrees/"}"
-		worktree_name=$(sanitize_name "$worktree_name")
-		if [ -n "$worktree_name" ]; then
-			printf '%s-%s\n' "$repo_name" "$worktree_name"
-		else
-			printf '%s\n' "$repo_name"
-		fi
-		;;
-	*)
-		printf '%s\n' "$repo_name"
-		;;
-	esac
+	sanitize_name "$(basename "$current_path")"
 }
 
 # Herdr agent names: ^[a-z][a-z0-9_-]{0,31}$

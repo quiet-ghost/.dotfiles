@@ -12,6 +12,7 @@ SEARCH_ROOTS=(
   "$HOME/dev/projects"
   "$HOME/dev/repos"
   "$HOME/dev/work"
+  "$HOME/dev/school"
   "$HOME/dev/open-source"
   "$HOME/dev/tools"
   "$HOME/personal"

@@ -11,7 +11,7 @@ usage() {
   cat <<'EOF'
 Usage: ghui-pr-worktree <owner/repo> <pr-number>
 
-Resolve or clone the repository, create/reuse .worktrees/pr/<number>, and open
+Resolve or clone the repository, create/reuse a PR worktree under ~/dev/worktrees, and open
 Neovim with Diffview. Herdr and tmux are detected by wt; without a multiplexer,
 Neovim runs in the current terminal.
 EOF

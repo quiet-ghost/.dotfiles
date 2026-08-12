@@ -3,7 +3,7 @@
     "/home/ghost/dev",
     "/home/ghost/dev/work",
     "/home/ghost/personal",
-    "/home/ghost/personal/Learning",
+    "/home/ghost/dev/school",
     "/home/ghost/.config",
     "/home/ghost/.dotfiles"
   ],
@@ -31,7 +31,7 @@
     "Boot",
     "TwitchChat",
     "mux-sesh",
-    "Advanced_Learning"
+    "ghoststock"
   ],
   "icons": {
     "tmux": "",
