@@ -2,7 +2,7 @@
 
 Personal Arch Linux and Omarchy development environment, managed as one [GNU Stow](https://www.gnu.org/software/stow/) package.
 
-This branch contains a dormant Omarchy 4/Quattro profile. Do not deploy it before the release and a fresh upstream re-audit.
+This branch is the Omarchy 4/Quattro profile. Deploy it only after upgrading to Quattro.
 
 ## Overview
 
@@ -48,6 +48,8 @@ systemctl --user disable --now hypridle-custom.service
 ```
 
 Complete the upgrade and confirm stock Omarchy 4 boots successfully before stowing this profile.
+
+Quattro deletes `~/.config/uwsm/env`. Do not restow a replacement. Session env comes from `/usr/share/uwsm/env.d/10-omarchy`; keep personal overrides in `home/.config/uwsm/default`. After stow, re-apply the theme so generated templates refresh.
 
 `omarchy-idle-policy` keeps desktops in persistent stay-awake mode. Laptops use the shell screensaver and lock at 900/902 seconds, then suspend around 1500 seconds; Quattro lock handles display blanking.
 

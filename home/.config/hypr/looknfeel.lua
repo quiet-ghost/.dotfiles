@@ -9,9 +9,3 @@ hl.config({
     gaps_out = 0,
   },
 })
-
-o.window({ class = "^(org.omarchy.terminal)$", title = "^(Timer)$" }, {
-  float = true,
-  center = true,
-  size = { 875, 600 },
-})

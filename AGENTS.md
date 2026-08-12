@@ -20,15 +20,13 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 │   ├── .local/lib/             # shared helpers (wt-paths.sh)
 │   ├── .pi/                    # Pi TS workspace + extensions
 │   └── .config/
-│       ├── hypr/               # Hyprland: Omarchy defaults then local overrides
-│       ├── omarchy/            # Themes (8 submodules + local rose-pine-dark)
+│       ├── hypr/               # Hyprland Lua: Omarchy defaults then local overrides
+│       ├── omarchy/            # shell.json, Quickshell plugins, rose-pine-dark
 │       ├── nvim/               # LazyVim — overrides in lua/plugins/
 │       ├── herdr/              # Terminal mux (config.toml + scripts)
 │       ├── opencode/           # Active OpenCode config (not root manifests)
 │       ├── tmux/               # Legacy mux + plugin submodules
-│       ├── waybar/             # Bar
 │       ├── ghostty/            # Terminal
-│       ├── walker/             # Launcher
 │       ├── systemd/user/       # User units (enablement is host-local)
 │       ├── starship.toml       # Prompt
 │       ├── atuin/              # Shell history
@@ -55,11 +53,11 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 | Neovim plugin | `home/.config/nvim/lua/plugins/<name>.lua` |
 | Neovim keymap | `home/.config/nvim/lua/config/keymaps/` |
 | Neovim options / leader | `home/.config/nvim/lua/config/options.lua` |
-| Hyprland start | `home/.config/hypr/hyprland.conf` |
-| Hyprland binding | `home/.config/hypr/bindings.conf` |
-| Monitors / keyboard | `home/.config/hypr/monitors.conf`, `input.conf` |
-| Omarchy theme source | `home/.config/omarchy/themes/` (`current/` is generated, unstowed) |
-| Waybar | `home/.config/waybar/config.jsonc` + `style.css` |
+| Hyprland start | `home/.config/hypr/hyprland.lua` |
+| Hyprland binding | `home/.config/hypr/bindings.lua` |
+| Monitors / keyboard | `home/.config/hypr/monitors.lua`, `input.lua` |
+| Omarchy shell / bar | `home/.config/omarchy/shell.json` + `plugins/` |
+| Omarchy theme source | `home/.config/omarchy/themes/` (live theme: `~/.local/state/omarchy/current`) |
 | Herdr keys / UI | `home/.config/herdr/config.toml` |
 | Herdr scripts / popups | `home/.config/herdr/scripts/` |
 | OpenCode start | `home/.config/opencode/opencode.json` |
@@ -72,7 +70,7 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 | Utility script | `home/.local/bin/` |
 | Worktree paths | `home/.local/lib/wt-paths.sh` | `~/dev/worktrees/<bucket>/<repo>/<branch>` |
 | New-repo bootstrap | `home/.local/bin/repo-init` ← `extras/templates/repo/` |
-| Keyboard layout source | `extras/keyboard/` (Hypr uses it via `input.conf`) |
+| Keyboard layout source | `extras/keyboard/` (Hypr uses it via `input.lua`) |
 | User service | `home/.config/systemd/user/` |
 | Tmux (legacy) | `home/.config/tmux/tmux.conf` |
 
@@ -129,7 +127,7 @@ Career Ops commands run only in `home/.config/opencode/career-ops` when that pac
 | Zsh | `.zshrc` | OMZ + mise/direnv/fzf/atuin; aliases last |
 | Starship | `starship.toml` | Prompt; `ZSH_THEME=""` |
 | Neovim | `init.lua` | 1 line → `config.lazy`; leader `<Space>` |
-| Hyprland | `hyprland.conf` | Omarchy defaults → local overrides → generated toggles |
+| Hyprland | `hyprland.lua` | Omarchy defaults → local Lua overlays → generated toggles |
 | Herdr | `config.toml` | Prefix `ctrl+space`; reload via CLI |
 | OpenCode | `opencode.json` | Default agent `plan` |
 | Pi | `settings.json` | Wrapper: `home/.local/bin/pi` |
@@ -153,6 +151,7 @@ Career Ops commands run only in `home/.config/opencode/career-ops` when that pac
 
 - Herdr plugin registry (`~/.config/herdr/plugins.json`) is runtime and stow-ignored. If vim-pane nav dies, `herdr plugin list` is empty → reinstall `lmilojevicc/herdr-splits.nvim` then `herdr server reload-config`.
 - Hypr sources Omarchy from `~/.local/share/omarchy/` and toggles from `~/.local/state/omarchy/toggles/`. Do not edit those defaults; override in `home/.config/hypr/`.
+- Do not ship `~/.config/uwsm/env`. Quattro owns session env via `/usr/share/uwsm/env.d/10-omarchy`; user overrides stay in `uwsm/default` or `uwsm/env.d/`.
 - Several user units call scripts outside this repo (`ghost-server` audio helpers, Omarchy bins). Inspect each unit before changing deploy assumptions.
 - `extras/cloudflared/install.sh` is privileged and stateful: tunnel, routes, system service, symlink.
 - Public diffs can still leak usernames, hosts, domains, ports, project names. Review before publish.
