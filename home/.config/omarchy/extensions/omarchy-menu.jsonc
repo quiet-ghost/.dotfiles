@@ -1,0 +1,14 @@
+{
+  "trigger.timer": {
+    "icon": "󰔛",
+    "label": "Timer",
+    "aliases": ["pomodoro", "countdown"],
+    "action": "omarchy-shell shell toggle local.timer '{}'"
+  },
+  "ssh": {
+    "icon": "󰣀",
+    "label": "SSH",
+    "aliases": ["hosts", "servers"],
+    "action": "omarchy-shell shell toggle local.ssh '{}'"
+  }
+}

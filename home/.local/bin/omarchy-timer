@@ -4,7 +4,7 @@ set -euo pipefail
 
 STATE_DIR="$HOME/.cache/omarchy-timer"
 STATE_FILE="$STATE_DIR/state"
-SIGNAL=11
+FINISHED_FILE="$STATE_DIR/finished"
 UNIT="omarchy-timer"
 ALARM_UNIT="omarchy-timer-alarm"
 CONFIG_FILE="$HOME/.config/omarchy/timer.conf"
@@ -20,16 +20,16 @@ if [[ -f $CONFIG_FILE ]]; then
   source "$CONFIG_FILE"
 fi
 
-signal_waybar() {
-  pkill -RTMIN+$SIGNAL waybar 2>/dev/null || true
-}
-
 ensure_state_dir() {
   mkdir -p "$STATE_DIR"
 }
 
 clear_state() {
   rm -f "$STATE_FILE"
+}
+
+clear_finished() {
+  rm -f "$FINISHED_FILE"
 }
 
 read_state() {
@@ -40,6 +40,13 @@ read_state() {
 
   end_epoch=${state_lines[0]}
   label=${state_lines[1]}
+  kind=${state_lines[2]:-timer}
+  cycle=${state_lines[3]:-0}
+  case $kind in
+    timer|focus|short-break|long-break) ;;
+    *) kind=timer ;;
+  esac
+  [[ $cycle =~ ^[0-9]+$ ]] || cycle=0
 }
 
 format_remaining() {
@@ -140,45 +147,78 @@ prompt_ui() {
     exit 130
   fi
 
-  "$0" start "$input"
+  start_timer "$input"
   echo
   printf 'Started timer for %s\n' "$duration_label"
 }
 
 start_timer() {
   local input=$1
+  local requested_label=${2:-}
+  local requested_kind=${3:-timer}
+  local requested_cycle=${4:-0}
   local now end command
 
   if ! parse_duration "$input"; then
-    notify-send -u normal "Invalid timer" "Use minutes by default, or specify 10m, 1h, or 90s."
+    omarchy-notification-send -u normal "Invalid timer" "Use minutes by default, or specify 10m, 1h, or 90s."
     exit 1
   fi
 
+  if [[ -n $requested_label ]]; then
+    [[ $requested_label != *$'\n'* && $requested_label != *$'\r'* ]] || {
+      printf 'Timer label may not contain a newline.\n' >&2
+      exit 2
+    }
+    duration_label=$requested_label
+  fi
+
+  case $requested_kind in
+    timer|focus|short-break|long-break) ;;
+    *)
+      printf 'Unknown timer kind: %s\n' "$requested_kind" >&2
+      exit 2
+      ;;
+  esac
+  [[ $requested_cycle =~ ^[0-9]+$ ]] && (( requested_cycle <= 9999 )) || {
+    printf 'Timer cycle must be between 0 and 9999.\n' >&2
+    exit 2
+  }
+
   ensure_state_dir
   systemctl --user stop "$UNIT".service >/dev/null 2>&1 || true
+  clear_finished
 
   now=$(date +%s)
   end=$(( now + duration_seconds ))
-  printf '%s\n%s\n' "$end" "$duration_label" > "$STATE_FILE"
+  printf '%s\n%s\n%s\n%s\n' "$end" "$duration_label" "$requested_kind" "$requested_cycle" > "$STATE_FILE"
 
-  printf -v command '%q finish %q' "$0" "$duration_label"
+  printf -v command '%q finish %q %q %q' "$0" "$duration_label" "$requested_kind" "$requested_cycle"
   systemd-run --user --unit="$UNIT" --collect /bin/bash -lc "sleep $duration_seconds; $command" >/dev/null
 
-  notify-send -u low -t 3000 "Timer started" "$duration_label"
-  signal_waybar
+  omarchy-notification-send -u low "Timer started" "$duration_label" -t 3000
 }
 
 finish_timer() {
   local finished_label=${1:-}
+  local finished_kind=${2:-timer}
+  local finished_cycle=${3:-0}
+
+  [[ $finished_label != *$'\n'* && $finished_label != *$'\r'* ]] || exit 2
+  case $finished_kind in
+    timer|focus|short-break|long-break) ;;
+    *) exit 2 ;;
+  esac
+  [[ $finished_cycle =~ ^[0-9]+$ ]] && (( finished_cycle <= 9999 )) || exit 2
 
   if [[ -z $finished_label ]] && read_state; then
     finished_label=$label
   fi
 
+  ensure_state_dir
+  printf '%s\n%s\n%s\n' "$finished_kind" "$finished_cycle" "$finished_label" > "$FINISHED_FILE"
   clear_state
-  notify-send -u critical -t "$TIMER_NOTIFICATION_TIMEOUT" "Timer done" "${finished_label:-Your timer} finished."
+  omarchy-notification-send -u critical "Timer done" "${finished_label:-Your timer} finished." -t "$TIMER_NOTIFICATION_TIMEOUT"
   systemd-run --user --unit="$ALARM_UNIT" --collect "$0" alarm >/dev/null 2>&1 || true
-  signal_waybar
 }
 
 cancel_timer() {
@@ -191,11 +231,48 @@ cancel_timer() {
   systemctl --user stop "$UNIT".service >/dev/null 2>&1 || true
   systemctl --user stop "$ALARM_UNIT".service >/dev/null 2>&1 || true
   clear_state
-  signal_waybar
-
+  clear_finished
   if (( should_notify == 1 )); then
-    notify-send -u low -t 2000 "Timer canceled"
+    omarchy-notification-send -u low "Timer canceled" -t 2000
   fi
+}
+
+state() {
+  local now remaining=0 active=false
+  local finished_kind="" finished_cycle=0 finished_label=""
+
+  if read_state; then
+    now=$(date +%s)
+    remaining=$(( end_epoch - now ))
+    if (( remaining > 0 )); then
+      active=true
+    else
+      clear_state
+    fi
+  else
+    end_epoch=0
+    label=""
+    kind="timer"
+    cycle=0
+  fi
+
+  if [[ -f $FINISHED_FILE ]]; then
+    mapfile -t finished_lines < "$FINISHED_FILE"
+    finished_kind=${finished_lines[0]:-}
+    finished_cycle=${finished_lines[1]:-0}
+    finished_label=${finished_lines[2]:-}
+  fi
+
+  jq -cn \
+    --argjson active "$active" \
+    --argjson remaining "$remaining" \
+    --arg label "$label" \
+    --arg kind "$kind" \
+    --argjson cycle "$cycle" \
+    --arg finishedKind "$finished_kind" \
+    --argjson finishedCycle "$finished_cycle" \
+    --arg finishedLabel "$finished_label" \
+    '{active:$active,remaining:$remaining,label:$label,kind:$kind,cycle:$cycle,finished:{kind:$finishedKind,cycle:$finishedCycle,label:$finishedLabel}}'
 }
 
 status() {
@@ -248,11 +325,11 @@ case ${1:-} in
     ;;
   start)
     shift
-    start_timer "${1:-}"
+    start_timer "${1:-}" "${2:-}" "${3:-timer}" "${4:-0}"
     ;;
   finish)
     shift
-    finish_timer "${1:-}"
+    finish_timer "${1:-}" "${2:-timer}" "${3:-0}"
     ;;
   cancel)
     cancel_timer
@@ -260,8 +337,14 @@ case ${1:-} in
   status)
     status
     ;;
+  state)
+    state
+    ;;
+  acknowledge)
+    clear_finished
+    ;;
   *)
-    printf 'Usage: %s {prompt|start <duration>|finish [label]|cancel|status}\n' "$0" >&2
+    printf 'Usage: %s {prompt|start <duration> [label kind cycle]|finish [label kind cycle]|cancel|status|state|acknowledge}\n' "$0" >&2
     exit 1
     ;;
 esac
