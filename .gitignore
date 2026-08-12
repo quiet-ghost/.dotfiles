@@ -9,28 +9,28 @@
 **/.cloudflared/*.json
 **/credentials*.json
 # Pi credentials, sessions, package installs, and machine-local state
-/pi/.pi/agent/auth.json
-/pi/.pi/agent/trust.json
-/pi/.pi/agent/models-store.json
-/pi/.pi/agent/sessions/
-/pi/.pi/agent/git/
-/pi/.pi/agent/npm/*
-!/pi/.pi/agent/npm/.gitignore
-/pi/.pi/agent/todos/
-/pi/.pi/.pi/todos/
-/pi/.pi/agent/opencode-cloudflare.local.jsonc
-/pi/.pi/agent/mcp-oauth/
-/pi/.pi/agent/mcp-auth.json
-/pi/.pi/agent/mcp-cache.json
-/pi/.pi/agent/mcp-npx-cache.json
-/pi/.pi/agent/mcp-onboarding.json
-/pi/.pi/agent/extensions/**/node_modules/
-/pi/.pi/coverage/
-/pi/.pi/out/
-/pi/.pi/dist/
-/pi/.pi/*.tgz
-/pi/.pi/*.tsbuildinfo
-/pi/.pi/.npmrc
+/home/.pi/agent/auth.json
+/home/.pi/agent/trust.json
+/home/.pi/agent/models-store.json
+/home/.pi/agent/sessions/
+/home/.pi/agent/git/
+/home/.pi/agent/npm/*
+!/home/.pi/agent/npm/.gitignore
+/home/.pi/agent/todos/
+/home/.pi/.pi/todos/
+/home/.pi/agent/opencode-cloudflare.local.jsonc
+/home/.pi/agent/mcp-oauth/
+/home/.pi/agent/mcp-auth.json
+/home/.pi/agent/mcp-cache.json
+/home/.pi/agent/mcp-npx-cache.json
+/home/.pi/agent/mcp-onboarding.json
+/home/.pi/agent/extensions/**/node_modules/
+/home/.pi/coverage/
+/home/.pi/out/
+/home/.pi/dist/
+/home/.pi/*.tgz
+/home/.pi/*.tsbuildinfo
+/home/.pi/.npmrc
 
 # Local environment files
 .env
@@ -44,14 +44,14 @@
 
 # Runtime state and generated output
 *.log
-/herdr/.config/herdr/session*.json
-/herdr/.config/herdr/plugins.json
-/herdr/.config/herdr/release-notes.json
-/herdr/.config/herdr/.plugins.lock
-/opencode/.config/opencode/logs/
-/pi/.pi/agent/models-store.json
-/nvim/.config/nvim/.jdtls-out/
-/omarchy/.config/omarchy/current/
+/home/.config/herdr/session*.json
+/home/.config/herdr/plugins.json
+/home/.config/herdr/release-notes.json
+/home/.config/herdr/.plugins.lock
+/home/.config/opencode/logs/
+/home/.pi/agent/models-store.json
+/home/.config/nvim/.jdtls-out/
+/home/.config/omarchy/current/
 
 # Backups and sync-conflict artifacts
 /.backup/
@@ -82,7 +82,7 @@ tmp/
 node_modules/
 __pycache__/
 *.pyc
-bin/.local/bin/coderabbit
+home/.local/bin/coderabbit
 
 # Git worktrees
 .worktrees/

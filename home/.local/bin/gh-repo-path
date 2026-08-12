@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  printf 'Usage: gh-repo-path <owner/repo>\n' >&2
+  exit 1
+fi
+
+REPO_NAME="$1"
+SEARCH_ROOTS=(
+  "$HOME/dev/projects"
+  "$HOME/dev/repos"
+  "$HOME/dev/work"
+  "$HOME/dev/open-source"
+  "$HOME/dev/tools"
+  "$HOME/personal"
+  "$HOME/.dotfiles"
+)
+
+matches_repo() {
+  local repo_dir="$1"
+  local remote_url
+
+  remote_url="$(git -C "$repo_dir" config --get remote.origin.url 2>/dev/null || true)"
+  if [[ -z "$remote_url" ]]; then
+    remote_url="$(git -C "$repo_dir" config --get remote.upstream.url 2>/dev/null || true)"
+  fi
+
+  [[ -n "$remote_url" && "$remote_url" =~ (^|[:/])${REPO_NAME}(\.git)?$ ]]
+}
+
+for root in "${SEARCH_ROOTS[@]}"; do
+  [[ -d "$root" ]] || continue
+
+  while IFS= read -r candidate; do
+    if matches_repo "$candidate"; then
+      printf '%s\n' "$candidate"
+      exit 0
+    fi
+  done < <(find "$root" -mindepth 1 -maxdepth 4 -type d -name .git -printf '%h\n' 2>/dev/null)
+done
+
+printf 'Could not resolve local path for %s\n' "$REPO_NAME" >&2
+exit 1

@@ -1,0 +1,22 @@
+{
+  "defaultProvider": "xai",
+  "defaultModel": "grok-4.6",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "openai-codex/gpt-5.6-sol",
+    "xai/grok-4.6"
+  ],
+  "theme": "dark",
+  "npmCommand": [
+    "bun"
+  ],
+  "packages": [
+    "npm:@plannotator/pi-extension",
+    "npm:pi-mcp-adapter@2.21.2",
+    "npm:pi-web-access"
+  ],
+  "lastChangelogVersion": "0.84.1",
+  "outputPad": 0,
+  "treeFilterMode": "default",
+  "hideThinkingBlock": true
+}
