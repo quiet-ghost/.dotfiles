@@ -1,105 +1,118 @@
 # Ghost's Dotfiles
 
-Personal configuration files for Arch Linux with Hyprland, managed using [GNU Stow](https://www.gnu.org/software/stow/).
+Personal configuration for Arch Linux with [Omarchy](https://omarchy.org/), managed as explicit [GNU Stow](https://www.gnu.org/software/stow/) packages.
+
+These files describe my machines. They are a reference, not a universal installer. Review each package before deploying it.
 
 ## System
 
-- **OS**: [Arch Linux](https://archlinux.org/) ([omarchy](https://omarchy.org/) install)
-- **Window Manager**: [Hyprland](https://hyprland.org/) (Wayland)
-- **Terminal**: [Ghostty](https://ghostty.org/)
-- **Shell**: Zsh
-- **Editor**: [Neovim](https://neovim.io/) ([LazyVim](https://www.lazyvim.org/))
-- **Multiplexer**: [Herdr](https://herdr.dev) (primary) / [Tmux](https://github.com/tmux/tmux)
+- **OS:** Arch Linux with Omarchy
+- **Desktop:** Hyprland on Wayland
+- **Terminal:** Ghostty
+- **Shell:** Zsh
+- **Editor:** Neovim with LazyVim
+- **Workspace manager:** Herdr, with Tmux retained
 
-## Components
+## Layout
 
-### Core Configuration
+Most top-level directories are independent Stow packages whose contents mirror paths below `$HOME`.
 
-- **hypr/** - Hyprland window manager configuration with custom keybindings, startup scripts, and theming
-- **nvim/** - Neovim configuration based on LazyVim with custom plugins and Java development setup
-- **herdr/** - [Herdr](https://herdr.dev) terminal workspace manager config, including persistent Twitch chat pane toggle (`Alt+Shift+C`)
-- **tmux/** - Tmux configuration with session management and custom scripts
-- **zsh/** - Zsh shell configuration
+| Area | Packages |
+| --- | --- |
+| Desktop | `applications`, `background`, `ghostty`, `hypr`, `omarchy`, `swayosd`, `uwsm`, `walker`, `waybar` |
+| Shell and CLI | `atuin`, `bat`, `bin`, `bun`, `git`, `mise`, `starship`, `zsh` |
+| Editors and workspaces | `herdr`, `mux-sesh`, `nvim`, `tmux` |
+| Agents | `agents`, `opencode`, `pi` |
+| Services | `systemd` |
 
-### Desktop Environment
+Shared agent skills live at `agents/.agents/skills/`. Stowing `agents` deploys them to the cross-tool standard `~/.agents/skills/`, which OpenCode and Pi discover natively.
 
-- **waybar/** - [Waybar](https://github.com/Alexays/Waybar) status bar configuration with custom modules and SSH monitoring
-- **walker/** - [Walker](https://github.com/abenz1267/walker) application launcher configuration
-- **swayosd/** - [SwayOSD](https://github.com/ErikReider/SwayOSD) on-screen display daemon for volume and brightness
-- **ghostty/** - [Ghostty](https://ghostty.org/) terminal emulator configuration
+The following directories are not normal Stow packages:
 
-### Development Tools
+- `keyboard/` contains keyboard source material and documentation.
+- `templates/` provides input for `repo-init`.
+- `cloudflared/` contains privileged, stateful deployment tooling.
 
-- **git/** - Git configuration and aliases
-- **opencode/** - [OpenCode](https://github.com/sst/opencode) AI coding agent configuration and custom agents
-- **bin/** - Custom utility scripts and binaries
+## Install
 
-### Services
-
-- **systemd/** - User systemd services including custom hypridle launcher
-- **cloudflared/** - [Cloudflare Tunnel](https://github.com/cloudflare/cloudflared) configuration
-
-## Installation
-
-This repository uses GNU Stow for symlink management. Each directory represents a stow package.
-
-### Prerequisites
+Install Git and Stow, then clone with submodules:
 
 ```bash
-sudo pacman -S stow git
-```
-
-### Deploy Configurations
-
-Clone the repository:
-
-```bash
-git clone --recurse-submodules https://github.com/yourusername/dotfiles.git ~/.dotfiles
+sudo pacman -S git stow
+git clone --recurse-submodules https://github.com/quiet-ghost/.dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ```
 
-Use stow to symlink configurations:
+Deploy only packages appropriate for the current host:
 
 ```bash
-# Install all normal Stow packages
-stow */
-
-# Install specific configuration
-stow nvim
-stow hypr
-stow tmux
-
-# Cloudflared is stateful and must be installed separately
-./cloudflared/install.sh
+stow --simulate agents nvim zsh git
+stow agents nvim zsh git
 ```
 
-### Remove Configurations
+Desktop example:
 
 ```bash
-# Remove specific configuration
-stow -D nvim
+stow hypr waybar walker ghostty swayosd uwsm omarchy
 ```
 
-## Custom Scripts
+Never run `stow */`. It includes source-only and stateful directories.
 
-Located in `bin/.local/bin/` and `bin/usr/bin/`:
+## Update
 
-- **Project aliases and workflows** - `gh-issue-create-smart`, `gh-pr-create-smart`, `gh-pr-review-session`, `gh-repo-path`, `repo-init`, `wd`, `wl`, `wt`, `wtdd`, `wti`, and `wtpr`
-- **Display automation** - `hypr-display-monitor`, `hypr-display-switch`, `hypr-elgato-sanitize`, and `hypr-elgato-watch`
-- **Hypridle and timer helpers** - `hypridle`, `hypridle-launcher`, and `omarchy-timer`
-- **Pi helper** - `pi`
-- **Tmux helpers** - `tmux-kill-session`, `tmux-sessionizer`, and `tmux-switch-session`
-- **System/project helpers** - `aur-install`, `cookiecutter-cpp`, `install_javafx_template.sh`, `kill-process`, `lutris`, `new-clion`, `new-cpp`, `new-java`, and `new-rust`
-
-Third-party binaries, package-manager outputs, `node_modules`, generated wrappers, and secrets do not belong in this Stow package.
-
-## Directory Structure
-
-```
-.
-├── .config/          # Application configurations (stow target)
-├── .local/bin/       # User binaries (stow target)
-└── usr/bin/          # System-level scripts
+```bash
+git pull --recurse-submodules
+git submodule update --init --recursive
+stow -R agents nvim zsh git
 ```
 
-Each normal top-level package follows the Stow pattern where subdirectories mirror the home directory structure. Runtime logs, sessions, generated caches, backups, and sync-conflict artifacts are intentionally excluded from Git.
+## Remove
+
+```bash
+stow -D agents nvim
+```
+
+Unstowing removes managed links. It does not remove application state or installed packages.
+
+## Special Cases
+
+### Systemd
+
+The `systemd` package deploys user unit files only. Enable services explicitly on each host so machine state does not enter the repository:
+
+```bash
+stow systemd
+systemctl --user daemon-reload
+systemctl --user enable --now <unit>.service
+```
+
+Some units reference scripts or hardware specific to one host. Inspect them before enabling.
+
+Existing services remain enabled when upgrading from the old tracked `*.target.wants/` links. Disable unwanted units explicitly with `systemctl --user disable --now <unit>.service`.
+
+### Cloudflared
+
+`cloudflared/install.sh` creates tunnels, routes DNS, installs a privileged service, and writes local state. It is not part of normal Stow deployment. Read the script and configuration before running it.
+
+### User Scripts
+
+`bin/` includes personal workflow and desktop scripts. Some assume specific tools, project layouts, hardware, or services. User commands belong under `bin/.local/bin/`; paths under `bin/usr/` require separate review and are not installed system-wide by Stow.
+
+## Checks
+
+There is no repo-wide build or CI command. Validate only the component changed.
+
+```bash
+# Herdr attach proxy
+python3 herdr/.config/herdr/scripts/test_herdr_attach_proxy.py
+
+# Pi TypeScript extensions
+cd pi/.pi
+npm run check
+```
+
+Career Ops commands have their own scripts under `opencode/.config/opencode/career-ops/package.json`.
+
+## Privacy
+
+Runtime state, credentials, sessions, logs, caches, dependencies, backups, and private environment files are ignored. Before publishing changes, inspect the diff and scan the full Git history for secrets. Public configuration may still reveal usernames, hosts, domains, ports, or project names even when it contains no credential.

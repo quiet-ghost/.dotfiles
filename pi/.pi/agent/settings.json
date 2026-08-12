@@ -7,9 +7,6 @@
     "openai-codex/gpt-5.6-sol:medium"
   ],
   "theme": "dark",
-  "skills": [
-    "~/.dotfiles/skills"
-  ],
   "npmCommand": [
     "bun"
   ],

@@ -12,7 +12,7 @@ If $ARGUMENTS contains `--update-skill`:
 
 1. Determine install location by checking which exists:
    - Local: `.opencode/skill/opentui/`
-   - Global: `~/.config/opencode/skill/opentui/`
+   - Global: `~/.agents/skills/opentui/`
 
 2. Run the appropriate install command:
    ```bash

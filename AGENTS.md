@@ -4,7 +4,7 @@
 
 - This is an Arch/Omarchy dotfiles repo. Top-level directories are independent GNU Stow packages whose contents mirror paths under `$HOME`.
 - There is no root workspace or repo-wide build, lint, test, or CI command. Verify only the component changed.
-- Prefer `stow <package>` from the repo root. `stow */` links every top-level package, including non-obvious packages such as templates and skills. Unlink with `stow -D <package>`.
+- Prefer explicit packages with `stow <package>` from the repo root. Never use `stow */`; source-only directories are not Stow packages. Unlink with `stow -D <package>`.
 
 ## Key Boundaries
 
@@ -12,7 +12,7 @@
 - Neovim starts at `nvim/.config/nvim/init.lua`, then loads `lua/config/lazy.lua`; local LazyVim overrides belong under `lua/plugins/`.
 - Herdr starts at `herdr/.config/herdr/config.toml`. Reload it with `herdr server reload-config`.
 - Active OpenCode config is `opencode/.config/opencode/`, not root-level `opencode/opencode.jsonc`.
-- `skills/` is canonical. `opencode/.config/opencode/skill` is a symlink to it; do not maintain two copies.
+- `agents/.agents/skills/` is canonical and deploys to `~/.agents/skills/`. OpenCode and Pi discover it natively; do not add app-specific copies or skill paths.
 - User services live in `systemd/.config/systemd/user/`; several units call scripts outside this repo, so inspect each unit before changing assumptions about deployment.
 - Utility entrypoints live in `bin/.local/bin/`. `templates/` is input to `repo-init`, not active configuration for this repo.
 

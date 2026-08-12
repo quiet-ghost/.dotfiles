@@ -53,7 +53,7 @@ return {
       },
       completion = {
         custom_rules = {
-          "~/.config/opencode/skill/",
+          "~/.agents/skills/",
         },
         source = "blink",
       },

@@ -12,7 +12,7 @@ If $ARGUMENTS contains `--update-skill`:
 
 1. Determine install location by checking which exists:
    - Local: `.opencode/skills/cloudflare/`
-   - Global: `~/.config/opencode/skills/cloudflare/`
+   - Global: `~/.agents/skills/cloudflare/`
 
 2. Run the appropriate install command:
    ```bash
