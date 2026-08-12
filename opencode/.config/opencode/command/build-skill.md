@@ -4,9 +4,7 @@ description: Create or update agent skills using the build-skill skill
 
 Load the build-skill skill and use it to help the user.
 
-<skill>
-$FILE{skill/build-skill/SKILL.md}
-</skill>
+First, invoke the skill tool to load the `build-skill` skill.
 
 <user-request>
 $ARGUMENTS
