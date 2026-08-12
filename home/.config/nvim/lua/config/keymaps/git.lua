@@ -20,6 +20,3 @@ map("n", "<leader>gF", "<cmd>Neogit pull<cr>", { desc = "Neogit pull" })
 map("n", "<leader>b", function()
   require("gitsigns").toggle_current_line_blame()
 end, { desc = "Toggle Git Blame" })
-
--- Worktrees
-map("n", "<M-m>", "<cmd>Worktrees<cr>", { desc = "Git worktrees" })

@@ -4,7 +4,18 @@
 
 set -euo pipefail
 
-WORKTREE_DIR=".worktrees"
+_WT_PATHS=""
+if [[ -f "${BASH_SOURCE[0]%/*}/../lib/wt-paths.sh" ]]; then
+  _WT_PATHS="${BASH_SOURCE[0]%/*}/../lib/wt-paths.sh"
+elif [[ -f "$HOME/.local/lib/wt-paths.sh" ]]; then
+  _WT_PATHS="$HOME/.local/lib/wt-paths.sh"
+else
+  printf 'Error: missing wt-paths.sh\n' >&2
+  exit 1
+fi
+# shellcheck source=../lib/wt-paths.sh
+source "$_WT_PATHS"
+
 EXEC_COMMAND=""
 EXEC_WINDOW_NAME="task"
 MUX_MODE="auto"
@@ -19,7 +30,7 @@ Usage: wt [--exec <command>] [--window-name <name>] [--mux <mode>] [--no-fetch] 
 Create or switch to a git worktree.
 
 With no branch name: fetch remotes, then interactively pick a worktree/branch.
-Remote-only branches are tracked and checked out into .worktrees/.
+Remote-only branches are tracked and checked out under ~/dev/worktrees/.
 
 Options:
   -x, --exec <command>        Run command in a multiplexer tab/window
@@ -103,50 +114,12 @@ session_name_for_branch() {
   printf '%s\n' "${branch_name//\//-}"
 }
 
-worktree_path_for_branch() {
-  local branch_name="$1"
-
-  case "$branch_name" in
-    issue/*)
-      printf '%s/issue/%s\n' "$WORKTREE_DIR" "${branch_name#issue/}"
-      ;;
-    pr/*)
-      printf '%s/pr/%s\n' "$WORKTREE_DIR" "${branch_name#pr/}"
-      ;;
-    issue-*)
-      printf '%s/issue/%s\n' "$WORKTREE_DIR" "${branch_name#issue-}"
-      ;;
-    pr-*)
-      printf '%s/pr/%s\n' "$WORKTREE_DIR" "${branch_name#pr-}"
-      ;;
-    *)
-      printf '%s/%s\n' "$WORKTREE_DIR" "$branch_name"
-      ;;
-  esac
-}
-
-display_name_for_branch() {
-  local branch_name="$1"
-
-  case "$branch_name" in
-    issue-*)
-      printf 'issue/%s\n' "${branch_name#issue-}"
-      ;;
-    pr-*)
-      printf 'pr/%s\n' "${branch_name#pr-}"
-      ;;
-    *)
-      printf '%s\n' "$branch_name"
-      ;;
-  esac
-}
-
 link_or_stub_env_file() {
   local file_name="$1"
   local create_empty="${2:-true}"
-  local source_path="$REPO_ROOT/$file_name"
-  local target_path="$REPO_ROOT/$WORKTREE_PATH/$file_name"
-  local example_path="$REPO_ROOT/${file_name}.example"
+  local source_path="$MAIN_CHECKOUT/$file_name"
+  local target_path="$WORKTREE_ABS_PATH/$file_name"
+  local example_path="$MAIN_CHECKOUT/${file_name}.example"
 
   if [ -e "$target_path" ] || [ -L "$target_path" ]; then
     return 0
@@ -199,12 +172,9 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
   exit 1
 fi
 
-# Get repo root
-REPO_ROOT=$(git rev-parse --show-toplevel)
+MAIN_CHECKOUT="$(wt_main_checkout)"
+REPO_ROOT="$MAIN_CHECKOUT"
 cd "$REPO_ROOT"
-
-# Get project name (repo directory name)
-PROJECT_NAME=$(basename "$REPO_ROOT")
 
 # Prefer Herdr when nested unless explicitly overridden.
 if [[ "$MUX_MODE" == "auto" ]]; then
@@ -225,24 +195,6 @@ fi
 if [[ "$MUX_MODE" == "tmux" ]] && ! command -v tmux >/dev/null 2>&1; then
   printf 'Error: tmux is required for --mux tmux\n' >&2
   exit 1
-fi
-
-# Ensure .worktrees directory exists
-if [ ! -d "$WORKTREE_DIR" ]; then
-  echo "Creating $WORKTREE_DIR directory..."
-  mkdir -p "$WORKTREE_DIR"
-fi
-
-# Ignore local worktrees without modifying the repository's tracked .gitignore.
-GIT_COMMON_DIR="$(git rev-parse --git-common-dir)"
-if [[ "$GIT_COMMON_DIR" != /* ]]; then
-  GIT_COMMON_DIR="$REPO_ROOT/$GIT_COMMON_DIR"
-fi
-LOCAL_EXCLUDE="$GIT_COMMON_DIR/info/exclude"
-mkdir -p "$(dirname "$LOCAL_EXCLUDE")"
-touch "$LOCAL_EXCLUDE"
-if ! grep -qxF "/${WORKTREE_DIR}/" "$LOCAL_EXCLUDE"; then
-  printf '\n# Local Git worktrees\n/%s/\n' "$WORKTREE_DIR" >> "$LOCAL_EXCLUDE"
 fi
 
 window_name_exists() {
@@ -387,9 +339,9 @@ open_worktree_in_mux() {
       ;;
     none)
       if [[ -n "$EXEC_COMMAND" ]]; then
-        printf 'cd %q && %s\n' "$WORKTREE_PATH" "$EXEC_COMMAND"
+        printf 'cd %q && %s\n' "$WORKTREE_ABS_PATH" "$EXEC_COMMAND"
       else
-        echo "cd $WORKTREE_PATH"
+        printf 'cd %q\n' "$WORKTREE_ABS_PATH"
       fi
       ;;
   esac
@@ -604,7 +556,7 @@ pick_branch_interactively() {
 finish_worktree() {
   if command -v mise > /dev/null 2>&1; then
     echo "Running mise trust for worktree..."
-    mise trust "$WORKTREE_PATH" 2>/dev/null || true
+    mise trust "$WORKTREE_ABS_PATH" 2>/dev/null || true
   fi
 
   setup_worktree_env_files
@@ -623,20 +575,14 @@ create_worktree_for_branch() {
   # Already checked out somewhere — open that path
   if [[ -n "${BRANCH_WORKTREE_PATH[$BRANCH_NAME]:-}" ]]; then
     WORKTREE_ABS_PATH="${BRANCH_WORKTREE_PATH[$BRANCH_NAME]}"
-    if [[ "$WORKTREE_ABS_PATH" == "$REPO_ROOT" ]]; then
-      WORKTREE_PATH="."
-    else
-      WORKTREE_PATH="${WORKTREE_ABS_PATH#"$REPO_ROOT"/}"
-    fi
-    WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
+    WORKTREE_DISPLAY_NAME="$(wt_display_name_for_branch "$BRANCH_NAME")"
     echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
     setup_worktree_env_files
     open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
     exit 0
   fi
 
-  # Path under .worktrees already present
-  if [ -d "$WORKTREE_PATH" ]; then
+  if [ -d "$WORKTREE_ABS_PATH" ]; then
     echo "Worktree already exists at: $WORKTREE_DISPLAY_NAME"
     setup_worktree_env_files
     open_worktree_in_mux "$BRANCH_NAME" "$WORKTREE_ABS_PATH"
@@ -647,7 +593,7 @@ create_worktree_for_branch() {
 
   if git show-ref --verify --quiet "refs/heads/${BRANCH_NAME}"; then
     echo "Creating worktree from existing branch: $BRANCH_NAME"
-    git worktree add "$WORKTREE_PATH" "$BRANCH_NAME"
+    git worktree add "$WORKTREE_ABS_PATH" "$BRANCH_NAME"
     finish_worktree
     exit 0
   fi
@@ -656,7 +602,7 @@ create_worktree_for_branch() {
     remote="${remote_info%% *}"
     start_point="${remote_info#* }"
     echo "Creating worktree tracking $remote/$BRANCH_NAME"
-    git worktree add --track -b "$BRANCH_NAME" "$WORKTREE_PATH" "$start_point"
+    git worktree add --track -b "$BRANCH_NAME" "$WORKTREE_ABS_PATH" "$start_point"
     finish_worktree
     exit 0
   fi
@@ -665,7 +611,7 @@ create_worktree_for_branch() {
   echo ""
   selected_base="$(select_base_branch)"
   echo "Creating new branch '$BRANCH_NAME' from '$selected_base'..."
-  git worktree add -b "$BRANCH_NAME" "$WORKTREE_PATH" "$selected_base"
+  git worktree add -b "$BRANCH_NAME" "$WORKTREE_ABS_PATH" "$selected_base"
   finish_worktree
 }
 
@@ -679,8 +625,7 @@ else
   BRANCH_NAME="$1"
 fi
 
-WORKTREE_PATH="$(worktree_path_for_branch "$BRANCH_NAME")"
-WORKTREE_ABS_PATH="${REPO_ROOT}/${WORKTREE_PATH}"
-WORKTREE_DISPLAY_NAME="$(display_name_for_branch "$BRANCH_NAME")"
+WORKTREE_ABS_PATH="$(wt_new_checkout_path "$MAIN_CHECKOUT" "$BRANCH_NAME")"
+WORKTREE_DISPLAY_NAME="$(wt_display_name_for_branch "$BRANCH_NAME")"
 
 create_worktree_for_branch

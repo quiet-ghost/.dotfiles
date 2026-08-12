@@ -4,30 +4,37 @@
 
 set -euo pipefail
 
-# Check if we're in a git repository
+_WT_PATHS=""
+if [[ -f "${BASH_SOURCE[0]%/*}/../lib/wt-paths.sh" ]]; then
+  _WT_PATHS="${BASH_SOURCE[0]%/*}/../lib/wt-paths.sh"
+elif [[ -f "$HOME/.local/lib/wt-paths.sh" ]]; then
+  _WT_PATHS="$HOME/.local/lib/wt-paths.sh"
+else
+  printf 'Error: missing wt-paths.sh\n' >&2
+  exit 1
+fi
+# shellcheck source=../lib/wt-paths.sh
+source "$_WT_PATHS"
+
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
   echo "Error: Not in a git repository"
   exit 1
 fi
 
-# Get repo root
-REPO_ROOT=$(git rev-parse --show-toplevel)
-cd "$REPO_ROOT"
+MAIN_CHECKOUT="$(wt_main_checkout)"
+cd "$MAIN_CHECKOUT"
 
 echo "=== Git Worktrees ==="
 echo ""
 
-# Run git worktree list and format it
 git worktree list | while IFS= read -r line; do
   path="${line%% *}"
 
-  if [ "$path" = "$REPO_ROOT" ]; then
+  if [ "$path" = "$MAIN_CHECKOUT" ]; then
     printf '→ main\t%s\n' "$line"
-  elif [[ "$path" == "$REPO_ROOT/.worktrees/"* ]]; then
-    name="${path#"$REPO_ROOT/.worktrees/"}"
-    printf '  %s\t%s\n' "$name" "$line"
   else
-    printf '  %s\n' "$line"
+    name="$(wt_display_name_for_path "$path" "$MAIN_CHECKOUT")"
+    printf '  %s\t%s\n' "$name" "$line"
   fi
 done
 

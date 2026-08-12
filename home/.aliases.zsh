@@ -79,13 +79,14 @@ alias ha='herdr'
 
 # Directory navigation
 alias p='cd ~/personal'
-alias pl='cd ~/personal/Learning'
+alias pl='cd ~/dev/school'
 alias pn='cd ~/personal/Notes'
 alias pa='cd ~/personal/Archive'
 alias d='cd ~/dev'
 alias dp='cd ~/dev/projects/'
 alias dw='cd ~/dev/work'
 alias dr='cd ~/dev/repos'
+alias ds='cd ~/dev/school'
 alias dos='cd ~/dev/open-source'
 alias nvc="cd $HOME/.config/nvim && nvim"
 

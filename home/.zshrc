@@ -6,7 +6,7 @@ path=(
   "$HOME/.local/bin"
   "$HOME/usr/bin"
   "$HOME/go/bin"
-  "$HOME/personal/Learning/Boot/Course 2 Linux/worldbanc/private/bin"
+  "$HOME/dev/school/Boot/Course 2 Linux/worldbanc/private/bin"
   "$HOME/.lmstudio/bin"
   $path
 )
