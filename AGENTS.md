@@ -84,6 +84,12 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 - No root build, lint, test, or CI. Verify only the component changed.
 - Neovim: LazyVim. `init.lua` → `lua/config/lazy.lua`. One spec per file in `lua/plugins/`.
 - Skills live in `home/.agents/skills/`. OpenCode and Pi discover that path natively.
+
+## Key Boundaries
+
+- Hyprland starts at `home/.config/hypr/hyprland.lua`; it bootstraps and loads package-owned Omarchy defaults before local Lua overrides and generated toggle modules.
+- Neovim starts at `home/.config/nvim/init.lua`, then loads `lua/config/lazy.lua`; local LazyVim overrides belong under `lua/plugins/`.
+- Herdr starts at `home/.config/herdr/config.toml`. Reload it with `herdr server reload-config`.
 - Active OpenCode config is `home/.config/opencode/`, not root-level legacy manifests.
 - `extras/templates/` is input to `repo-init`, not live configuration.
 
