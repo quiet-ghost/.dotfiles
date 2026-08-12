@@ -12,6 +12,7 @@
 \.config/omarchy/current$
 \.config/opencode/logs$
 \.config/opencode/node_modules$
+\.config/systemd/user/.*\.target\.wants$
 \.pi/node_modules$
 \.pi/agent/auth\.json$
 \.pi/agent/trust\.json$

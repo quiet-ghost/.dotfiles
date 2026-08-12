@@ -8,6 +8,7 @@
 **/.ssh/id_*
 **/.cloudflared/*.json
 **/credentials*.json
+
 # Pi credentials, sessions, package installs, and machine-local state
 /home/.pi/agent/auth.json
 /home/.pi/agent/trust.json
@@ -52,6 +53,7 @@
 /home/.pi/agent/models-store.json
 /home/.config/nvim/.jdtls-out/
 /home/.config/omarchy/current/
+/home/.config/systemd/user/*.target.wants/
 
 # Backups and sync-conflict artifacts
 /.backup/

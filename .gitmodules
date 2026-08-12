@@ -1,45 +1,59 @@
 [submodule "herdr-splits"]
 	path = home/.config/herdr/plugins/github/herdr-splits-d880c4924f2b
 	url = https://github.com/lmilojevicc/herdr-splits.nvim.git
+
 [submodule "omarchy-aura-theme"]
 	path = home/.config/omarchy/themes/aura
 	url = https://github.com/bjarneo/omarchy-aura-theme.git
+
 [submodule "omarchy-blackturq-theme"]
 	path = home/.config/omarchy/themes/blackturq
 	url = https://github.com/HANCORE-linux/omarchy-blackturq-theme.git
+
 [submodule "omarchy-blueridge-dark-theme"]
 	path = home/.config/omarchy/themes/blueridge-dark
 	url = https://github.com/hipsterusername/omarchy-blueridge-dark-theme.git
+
 [submodule "omarchy-catppuccin-dark-theme"]
 	path = home/.config/omarchy/themes/catppuccin-dark
 	url = https://github.com/Luquatic/omarchy-catppuccin-dark.git
+
 [submodule "omarchy-dracula-theme"]
 	path = home/.config/omarchy/themes/dracula
 	url = https://github.com/catlee/omarchy-dracula-theme.git
+
 [submodule "omarchy-fireside-theme"]
 	path = home/.config/omarchy/themes/fireside
 	url = https://github.com/bjarneo/omarchy-fireside-theme.git
+
 [submodule "omarchy-monokai-theme"]
 	path = home/.config/omarchy/themes/monokai
 	url = https://github.com/bjarneo/omarchy-monokai-theme.git
+
 [submodule "omarchy-one-dark-pro-theme"]
 	path = home/.config/omarchy/themes/one-dark-pro
 	url = https://github.com/sc0ttman/omarchy-one-dark-pro-theme.git
+
 [submodule "tmux-continuum"]
 	path = home/.config/tmux/plugins/tmux-continuum
 	url = https://github.com/tmux-plugins/tmux-continuum.git
+
 [submodule "tmux-resurrect"]
 	path = home/.config/tmux/plugins/tmux-resurrect
 	url = https://github.com/tmux-plugins/tmux-resurrect.git
+
 [submodule "tmux-sensible"]
 	path = home/.config/tmux/plugins/tmux-sensible
 	url = https://github.com/tmux-plugins/tmux-sensible.git
+
 [submodule "tmux-yank"]
 	path = home/.config/tmux/plugins/tmux-yank
 	url = https://github.com/tmux-plugins/tmux-yank.git
+
 [submodule "tpm"]
 	path = home/.config/tmux/plugins/tpm
 	url = https://github.com/tmux-plugins/tpm.git
+
 [submodule "vim-tmux-navigator"]
 	path = home/.config/tmux/plugins/vim-tmux-navigator
 	url = https://github.com/christoomey/vim-tmux-navigator.git
