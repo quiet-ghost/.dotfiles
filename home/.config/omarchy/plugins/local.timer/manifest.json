@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "local.timer",
+  "name": "Timer",
+  "version": "1.0.0",
+  "description": "Preset and Pomodoro timers",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Timer",
+    "description": "Start timers and manual Pomodoro cycles",
+    "category": "Time",
+    "allowMultiple": false
+  }
+}

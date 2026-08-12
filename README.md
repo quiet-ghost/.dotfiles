@@ -2,6 +2,8 @@
 
 Personal Arch Linux and Omarchy development environment, managed as one [GNU Stow](https://www.gnu.org/software/stow/) package.
 
+This branch is the Omarchy 4/Quattro profile. Deploy it only after upgrading to Quattro.
+
 ## Overview
 
 The repository mirrors `$HOME` under `home/`. This keeps the root small and makes deployment a single operation.
@@ -15,7 +17,9 @@ The repository mirrors `$HOME` under `home/`. This keeps the root small and make
 └── LICENSE
 ```
 
-`home/` includes configuration for Hyprland, Neovim, Herdr, Zsh, Ghostty, OpenCode, Pi, Tmux, Waybar, and other daily tools. Shared agent skills deploy to `~/.agents/skills/` for native OpenCode and Pi discovery.
+`home/` includes configuration for Hyprland, Neovim, Herdr, Zsh, Ghostty, OpenCode, Pi, Tmux, and other daily tools. Shared agent skills deploy to `~/.agents/skills/` for native OpenCode and Pi discovery.
+
+On this branch, Hyprland starts at `home/.config/hypr/hyprland.lua`. Custom Quickshell plugins live under `home/.config/omarchy/` and replace the retired Waybar, Walker, SwayOSD, Hypridle, and Hyprlock stack. The generated `~/.local/state/omarchy/current` tree is intentionally not versioned.
 
 `extras/` contains material that should not be linked into `$HOME`:
 
@@ -34,6 +38,46 @@ stow home
 ```
 
 These files describe my machines, not a universal installer. Review SSH, systemd, desktop, hardware, and network configuration before deploying them elsewhere.
+
+## Future Quattro Upgrade Runbook
+
+Before upgrading, stop and disable the custom idle service because upstream will not retire it:
+
+```bash
+systemctl --user disable --now hypridle-custom.service
+```
+
+Complete the upgrade and confirm stock Omarchy 4 boots successfully before stowing this profile.
+
+Quattro deletes `~/.config/uwsm/env`. Do not restow a replacement. Session env comes from `/usr/share/uwsm/env.d/10-omarchy`; keep personal overrides in `home/.config/uwsm/default`. After stow, re-apply the theme so generated templates refresh.
+
+`omarchy-idle-policy` keeps desktops in persistent stay-awake mode. Laptops use the shell screensaver and lock at 900/902 seconds, then suspend around 1500 seconds; Quattro lock handles display blanking.
+
+> **Monitor config:** Machine-specific identifiers belong only in ignored `home/.config/hypr/monitors_local.lua`. Public clones should copy the example and fill in local values.
+
+```bash
+cp home/.config/hypr/monitors_local.lua.example home/.config/hypr/monitors_local.lua
+stow --simulate --verbose --target="$HOME" home
+```
+
+`home/.stow-local-ignore` prevents known runtime and generated files from deployment. Still inspect every simulated change, then omit `--simulate` only when all changes are expected:
+
+```bash
+stow --verbose --target="$HOME" home
+systemctl --user enable --now syncthing.service
+```
+
+The post-Stow command is required because Syncthing enablement stays host-local.
+
+The upgrade may create regular files where Stow needs to place symlinks, causing conflicts. Back up and remove only those conflicting files, keeping the backups outside Stow-managed destinations.
+
+> **Never use `stow --adopt`.** It can replace repository files with upgrade-created destination content.
+
+Install Cloudflared separately because it is stateful:
+
+```bash
+./extras/cloudflared/install.sh
+```
 
 ## Update
 
@@ -77,6 +121,19 @@ systemctl --user enable --now <unit>.service
 ```
 
 Some units depend on machine-specific hardware or scripts. Inspect them before enabling.
+
+## Custom Scripts
+
+Located in `home/.local/bin/`:
+
+- **Project aliases and workflows** - `gh-issue-create-smart`, `gh-pr-create-smart`, `gh-pr-review-session`, `gh-repo-path`, `repo-init`, `wd`, `wl`, `wt`, `wtdd`, `wti`, and `wtpr`
+- **Display automation** - `hypr-display-monitor`, `hypr-display-switch`, `hypr-elgato-sanitize`, `hypr-elgato-watch`, and `hypr-odyssey-240`
+- **Idle and timer helpers** - `omarchy-idle-policy` and `omarchy-timer`
+- **Pi helper** - `pi`
+- **Tmux helpers** - `tmux-kill-session`, `tmux-sessionizer`, and `tmux-switch-session`
+- **System/project helpers** - `aur-install`, `cookiecutter-cpp`, `install_javafx_template.sh`, `kill-process`, `lutris`, `new-clion`, `new-cpp`, `new-java`, and `new-rust`
+
+Third-party binaries, package-manager outputs, `node_modules`, generated wrappers, and secrets do not belong in this Stow package.
 
 ## Checks
 

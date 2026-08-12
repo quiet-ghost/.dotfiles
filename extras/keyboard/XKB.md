@@ -20,21 +20,22 @@ sudo chmod 644 /usr/share/X11/xkb/symbols/programmer
 
 ### 2. Verify Hyprland configuration
 
-Your `~/.dotfiles/home/.config/hypr/input.conf` should have:
+Your `~/.dotfiles/home/.config/hypr/input.lua` should have:
 
-```conf
-input {
-  kb_layout = programmer,us
-  kb_options = ctrl:nocaps
-  ...
-}
+```lua
+hl.config({
+  input = {
+    kb_layout = "programmer,us",
+    kb_options = "ctrl:nocaps",
+  },
+})
 ```
 
 ### 3. Reload Hyprland
 
 ```bash
 hyprctl reload
-# Or: SUPER + SHIFT + R
+hyprctl configerrors
 ```
 
 ### 4. Test the layout
@@ -52,11 +53,12 @@ Open a text editor and press:
 Switch to standard US layout without removing files:
 
 ```bash
-# Edit Hyprland input.conf
-sed -i 's/kb_layout = programmer,us/kb_layout = us/' ~/.dotfiles/home/.config/hypr/input.conf
+# Edit ~/.dotfiles/home/.config/hypr/input.lua:
+# kb_layout = "us",
 
 # Reload Hyprland
 hyprctl reload
+hyprctl configerrors
 ```
 
 Your keyboard is back to normal immediately.
@@ -66,14 +68,14 @@ Your keyboard is back to normal immediately.
 Remove the custom layout entirely:
 
 ```bash
-# 1. Stop using the layout in Hyprland
-sed -i 's/kb_layout = programmer,us/kb_layout = us/' ~/.dotfiles/home/.config/hypr/input.conf
+# 1. Set kb_layout = "us" in ~/.dotfiles/home/.config/hypr/input.lua
 
 # 2. Remove from system
 sudo rm /usr/share/X11/xkb/symbols/programmer
 
 # 3. Reload Hyprland
 hyprctl reload
+hyprctl configerrors
 
 # 4. (Optional) Remove from dotfiles
 rm -rf ~/.dotfiles/extras/keyboard/xkb/
@@ -113,13 +115,13 @@ setxkbmap -layout programmer -variant basic
 
 ### Workspace switching doesn't work
 
-Make sure you're using keycodes in `bindings.conf`:
-```conf
-# Correct - uses keycodes
-bind = ALT, code:10, workspace, 1
+Make sure you're using keycodes in `bindings.lua`:
+```lua
+-- Correct: uses keycodes.
+o.bind("ALT + code:10", "Switch to workspace 1", hl.dsp.focus({ workspace = "1" }))
 
-# Incorrect - uses keysyms (conflicts with XKB remapping)
-bind = ALT, 1, workspace, 1
+-- Incorrect: uses keysyms, which conflict with XKB remapping.
+o.bind("ALT + 1", "Switch to workspace 1", hl.dsp.focus({ workspace = "1" }))
 ```
 
 ### Keys show wrong symbols

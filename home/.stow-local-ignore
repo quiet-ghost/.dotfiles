@@ -9,6 +9,9 @@
 \.config/herdr/session.*\.json$
 \.config/hypr/shaders$
 \.config/hypr/tmp$
+\.config/hypr/monitors_local\.lua$
+\.config/nvim/\.jdtls-out
+^\.local/bin/(glow|uv)$
 \.config/omarchy/current$
 \.config/opencode/logs$
 \.config/opencode/node_modules$

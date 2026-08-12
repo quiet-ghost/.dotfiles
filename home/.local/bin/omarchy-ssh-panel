@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+CONFIG_FILE="${HOME}/.ssh/config"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-ssh"
+HISTORY_FILE="$STATE_DIR/history"
+
+read_hosts_file() {
+  local file=$1 line keyword token pattern included
+  local -a fields=()
+
+  [[ -f $file ]] || return 0
+  file=$(readlink -f "$file")
+  [[ -z ${seen_config_files[$file]:-} ]] || return 0
+  seen_config_files[$file]=1
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%#*}
+    read -r -a fields <<<"$line"
+    (( ${#fields[@]} > 0 )) || continue
+    keyword=${fields[0],,}
+
+    if [[ $keyword == include ]]; then
+      for pattern in "${fields[@]:1}"; do
+        pattern=${pattern#\"}
+        pattern=${pattern%\"}
+        pattern=${pattern/#\~/$HOME}
+        [[ $pattern == /* ]] || pattern="$HOME/.ssh/$pattern"
+        while IFS= read -r included; do
+          read_hosts_file "$included"
+        done < <(compgen -G "$pattern" || true)
+      done
+    elif [[ $keyword == host ]]; then
+      for token in "${fields[@]:1}"; do
+        [[ $token != *['*?!']* && $token =~ ^[A-Za-z0-9._:-]+$ ]] && printf '%s\n' "$token"
+      done
+    fi
+  done < "$file"
+}
+
+hosts() {
+  declare -A seen_config_files=()
+  read_hosts_file "$CONFIG_FILE" | awk '!seen[$0]++'
+}
+
+host_exists() {
+  local wanted=$1 host
+  while IFS= read -r host; do
+    [[ $host == "$wanted" ]] && return 0
+  done < <(hosts)
+  return 1
+}
+
+record_history() {
+  local selected=$1 host
+  local -a previous=()
+
+  mkdir -p "$STATE_DIR"
+  if [[ -f $HISTORY_FILE ]]; then
+    mapfile -t previous < "$HISTORY_FILE"
+  fi
+
+  {
+    printf '%s\n' "$selected"
+    for host in "${previous[@]}"; do
+      [[ -n $host && $host != "$selected" ]] && printf '%s\n' "$host"
+    done
+  } | awk 'NR <= 10' > "$HISTORY_FILE.tmp"
+  mv "$HISTORY_FILE.tmp" "$HISTORY_FILE"
+}
+
+active_connections() {
+  local pid args socket remote host
+
+  while read -r pid args; do
+    [[ -n ${pid:-} && $args != *ssh-agent* ]] || continue
+    socket=$(ss -Htnp 2>/dev/null | awk -v pid="$pid" '$0 ~ "pid=" pid "," && $1 == "ESTAB" { print $5; exit }')
+    [[ -n $socket ]] || continue
+    remote=${socket%:*}
+    remote=${remote#[}
+    remote=${remote%]}
+    host=$(sed -n 's/.*ssh[[:space:]]\+\([^[:space:]]*@\)\?\([^[:space:]-][^[:space:]]*\).*/\2/p' <<<"$args")
+    [[ -n $host ]] || host=$remote
+    jq -cn --argjson pid "$pid" --arg host "$host" --arg remote "$remote" '{pid:$pid,host:$host,remote:$remote}'
+  done < <(pgrep -a -u "${USER:?USER is not set}" ssh || true)
+}
+
+snapshot() {
+  local host resolved hostname user
+  local hosts_json='[]' history_json='[]' active_json='[]'
+
+  while IFS= read -r host; do
+    resolved=$(ssh -G "$host" 2>/dev/null || true)
+    hostname=$(awk '$1 == "hostname" { print $2; exit }' <<<"$resolved")
+    user=$(awk '$1 == "user" { print $2; exit }' <<<"$resolved")
+    hosts_json=$(jq -cn --argjson rows "$hosts_json" --arg alias "$host" --arg hostname "$hostname" --arg user "$user" '$rows + [{alias:$alias,hostname:$hostname,user:$user}]')
+  done < <(hosts)
+
+  if [[ -f $HISTORY_FILE ]]; then
+    history_json=$(jq -Rsc 'split("\n") | map(select(length > 0))' "$HISTORY_FILE")
+  fi
+
+  active_json=$(active_connections | jq -sc '.')
+  jq -cn --argjson hosts "$hosts_json" --argjson history "$history_json" --argjson active "$active_json" '{hosts:$hosts,history:$history,active:$active}'
+}
+
+case ${1:-} in
+  snapshot)
+    snapshot
+    ;;
+  connect)
+    host=${2:-}
+    [[ $host =~ ^[A-Za-z0-9._:-]+$ ]] && host_exists "$host" || {
+      printf 'Unknown SSH host: %s\n' "$host" >&2
+      exit 2
+    }
+    record_history "$host"
+    exec ssh "$host"
+    ;;
+  *)
+    printf 'Usage: %s {snapshot|connect <host>}\n' "$0" >&2
+    exit 1
+    ;;
+esac

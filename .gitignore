@@ -41,6 +41,7 @@
 .env.production.local
 .dev.vars
 .dev.vars.*
+/home/.config/hypr/monitors_local.lua
 .stfolder
 
 # Runtime state and generated output
@@ -85,6 +86,8 @@ node_modules/
 __pycache__/
 *.pyc
 home/.local/bin/coderabbit
+/home/.local/bin/glow
+/home/.local/bin/uv
 
 # Git worktrees
 .worktrees/

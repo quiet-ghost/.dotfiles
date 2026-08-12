@@ -24,11 +24,11 @@ The layout is installed as a system-wide XKB keyboard layout:
 sudo cp ~/.dotfiles/extras/keyboard/xkb/programmer /usr/share/X11/xkb/symbols/
 sudo chmod 644 /usr/share/X11/xkb/symbols/programmer
 
-# Enable in Hyprland (already configured in input.conf)
-# kb_layout = programmer,us
+# Enable in Hyprland (already configured in input.lua)
+# hl.config({ input = { kb_layout = "programmer,us" } })
 ```
 
-Then reload Hyprland: `SUPER + SHIFT + R`
+Then run `hyprctl reload` and check `hyprctl configerrors`.
 
 ## Workspace Bindings
 

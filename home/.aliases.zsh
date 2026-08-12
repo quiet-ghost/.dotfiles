@@ -1,5 +1,5 @@
 # General aliases
-alias wb="waybar &>/dev/null & disown"
+alias wb="omarchy restart shell"
 alias dc="logout"
 alias sz="source ~/.zshrc"
 alias xx='clear'

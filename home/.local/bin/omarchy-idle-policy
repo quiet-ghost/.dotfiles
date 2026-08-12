@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -uo pipefail
+
+readonly LAPTOP_SUSPEND_SECONDS=1500
+readonly POLL_SECONDS=15
+runtime_dir="${XDG_RUNTIME_DIR:-/tmp/omarchy-$UID}"
+
+mkdir -p "$runtime_dir"
+exec 9>"$runtime_dir/omarchy-idle-policy.lock"
+flock -n 9 || exit 0
+
+if ! compgen -G '/sys/class/power_supply/BAT*' >/dev/null; then
+  omarchy-toggle-idle stay-awake >/dev/null
+  exit 0
+fi
+
+idle_since=0
+suspended=0
+
+while sleep "$POLL_SECONDS"; do
+  if ! status=$(omarchy-shell idle status 2>/dev/null); then
+    continue
+  fi
+
+  if jq -e '.enabled == true and .idle == true' >/dev/null 2>&1 <<<"$status"; then
+    if (( idle_since == 0 )); then
+      idle_since=$(date +%s)
+      screensaver_seconds=$(jq -r '.screensaver // 900' <<<"$status")
+      suspend_delay=$(( LAPTOP_SUSPEND_SECONDS - screensaver_seconds ))
+      (( suspend_delay < 0 )) && suspend_delay=0
+    fi
+
+    if (( suspended == 0 && $(date +%s) - idle_since >= suspend_delay )); then
+      suspended=1
+      systemctl suspend || suspended=0
+    fi
+  else
+    idle_since=0
+    suspended=0
+  fi
+done
