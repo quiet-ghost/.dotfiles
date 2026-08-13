@@ -1,0 +1,22 @@
+{
+  "theme": {
+    "name": "rosepine"
+  },
+  "plugins": [
+    {
+      "package": "./plugins/caveman-tui.tsx",
+      "options": {
+        "keybind": "<leader>v"
+      }
+    }
+  ],
+  "diffs": {
+    "wrap": "word"
+  },
+  "session": {
+    "sidebar": "hide",
+    "scrollbar": false,
+    "thinking": "hide"
+  },
+  "animations": true
+}

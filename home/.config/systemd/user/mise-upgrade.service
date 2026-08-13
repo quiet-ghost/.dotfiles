@@ -1,0 +1,8 @@
+[Unit]
+Description=Upgrade mise tools pinned to latest
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mise -y upgrade gh codex

@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.ai-usage",
+  "name": "AI Usage",
+  "version": "0.1.0",
+  "author": "ghost",
+  "license": "MIT",
+  "description": "Subscription quotas and API spend in one Omarchy bar panel.",
+  "kinds": ["bar-widget"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "AI Usage",
+    "description": "Subs and APIs views for Codex, Grok, OpenCode, OpenAI, and xAI.",
+    "category": "AI",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 300,
+      "defaultView": "subs"
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 30,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 300
+      },
+      {
+        "key": "defaultView",
+        "type": "enum",
+        "label": "Default view",
+        "options": ["subs", "apis"],
+        "defaultValue": "subs"
+      }
+    ]
+  }
+}

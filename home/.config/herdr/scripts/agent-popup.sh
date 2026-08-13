@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# OpenCode/Pi popup launcher.
-# Host agent lives in workspace "Agents"; popup attaches through a Herdr key proxy.
+# OpenCode/OpenCode 2/Pi persistent agent launcher.
+# Host agent lives in workspace "Agents" and is focused directly for native input.
 set -euo pipefail
 
 HERDR="${HERDR_BIN_PATH:-herdr}"
 AGENTS_LABEL="Agents"
-ATTACH_PROXY="$HOME/.config/herdr/scripts/herdr-attach-proxy.py"
 KIND=""
 CURRENT_PATH=""
 
 usage() {
-	printf 'usage: %s <opencode|pi> [cwd]\n' "$(basename "$0")" >&2
+	printf 'usage: %s <opencode|opencode2|pi> [cwd]\n' "$(basename "$0")" >&2
 }
 
 die() {
@@ -283,6 +282,35 @@ start_agent_on_pane() {
 	die "pane not ready for agent start after ${max_attempts} tries: $pane_id"
 }
 
+ensure_opencode2_agent() {
+	local cwd="$1"
+	local name="$2"
+	local ws="$3"
+	local pane_id tab_id info attempt
+
+	pane_id="$(find_pane_by_label "$name")"
+	if [ -z "$pane_id" ]; then
+		pane_id="$(create_host_tab "$ws" "$cwd" "$name")"
+	else
+		tab_id="$(pane_tab_id "$pane_id")"
+		mark_host "$pane_id" "$tab_id" "$name"
+	fi
+
+	if ! herdr_json agent get "$pane_id" >/dev/null 2>&1; then
+		herdr_json pane run "$pane_id" "$OPENCODE2" >/dev/null
+		for attempt in {1..60}; do
+			if info="$(herdr_json agent get "$pane_id" 2>/dev/null)"; then
+				break
+			fi
+			sleep 0.25
+		done
+		[ -n "${info:-}" ] || die "opencode2 was not detected on pane $pane_id"
+	fi
+
+	herdr_json agent rename "$pane_id" "$name" >/dev/null
+	printf '%s\n' "$name"
+}
+
 main() {
 	if [ "$#" -lt 1 ]; then
 		usage
@@ -292,7 +320,7 @@ main() {
 	KIND="$1"
 	shift
 	case "$KIND" in
-	opencode | pi) ;;
+	opencode | opencode2 | pi) ;;
 	*)
 		usage
 		die "unsupported kind: $KIND"
@@ -304,11 +332,13 @@ main() {
 	need_cmd jq
 	need_cmd git
 	need_cmd flock
-	need_cmd python3
 	need_cmd "$HERDR"
-	need_cmd "$KIND"
-	[ -x "$ATTACH_PROXY" ] || die "missing executable: $ATTACH_PROXY"
-
+	if [ "$KIND" = "opencode2" ]; then
+		OPENCODE2="$HOME/.local/bin/opencode2-isolated"
+		[ -x "$OPENCODE2" ] || die "missing executable: $OPENCODE2"
+	else
+		need_cmd "$KIND"
+	fi
 	CURRENT_PATH="$(normalize_path "$CURRENT_PATH")"
 
 	local agent_name ws lock_dir
@@ -319,8 +349,34 @@ main() {
 	exec 9>"$lock_dir/$agent_name.lock"
 	flock 9
 	ws="$(ensure_agents_workspace)"
-	ensure_named_agent "$KIND" "$CURRENT_PATH" "$agent_name" "$ws"
-	exec "$ATTACH_PROXY" --herdr "$HERDR" "$agent_name"
+	if [ "$KIND" = "opencode2" ]; then
+		agent_name="$(ensure_opencode2_agent "$CURRENT_PATH" "$agent_name" "$ws")"
+	else
+		ensure_named_agent "$KIND" "$CURRENT_PATH" "$agent_name" "$ws"
+	fi
+
+	local target_info target_pane target_tab target_pgid return_dir return_file socket_key tmp
+	target_info="$(herdr_json agent get "$agent_name")"
+	target_pane="$(json_field "$target_info" '.result.agent.pane_id')"
+	target_tab="$(json_field "$target_info" '.result.agent.tab_id')"
+	target_pgid="$(json_field "$(herdr_json pane process-info --pane "$target_pane")" '.result.process_info.foreground_process_group_id')"
+	return_dir="${XDG_RUNTIME_DIR:-/tmp}/herdr-agent-return-$UID"
+	mkdir -p "$return_dir"
+	chmod 700 "$return_dir"
+	socket_key="$(printf '%s' "${HERDR_SOCKET_PATH:-default}" | sha256sum | cut -c1-12)"
+	return_file="$return_dir/$socket_key.json"
+	if [ -n "${HERDR_ACTIVE_TAB_ID:-}" ] && [ "${HERDR_ACTIVE_WORKSPACE_ID:-}" != "$ws" ]; then
+		tmp="$return_file.$$"
+		jq -n \
+			--arg return_tab "$HERDR_ACTIVE_TAB_ID" \
+			--arg agents_workspace "$ws" \
+			'{return_tab: $return_tab, agents_workspace: $agents_workspace}' >"$tmp"
+		chmod 600 "$tmp"
+		mv "$tmp" "$return_file"
+	fi
+	herdr_json agent focus "$agent_name" >/dev/null
+	"$HOME/.config/herdr/scripts/agent-exit-watch.sh" \
+		"$target_pane" "$target_tab" "$target_pgid" "$return_file" >/dev/null 2>&1 &
 }
 
 main "$@"

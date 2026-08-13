@@ -1,4 +1,8 @@
+[settings]
+minimum_release_age_excludes = ["codex", "gh"]
+
 [tools]
+bun = "latest"
 codex = "latest"
 gh = "latest"
-opencode = "latest"
+"npm:@xai-official/grok" = "latest"

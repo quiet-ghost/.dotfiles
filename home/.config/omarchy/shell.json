@@ -43,10 +43,7 @@
           "id": "omarchy.tray"
         },
         {
-          "id": "dizziee.opencode-model-usage"
-        },
-        {
-          "id": "omarchy.agents"
+          "id": "ghost.ai-usage"
         },
         {
           "id": "omarchy.bluetooth"
@@ -74,8 +71,8 @@
         },
         {
           "id": "stappmus.activity-monitor",
-          "samplingSpeed": "Efficient",
-          "openExpanded": true
+          "openExpanded": false,
+          "samplingSpeed": "Efficient"
         },
         {
           "id": "ghost.govee"

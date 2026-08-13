@@ -141,7 +141,7 @@ Career Ops commands run only in `home/.config/opencode/career-ops` when that pac
 - Keyboard: Programmer QWERTY (`kb_layout = programmer,us`)
 - herdr prefix: `ctrl+space`
 - herdr vim nav/resize: `ctrl+h/j/k/l`, `alt+h/j/k/l` via `herdr-splits` (Herdr plugin + nvim plugin)
-- herdr popups: `alt+o` OpenCode, `alt+shift+o` Pi, `alt+g` lazygit, `alt+w` mux-sesh
+- herdr popups: `alt+o` OpenCode, `ctrl+alt+o` OpenCode 2, `alt+shift+o` Pi, `alt+g` lazygit, `alt+w` mux-sesh
 - nvim: `jj`/`JJ` leave insert; arrows disabled; herdr-splits only when `HERDR_ENV=1`, else vim-tmux-navigator
 - git default branch: `master`
 - Browser: Helium (`BROWSER=helium-browser`)

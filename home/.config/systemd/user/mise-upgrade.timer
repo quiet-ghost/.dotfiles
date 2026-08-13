@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily upgrade of mise tools pinned to latest
+
+[Timer]
+OnBootSec=2min
+OnCalendar=daily
+Persistent=true
+AccuracySec=1h
+
+[Install]
+WantedBy=timers.target

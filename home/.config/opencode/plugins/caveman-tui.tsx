@@ -1,4 +1,4 @@
-/** @jsxImportSource @opentui/solid */
+/** @jsxImportSource @opentui/solid-v1 */
 import type {
   TuiPlugin,
   TuiPluginApi,

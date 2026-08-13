@@ -3,6 +3,7 @@
 # ============================================================================
 typeset -U path PATH
 path=(
+  "$HOME/.opencode/bin"
   "$HOME/.local/bin"
   "$HOME/usr/bin"
   "$HOME/go/bin"
@@ -10,6 +11,10 @@ path=(
   "$HOME/.lmstudio/bin"
   $path
 )
+
+opencode2() {
+  command "$HOME/.local/bin/opencode2-isolated" "$@"
+}
 
 # Oh My Zsh installation path
 export ZSH="$HOME/.oh-my-zsh"

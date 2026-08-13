@@ -1,6 +1,8 @@
 \.git
 \.gitignore
 .*sync-conflict.*
+.*\.bak(\..*)?$
+\.config/gh-dash/tmp$
 \.config/herdr/\.plugins\.lock$
 \.config/herdr/.*\.log$
 \.config/herdr/.*\.sock$
@@ -11,12 +13,16 @@
 \.config/hypr/tmp$
 \.config/hypr/monitors_local\.lua$
 \.config/nvim/\.jdtls-out
+\.config/nvim/\.ruff_cache$
 ^\.local/bin/(glow|uv)$
 \.config/omarchy/current$
 \.config/omarchy/calendar-ics\.json$
 \.config/omarchy/calendar-sync\.json$
+\.config/omarchy/ai-usage\.json$
 \.config/opencode/logs$
 \.config/opencode/node_modules$
+\.config/opencode/bun\.lock$
+\.config/opencode/package(-lock)?\.json$
 \.config/systemd/user/.*\.target\.wants$
 \.pi/node_modules$
 \.pi/agent/auth\.json$

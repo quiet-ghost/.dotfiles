@@ -153,23 +153,32 @@ type = "pane"
 command = "zsh -ic ghui"
 description = "ghui"
 
-# OpenCode (90%×90%; Ctrl+c exits agent; Alt+d or Ctrl+b then q detaches)
+# OpenCode (focus persistent agent tab; Alt+d returns)
 [[keys.command]]
-key = "alt+o"
-type = "popup"
+key = "ctrl+alt+o"
+type = "shell"
 command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode"
 description = "opencode session"
-width = "90%"
-height = "90%"
 
-# Pi (90%×90%; Ctrl+c exits agent; Alt+d or Ctrl+b then q detaches)
+# OpenCode 2 beta (focus persistent agent tab; Alt+d returns)
+[[keys.command]]
+key = "alt+o"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode2"
+description = "opencode2 session"
+
+# Pi (focus persistent agent tab; Alt+d returns)
 [[keys.command]]
 key = "alt+shift+o"
-type = "popup"
+type = "shell"
 command = "$HOME/.config/herdr/scripts/agent-popup.sh pi"
 description = "pi session"
-width = "90%"
-height = "90%"
+
+[[keys.command]]
+key = "alt+d"
+type = "shell"
+command = "$HOME/.config/herdr/scripts/agent-return.sh"
+description = "return from agent"
 
 # Tab jump via base-layer number-row symbols (tmux M-C-< { [ … twin)
 # shift-layer digits use switch_tab = ctrl+alt+1..9
