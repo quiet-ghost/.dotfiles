@@ -43,10 +43,33 @@
           "id": "omarchy.tray"
         },
         {
-          "id": "ghost.ai-usage"
+          "id": "omarchy.bluetooth"
         },
         {
-          "id": "omarchy.bluetooth"
+          "id": "omarchy.audio"
+        },
+        {
+          "id": "ghost.ai-usage",
+          "refreshIntervalSec": 300,
+          "defaultView": "subs",
+          "assignments": {
+            "codex": "subs",
+            "grok": "subs",
+            "claude": "hidden",
+            "opencode": "subs",
+            "openai-api": "apis",
+            "xai-api": "apis",
+            "claude-api": "apis",
+            "openrouter": "apis"
+          }
+        },
+        {
+          "id": "stappmus.activity-monitor",
+          "openExpanded": false,
+          "samplingSpeed": "Efficient"
+        },
+        {
+          "id": "djjeane.docker-monitor"
         },
         {
           "id": "local.ssh"
@@ -55,30 +78,23 @@
           "id": "omarchy.tailscale"
         },
         {
-          "id": "djjeane.docker-monitor"
-        },
-        {
-          "id": "omarchy.audio"
-        },
-        {
-          "id": "omarchy.power"
+          "id": "omarchy.network"
         },
         {
           "id": "omarchy.monitor"
         },
         {
-          "id": "omarchy.network"
-        },
-        {
-          "id": "stappmus.activity-monitor",
-          "openExpanded": false,
-          "samplingSpeed": "Efficient"
-        },
-        {
           "id": "ghost.govee"
+        },
+        {
+          "id": "omarchy.power"
         }
       ]
     }
   },
-  "plugins": []
+  "plugins": [
+    {
+      "id": "local.youtube-music"
+    }
+  ]
 }

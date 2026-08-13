@@ -1,11 +1,5 @@
 #!/bin/bash
-set -euo pipefail
-
-pi_bin="$HOME/.local/share/bun/bin/pi"
-
-if [[ ! -x $pi_bin ]]; then
-  echo "pi is not installed. Run: bun add --global @earendil-works/pi-coding-agent@latest" >&2
-  exit 127
-fi
-
-PLANNOTATOR_PORT=19432 exec "$pi_bin" "$@"
+export MISE_MINIMUM_RELEASE_AGE=0
+export PLANNOTATOR_PORT=19432
+mise use -g "pi" || exit 1
+exec mise x "pi" -- "pi" "$@"

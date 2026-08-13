@@ -1,5 +1,8 @@
 {
   "openaiAdminKey": "sk-admin-...",
   "xaiManagementKey": "",
-  "xaiTeamId": ""
+  "xaiTeamId": "",
+  "openrouterApiKey": "",
+  "openrouterManagementKey": "",
+  "anthropicAdminKey": ""
 }

@@ -296,6 +296,8 @@ def scan_opencode_db() -> dict[str, Bucket]:
         "xai": Bucket(),
         "opencode": Bucket(),
         "opencode-go": Bucket(),
+        "openrouter": Bucket(),
+        "anthropic": Bucket(),
     }
     db = opencode_db()
     if not db.is_file():
@@ -705,6 +707,199 @@ def fetch_xai_api() -> tuple[dict[str, Any] | None, str, str]:
     )
 
 
+def fetch_openrouter() -> tuple[dict[str, Any] | None, list[dict[str, Any]], str, str, str]:
+    management = secret(
+        "OPENROUTER_MANAGEMENT_KEY",
+        "openrouterManagementKey",
+        "OPENROUTER_MANAGEMENT_KEY",
+    )
+    key = secret("OPENROUTER_API_KEY", "openrouterApiKey", "OPENROUTER_API_KEY")
+    if not key:
+        auth = read_json(expand("~/.local/share/opencode/auth.json"))
+        if isinstance(auth, dict):
+            entry = auth.get("openrouter")
+            if isinstance(entry, dict) and str(entry.get("key") or "").strip():
+                key = str(entry.get("key")).strip()
+
+    if not management and not key:
+        return (
+            None,
+            [],
+            "OpenRouter",
+            "OpenRouter key missing",
+            "Set openrouterManagementKey or openrouterApiKey in ~/.config/omarchy/ai-usage.json",
+        )
+
+    balance = None
+    limits: list[dict[str, Any]] = []
+    label = "OpenRouter"
+    help_text = ""
+    status_text = ""
+
+    if management:
+        status, payload = http_json(
+            "https://openrouter.ai/api/v1/credits",
+            {"Authorization": f"Bearer {management}"},
+        )
+        if status == 403:
+            status_text = "OpenRouter management key rejected"
+            help_text = "Use a Management key from openrouter.ai/settings/management-keys"
+        elif status in {401}:
+            status_text = "OpenRouter management key rejected"
+            help_text = "Check openrouterManagementKey"
+        elif status == 200 and isinstance(payload, dict):
+            data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+            funded = money(data.get("total_credits"))
+            spent = money(data.get("total_usage"))
+            left = max(0.0, funded - spent)
+            balance = {
+                "remaining": left,
+                "funded": funded,
+                "spent": spent,
+                "currency": "USD",
+                "estimated": False,
+            }
+            if funded > 0:
+                limits.append(limit_entry("Account", spent / funded, ""))
+            label = "OpenRouter account"
+        else:
+            status_text = "OpenRouter credits unavailable"
+            help_text = "GET /api/v1/credits failed."
+
+    if key and (balance is None or not limits):
+        status, payload = http_json(
+            "https://openrouter.ai/api/v1/key",
+            {"Authorization": f"Bearer {key}"},
+        )
+        if status in {401, 403} and balance is None:
+            return None, [], "OpenRouter", "OpenRouter key rejected", "Create a key at openrouter.ai/settings/keys"
+        if status == 200 and isinstance(payload, dict):
+            data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+            used = money(data.get("usage"))
+            remaining = data.get("limit_remaining")
+            limit = data.get("limit")
+            funded = money(limit) if limit is not None else used + money(remaining)
+            left = money(remaining) if remaining is not None else max(0.0, funded - used)
+            if balance is None and (funded > 0 or left > 0 or used > 0):
+                balance = {
+                    "remaining": left,
+                    "funded": funded if funded > 0 else left + used,
+                    "spent": used,
+                    "currency": "USD",
+                    "estimated": False,
+                }
+            if funded > 0:
+                limits.append(limit_entry("Key cap", 1.0 - (left / funded) if funded else 0.0, ""))
+            label = str(data.get("label") or label)
+            if balance is not None:
+                status_text = ""
+                help_text = ""
+        elif balance is None:
+            return None, [], "OpenRouter", "OpenRouter usage unavailable", "GET /api/v1/key failed."
+
+    return balance, limits, label, status_text, help_text
+
+
+def claude_percent(value: Any) -> float:
+    try:
+        amount = float(value or 0)
+    except (TypeError, ValueError):
+        return -1.0
+    if amount < 0:
+        return -1.0
+    return amount / 100.0 if amount > 1 else amount
+
+
+def fetch_claude_limits() -> tuple[list[dict[str, Any]], str, str, str]:
+    creds = read_json(expand("~/.claude/.credentials.json"))
+    login = creds.get("claudeAiOauth") if isinstance(creds, dict) else None
+    if not isinstance(login, dict):
+        return [], "", "Claude Code not logged in", "Run `claude auth login`."
+    token = str(login.get("accessToken") or "")
+    if not token:
+        return [], "", "Claude Code not logged in", "Run `claude auth login`."
+    status, payload = http_json(
+        "https://api.anthropic.com/api/oauth/usage",
+        {
+            "Authorization": f"Bearer {token}",
+            "anthropic-beta": "oauth-2025-04-20",
+        },
+    )
+    if status == 429:
+        return [], "", "Claude limits rate-limited", "Anthropic is throttling /api/oauth/usage. Try later."
+    if status in {401, 403}:
+        return [], "", "Claude login expired", "Run `claude auth login` again."
+    if status != 200 or not isinstance(payload, dict):
+        return [], "", "Claude limits unavailable", "Could not reach Anthropic usage."
+    limits: list[dict[str, Any]] = []
+    mapping = (
+        ("five_hour", "Session"),
+        ("seven_day", "Weekly"),
+        ("seven_day_sonnet", "Sonnet week"),
+        ("seven_day_opus", "Opus week"),
+    )
+    for key, title in mapping:
+        window = payload.get(key)
+        if not isinstance(window, dict):
+            continue
+        percent = claude_percent(window.get("utilization"))
+        if percent < 0:
+            continue
+        limits.append(limit_entry(title, percent, str(window.get("resets_at") or "")))
+    extra = payload.get("extra_usage")
+    if isinstance(extra, dict) and extra.get("is_enabled"):
+        percent = claude_percent(extra.get("utilization"))
+        if percent >= 0:
+            limits.append(limit_entry("Extra", percent, ""))
+    plan = str(login.get("rateLimitTier") or login.get("subscriptionType") or "Claude")
+    return limits, plan, "", ""
+
+
+def fetch_claude_api() -> tuple[dict[str, Any] | None, dict[str, Any], str, str]:
+    key = secret("ANTHROPIC_ADMIN_KEY", "anthropicAdminKey", "ANTHROPIC_ADMIN_KEY")
+    if not key:
+        return (
+            None,
+            empty_bucket_snapshot(),
+            "Claude Admin key missing",
+            "Org spend needs sk-ant-admin-… from console.anthropic.com. Individual accounts have no remaining-credit API.",
+        )
+    start = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
+    status, payload = http_json(
+        "https://api.anthropic.com/v1/organizations/cost_report?"
+        + urllib.parse.urlencode({"starting_at": start, "bucket_width": "1d", "limit": 7}),
+        {
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+        },
+    )
+    if status in {401, 403}:
+        return None, empty_bucket_snapshot(), "Claude Admin key rejected", "Admin API is org-only."
+    if status != 200 or not isinstance(payload, dict):
+        return None, empty_bucket_snapshot(), "Claude API spend unavailable", "Cost report failed."
+    spent = 0.0
+    for bucket in payload.get("data") or []:
+        if not isinstance(bucket, dict):
+            continue
+        for result in bucket.get("results") or []:
+            if not isinstance(result, dict):
+                continue
+            try:
+                spent += abs(float(str(result.get("amount") or 0))) / 100.0
+            except (TypeError, ValueError):
+                pass
+    balance = None
+    if spent > 0:
+        balance = {
+            "remaining": 0,
+            "funded": spent,
+            "spent": spent,
+            "currency": "USD",
+            "estimated": False,
+        }
+    return balance, empty_bucket_snapshot(), "", ""
+
+
 def build_snapshot() -> dict[str, Any]:
     local = scan_opencode_db()
     openai_local = local["openai"]
@@ -715,23 +910,31 @@ def build_snapshot() -> dict[str, Any]:
     scan_codex_sessions(openai_local)
     scan_grok_sessions(xai_local)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         codex_f = pool.submit(fetch_codex_limits)
         grok_f = pool.submit(fetch_grok_limits)
         go_f = pool.submit(fetch_opencode_go)
         openai_f = pool.submit(fetch_openai_api)
         xai_f = pool.submit(fetch_xai_api)
+        openrouter_f = pool.submit(fetch_openrouter)
+        claude_f = pool.submit(fetch_claude_limits)
+        claude_api_f = pool.submit(fetch_claude_api)
         codex_limits, codex_tier, codex_status, codex_help = codex_f.result()
         grok_limits, grok_tier, grok_status, grok_help = grok_f.result()
         go_limits, go_status, go_help = go_f.result()
         openai_balance, openai_stats, openai_status, openai_help = openai_f.result()
         xai_balance, xai_status, xai_help = xai_f.result()
+        openrouter_balance, openrouter_limits, openrouter_tier, openrouter_status, openrouter_help = openrouter_f.result()
+        claude_limits, claude_tier, claude_status, claude_help = claude_f.result()
+        claude_api_balance, claude_api_stats, claude_api_status, claude_api_help = claude_api_f.result()
 
     openai_stats_final = openai_stats
     xai_api_stats = empty_bucket_snapshot() if xai_status else snapshot_from(xai_local)
+    openrouter_local = local.get("openrouter") or Bucket()
+    anthropic_local = local.get("anthropic") or Bucket()
 
     opencode_all = Bucket()
-    for source in (zen_local, go_local, openai_local, xai_local):
+    for source in (zen_local, go_local, openai_local, xai_local, openrouter_local, anthropic_local):
         for model, usage in source.models.items():
             opencode_all.models[model] = {
                 "inputTokens": opencode_all.models.get(model, {}).get("inputTokens", 0) + usage["inputTokens"],
@@ -774,6 +977,16 @@ def build_snapshot() -> dict[str, Any]:
             stats=snapshot_from(xai_local),
         ),
         provider_record(
+            "claude",
+            "Claude Code",
+            tier=claude_tier or "Claude",
+            limits=claude_limits,
+            status=claude_status,
+            help_text=claude_help,
+            ready=not claude_status,
+            stats=snapshot_from(anthropic_local),
+        ),
+        provider_record(
             "opencode",
             "OpenCode",
             tier="Go" if go_limits else "Zen",
@@ -805,10 +1018,43 @@ def build_snapshot() -> dict[str, Any]:
             ready=not xai_status,
             stats=xai_api_stats,
         ),
+        provider_record(
+            "claude-api",
+            "Claude API",
+            tier="Platform",
+            balance=claude_api_balance,
+            status=claude_api_status,
+            help_text=claude_api_help,
+            ready=not claude_api_status,
+            stats=claude_api_stats,
+        ),
+        provider_record(
+            "openrouter",
+            "OpenRouter",
+            tier=openrouter_tier or "OpenRouter",
+            limits=openrouter_limits,
+            balance=openrouter_balance,
+            status=openrouter_status,
+            help_text=openrouter_help,
+            ready=not openrouter_status,
+            stats=snapshot_from(openrouter_local),
+        ),
     ]
+    providers = subs + apis
     return {
         "schemaVersion": 1,
         "updatedAt": iso_now(),
+        "catalog": [
+            {"id": "codex", "name": "Codex", "defaultView": "subs"},
+            {"id": "grok", "name": "Grok", "defaultView": "subs"},
+            {"id": "claude", "name": "Claude Code", "defaultView": "subs"},
+            {"id": "opencode", "name": "OpenCode", "defaultView": "subs"},
+            {"id": "openai-api", "name": "OpenAI API", "defaultView": "apis"},
+            {"id": "xai-api", "name": "xAI API", "defaultView": "apis"},
+            {"id": "claude-api", "name": "Claude API", "defaultView": "apis"},
+            {"id": "openrouter", "name": "OpenRouter", "defaultView": "apis"},
+        ],
+        "providers": providers,
         "views": {"subs": subs, "apis": apis},
     }
 

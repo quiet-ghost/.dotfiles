@@ -5,7 +5,7 @@
 	ci = commit
 	st = status
 	# Worktree management moved to shell scripts: wt, wd, wl
-	# See ~/.local/bin/wt, ~/.local/bin/wd, ~/.local/bin/wl
+	# See ~/dev/tools/dev-tools/bin/{wt,wd,wl}
 
 [pull]
 	rebase = true

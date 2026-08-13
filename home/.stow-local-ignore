@@ -2,6 +2,7 @@
 \.gitignore
 .*sync-conflict.*
 .*\.bak(\..*)?$
+^\.zcompdump.*$
 \.config/gh-dash/tmp$
 \.config/herdr/\.plugins\.lock$
 \.config/herdr/.*\.log$
@@ -19,10 +20,12 @@
 \.config/omarchy/calendar-ics\.json$
 \.config/omarchy/calendar-sync\.json$
 \.config/omarchy/ai-usage\.json$
+\.config/omarchy/youtube-music$
 \.config/opencode/logs$
 \.config/opencode/node_modules$
 \.config/opencode/bun\.lock$
 \.config/opencode/package(-lock)?\.json$
+\.config/opencode/v2/service\.json$
 \.config/systemd/user/.*\.target\.wants$
 \.pi/node_modules$
 \.pi/agent/auth\.json$
@@ -41,3 +44,4 @@
 \.pi/coverage$
 \.pi/out$
 \.pi/dist$
+\.pi/\.npmrc$

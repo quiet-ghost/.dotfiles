@@ -11,7 +11,7 @@ The repository mirrors `$HOME` under `home/`. This keeps the root small and make
 ```text
 .
 ├── home/       # deployable files that mirror $HOME
-├── extras/     # source material and stateful installers
+├── extras/     # hardware source and stateful installers
 ├── AGENTS.md   # repository guidance
 ├── README.md
 └── LICENSE
@@ -24,7 +24,6 @@ On this branch, Hyprland starts at `home/.config/hypr/hyprland.lua`. Custom Quic
 `extras/` contains material that should not be linked into `$HOME`:
 
 - `keyboard/` contains keyboard source files and installation notes.
-- `templates/` provides inputs for `repo-init`.
 - `cloudflared/` contains privileged, stateful deployment tooling.
 
 ## Install
@@ -87,6 +86,25 @@ git submodule update --init --recursive
 stow -R home
 ```
 
+## Syncthing
+
+Syncthing provides immediate transport between trusted machines; Git remains
+the history and backup layer. Each machine keeps its own `.git/` directory.
+
+The synchronized roots are `~/.dotfiles`, `~/dev`, and `~/personal`. Their
+local `.stignore` files are intentionally not synchronized by Syncthing. On a
+new machine, create each one after its matching `.stignore-shared` arrives:
+
+```bash
+printf '#include .stignore-shared\n' > ~/.dotfiles/.stignore
+printf '#include .stignore-shared\n' > ~/dev/.stignore
+printf '#include .stignore-shared\n' > ~/personal/.stignore
+```
+
+Stop Syncthing before changing these rules. Keep Git metadata, secrets,
+dependencies, generated state, worktrees, and machine-local configuration
+excluded from synchronization.
+
 ### Migrating From The Old Layout
 
 Clones from before the single-package migration must unlink the old packages before pulling the commit that removes them:
@@ -122,16 +140,14 @@ systemctl --user enable --now <unit>.service
 
 Some units depend on machine-specific hardware or scripts. Inspect them before enabling.
 
-## Custom Scripts
+## Companion Tools
 
-Located in `home/.local/bin/`:
+Development commands are synchronized separately in one `~/dev/tools/`
+repository. It contains `dev-tools/` for Git, GitHub, and worktree workflows,
+and `project-bootstrap/` for project generators and `repo-init` templates.
 
-- **Project aliases and workflows** - `gh-issue-create-smart`, `gh-pr-create-smart`, `gh-pr-review-session`, `gh-repo-path`, `repo-init`, `wd`, `wl`, `wt`, `wtdd`, `wti`, and `wtpr`
-- **Display automation** - `hypr-display-monitor`, `hypr-display-switch`, `hypr-elgato-sanitize`, `hypr-elgato-watch`, and `hypr-odyssey-240`
-- **Idle and timer helpers** - `omarchy-idle-policy` and `omarchy-timer`
-- **Pi helper** - `pi`
-- **Tmux helpers** - `tmux-kill-session`, `tmux-sessionizer`, and `tmux-switch-session`
-- **System/project helpers** - `aur-install`, `cookiecutter-cpp`, `install_javafx_template.sh`, `kill-process`, `lutris`, `new-clion`, `new-cpp`, `new-java`, and `new-rust`
+Desktop-integrated helpers remain in `home/.local/bin/`, including Hyprland,
+Omarchy, Pi, Tmux, launcher, and application wrappers.
 
 Third-party binaries, package-manager outputs, `node_modules`, generated wrappers, and secrets do not belong in this Stow package.
 

@@ -46,17 +46,19 @@
 
 # Runtime state and generated output
 *.log
+/home/.local/state/ghostchat/session.json
 /home/.config/herdr/session*.json
 /home/.config/herdr/plugins.json
 /home/.config/herdr/release-notes.json
 /home/.config/herdr/.plugins.lock
 /home/.config/opencode/logs/
-/home/.pi/agent/models-store.json
+/home/.config/opencode/v2/service.json
 /home/.config/nvim/.jdtls-out/
 /home/.config/omarchy/current/
 /home/.config/omarchy/calendar-ics.json
 /home/.config/omarchy/calendar-sync.json
 /home/.config/omarchy/ai-usage.json
+/home/.config/omarchy/youtube-music/
 /home/.config/govee-lights/
 /home/.config/gws-omarchy-calendar/
 /home/.config/systemd/user/*.target.wants/
@@ -68,6 +70,8 @@
 **/*.bak.*
 **/*.backup
 **/*.sync-conflict-*
+/home/.zcompdump*
+/.stignore
 
 # OS generated files
 .DS_Store

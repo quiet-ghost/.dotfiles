@@ -8,9 +8,9 @@ get_session_name() {
 	local current_path="$1"
 	local suffix
 
-	if [[ -f "$HOME/.local/lib/wt-paths.sh" ]]; then
+	if [[ -f "$HOME/dev/tools/dev-tools/lib/wt-paths.sh" ]]; then
 		# shellcheck source=/dev/null
-		source "$HOME/.local/lib/wt-paths.sh"
+		source "$HOME/dev/tools/dev-tools/lib/wt-paths.sh"
 		suffix="$(wt_path_suffix "$current_path")"
 	else
 		suffix="$(sanitize_name "$(basename "$current_path")")"

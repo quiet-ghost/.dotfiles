@@ -1,0 +1,30 @@
+IEclipsePreferences#org-eclipse-ui-editors:rose-pine {
+  preferences:
+    'AbstractTextEditor.Color.Background.SystemDefault=false'
+    'AbstractTextEditor.Color.Foreground.SystemDefault=false'
+    'AbstractTextEditor.Color.SelectionBackground.SystemDefault=false'
+    'AbstractTextEditor.Color.SelectionForeground.SystemDefault=false'
+    'AbstractTextEditor.Color.Background=25,23,36'
+    'AbstractTextEditor.Color.Foreground=224,222,244'
+    'AbstractTextEditor.Color.SelectionBackground=82,79,103'
+    'AbstractTextEditor.Color.SelectionForeground=224,222,244'
+    'currentLineColor=31,29,46'
+    'lineNumberColor=110,106,134'
+    'printMarginColor=38,35,58'
+    'hyperlinkColor=156,207,216'
+    'hyperlinkColor.SystemDefault=false'
+    'spellingIndicationColor=235,111,146'
+}
+
+IEclipsePreferences#org-eclipse-ui-workbench:rose-pine {
+  preferences:
+    'CONTENT_ASSIST_BACKGROUND_COLOR=31,29,46'
+    'CONTENT_ASSIST_FOREGROUND_COLOR=224,222,244'
+    'HYPERLINK_COLOR=156,207,216'
+    'ACTIVE_HYPERLINK_COLOR=235,188,186'
+    'ERROR_COLOR=235,111,146'
+    'org.eclipse.ui.workbench.HOVER_BACKGROUND=38,35,58'
+    'org.eclipse.ui.workbench.HOVER_FOREGROUND=224,222,244'
+    'org.eclipse.ui.workbench.INFORMATION_BACKGROUND=31,29,46'
+    'org.eclipse.ui.workbench.INFORMATION_FOREGROUND=224,222,244'
+}

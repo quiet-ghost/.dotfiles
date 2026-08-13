@@ -46,9 +46,9 @@ sanitize_name() {
 path_suffix() {
 	local current_path="$1"
 
-	if [[ -f "$HOME/.local/lib/wt-paths.sh" ]]; then
+	if [[ -f "$HOME/dev/tools/dev-tools/lib/wt-paths.sh" ]]; then
 		# shellcheck source=/dev/null
-		source "$HOME/.local/lib/wt-paths.sh"
+		source "$HOME/dev/tools/dev-tools/lib/wt-paths.sh"
 		wt_path_suffix "$current_path"
 		return
 	fi

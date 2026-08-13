@@ -6,7 +6,7 @@ export OPENCODE_CONFIG_DIR="$(readlink -f "$HOME/.config/opencode/v2")"
 opencode2_bin="${OPENCODE2_BIN_PATH:-$HOME/.opencode/bin/opencode2}"
 
 case "${1:-}" in
-  api | auth | console | debug | mcp | models | plugin | service)
+  api | auth | console | debug | mcp | models | pair | plugin | service)
     exec "$opencode2_bin" "$@"
     ;;
   run)
@@ -14,6 +14,6 @@ case "${1:-}" in
     exec "$opencode2_bin" run --standalone "$@"
     ;;
   *)
-    exec "$opencode2_bin" --standalone "$@"
+    exec "$opencode2_bin" "$@"
     ;;
 esac

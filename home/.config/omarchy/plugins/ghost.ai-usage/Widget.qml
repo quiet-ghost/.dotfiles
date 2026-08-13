@@ -10,11 +10,15 @@ BarWidget {
   moduleName: "ghost.ai-usage"
 
   property bool popupOpen: false
+  property int cacheBust: 3
+  property bool settingsMode: false
   property string activeView: String(settings && settings.defaultView ? settings.defaultView : "subs")
   property string selectedProviderId: ""
   property bool refreshing: false
+  property string settingsStatusText: ""
   property double nowMs: Date.now()
-  property var snapshot: ({ schemaVersion: 1, views: { subs: [], apis: [] } })
+  property var snapshot: ({ schemaVersion: 1, catalog: [], providers: [], views: { subs: [], apis: [] } })
+  property var draftAssignments: ({})
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color urgent: bar ? bar.urgent : Color.urgent
@@ -24,10 +28,21 @@ BarWidget {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property int refreshIntervalSec: Math.max(30, Number(settings && settings.refreshIntervalSec ? settings.refreshIntervalSec : 300))
   readonly property string scannerPath: pathFromUrl(Qt.resolvedUrl("scripts/ai_usage.py"))
-  readonly property var viewProviders: {
-    var views = snapshot && snapshot.views ? snapshot.views : {}
-    var rows = views[activeView] || []
+  readonly property var catalog: {
+    var rows = snapshot && snapshot.catalog ? snapshot.catalog : []
     return Array.isArray(rows) ? rows : []
+  }
+  readonly property var allProviders: {
+    var rows = snapshot && snapshot.providers ? snapshot.providers : []
+    return Array.isArray(rows) ? rows : []
+  }
+  readonly property var viewProviders: {
+    var rows = []
+    for (var i = 0; i < allProviders.length; i++) {
+      var item = allProviders[i]
+      if (assignmentFor(item.id) === activeView) rows.push(item)
+    }
+    return rows
   }
   readonly property int providerIndex: {
     for (var i = 0; i < viewProviders.length; i++)
@@ -53,10 +68,76 @@ BarWidget {
   function alpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
 
   function open() { popupOpen = true }
-  function close() { popupOpen = false }
+  function close() { popupOpen = false; settingsMode = false }
   function toggle() { popupOpen = !popupOpen }
 
+  function defaultAssignment(id) {
+    if (id === "openai-api" || id === "xai-api" || id === "openrouter" || id === "claude-api") return "apis"
+    return "subs"
+  }
+
+  function assignmentFor(id) {
+    var map = settings && settings.assignments ? settings.assignments : {}
+    var value = map && map[id] !== undefined ? String(map[id]) : defaultAssignment(id)
+    if (value === "hidden" || value === "apis" || value === "subs") return value
+    return defaultAssignment(id)
+  }
+
+  function openSettings() {
+    var next = {}
+    var rows = catalog.length > 0 ? catalog : [
+      { id: "codex", name: "Codex" },
+      { id: "grok", name: "Grok" },
+      { id: "claude", name: "Claude Code" },
+      { id: "opencode", name: "OpenCode" },
+      { id: "openai-api", name: "OpenAI API" },
+      { id: "xai-api", name: "xAI API" },
+      { id: "claude-api", name: "Claude API" },
+      { id: "openrouter", name: "OpenRouter" }
+    ]
+    for (var i = 0; i < rows.length; i++) next[rows[i].id] = assignmentFor(rows[i].id)
+    draftAssignments = next
+    settingsStatusText = ""
+    settingsMode = true
+    popupOpen = true
+  }
+
+  function showUsage() {
+    settingsMode = false
+    settingsStatusText = ""
+  }
+
+  function setDraftAssignment(id, view) {
+    var next = {}
+    var source = draftAssignments || {}
+    for (var key in source) next[key] = source[key]
+    next[id] = view
+    draftAssignments = next
+  }
+
+  function canPersistSettings() {
+    return !!(bar && bar.shell && typeof bar.shell.updateEntryInline === "function")
+  }
+
+  function saveSettings() {
+    var next = {
+      refreshIntervalSec: refreshIntervalSec,
+      defaultView: activeView,
+      assignments: draftAssignments
+    }
+    root.settings = next
+    if (canPersistSettings()) {
+      bar.shell.updateEntryInline(root.moduleName, next)
+      settingsStatusText = "Saved to shell.json"
+    } else {
+      settingsStatusText = "Saved for this session"
+    }
+    settingsMode = false
+    if (viewProviders.length > 0) selectedProviderId = String(viewProviders[0].id || "")
+  }
+
   function selectView(name) {
+    settingsMode = false
     activeView = name === "apis" ? "apis" : "subs"
     if (viewProviders.length > 0) selectedProviderId = String(viewProviders[0].id || "")
   }
@@ -206,6 +287,8 @@ BarWidget {
     var id = p ? String(p.id) : "opencode"
     if (id === "grok" || id === "xai-api") return Qt.resolvedUrl("assets/xai.png")
     if (id === "openai-api" || id === "codex") return Qt.resolvedUrl("assets/openai.png")
+    if (id === "openrouter") return Qt.resolvedUrl("assets/openrouter.svg")
+    if (id === "claude" || id === "claude-api") return Qt.resolvedUrl("assets/claude.svg")
     return Qt.resolvedUrl("assets/" + id + ".svg")
   }
 
@@ -256,6 +339,7 @@ BarWidget {
     function close(): string { root.close(); return "ok" }
     function toggle(): string { root.toggle(); return "ok" }
     function refresh(): string { root.refreshNow(); return "ok" }
+    function settings(): string { root.openSettings(); return "ok" }
     function subs(): string { root.selectView("subs"); root.open(); return "ok" }
     function apis(): string { root.selectView("apis"); root.open(); return "ok" }
   }
@@ -298,8 +382,9 @@ BarWidget {
       onCloseRequested: root.close()
       onTextKey: function(t) {
         if (t === "r" || t === "R") root.refreshNow()
-        if (t === "s" || t === "S") root.selectView("subs")
+        if (t === "s" || t === "S") root.settingsMode ? root.saveSettings() : root.selectView("subs")
         if (t === "a" || t === "A") root.selectView("apis")
+        if (t === ",") root.openSettings()
       }
 
       Flickable {
@@ -318,31 +403,122 @@ BarWidget {
           width: panelFlick.width
           spacing: Style.space(12)
 
-          Row {
+          Item {
+            visible: root.settingsMode
             width: parent.width
-            spacing: Style.spacing.md
+            implicitHeight: settingsTitle.implicitHeight
+
+            Text {
+              id: settingsTitle
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              text: "Settings"
+              color: root.foreground
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.title
+              font.bold: true
+            }
+
+            Button {
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              text: ""
+              iconText: "\uf013"
+              tooltipText: "Back to usage"
+              bordered: false
+              selected: true
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              onClicked: root.showUsage()
+            }
+          }
+
+          Column {
+            visible: root.settingsMode
+            width: parent.width
+            spacing: Style.space(10)
+
+            PanelSectionHeader {
+              width: parent.width
+              text: "SHOW IN"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+            }
 
             Repeater {
-              model: [
-                { id: "subs", label: "Subs" },
-                { id: "apis", label: "APIs" }
+              model: root.catalog.length > 0 ? root.catalog : [
+                { id: "codex", name: "Codex" },
+                { id: "grok", name: "Grok" },
+                { id: "claude", name: "Claude Code" },
+                { id: "opencode", name: "OpenCode" },
+                { id: "openai-api", name: "OpenAI API" },
+                { id: "xai-api", name: "xAI API" },
+                { id: "claude-api", name: "Claude API" },
+                { id: "openrouter", name: "OpenRouter" }
               ]
-              Button {
+
+              Column {
+                id: providerRow
                 required property var modelData
-                width: (column.width - Style.spacing.md) / 2
-                text: modelData.label
-                selected: root.activeView === modelData.id
-                bordered: true
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                fontSize: Style.font.bodySmall
-                onClicked: root.selectView(modelData.id)
+                readonly property string providerId: String(modelData.id)
+                width: parent.width
+                spacing: Style.space(6)
+
+                Text {
+                  text: modelData.name
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                }
+
+                Row {
+                  width: parent.width
+                  spacing: Style.spacing.sm
+                  Repeater {
+                    model: [
+                      { id: "subs", label: "Subs" },
+                      { id: "apis", label: "APIs" },
+                      { id: "hidden", label: "Hide" }
+                    ]
+                    Button {
+                      required property var modelData
+                      width: (parent.width - Style.spacing.sm * 2) / 3
+                      text: modelData.label
+                      selected: String(root.draftAssignments[providerRow.providerId] || root.defaultAssignment(providerRow.providerId)) === modelData.id
+                      bordered: true
+                      foreground: root.foreground
+                      fontFamily: root.fontFamily
+                      fontSize: Style.font.caption
+                      onClicked: root.setDraftAssignment(providerRow.providerId, modelData.id)
+                    }
+                  }
+                }
               }
+            }
+
+            Button {
+              width: parent.width
+              text: "Save"
+              bordered: true
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              onClicked: root.saveSettings()
+            }
+
+            Text {
+              visible: root.settingsStatusText !== ""
+              width: parent.width
+              text: root.settingsStatusText
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
             }
           }
 
           PanelHero {
-            visible: !!root.provider
+            visible: !root.settingsMode && !!root.provider
             width: parent.width
             title: root.provider ? root.provider.name : ""
             meta: root.heroMeta(root.provider)
@@ -358,10 +534,37 @@ BarWidget {
                 fillMode: Image.PreserveAspectFit
               }
             }
+            trailingControl: Component {
+              Button {
+                text: ""
+                iconText: "\uf013"
+                tooltipText: "Settings"
+                bordered: false
+                selected: root.settingsMode
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                onClicked: root.openSettings()
+              }
+            }
+          }
+
+          ButtonGroup {
+            visible: !root.settingsMode
+            width: parent.width
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            fontSize: Style.font.bodySmall
+            focusable: false
+            value: root.activeView
+            options: [
+              { value: "subs", label: "Subs" },
+              { value: "apis", label: "APIs" }
+            ]
+            onChanged: function(value) { root.selectView(value) }
           }
 
           Text {
-            visible: root.viewProviders.length === 0
+            visible: !root.settingsMode && root.viewProviders.length === 0
             width: parent.width
             topPadding: Style.space(24)
             text: root.refreshing ? "Loading usage…" : "No usage yet."
@@ -373,7 +576,7 @@ BarWidget {
 
           Row {
             id: providerSwitch
-            visible: root.viewProviders.length > 1
+            visible: !root.settingsMode && root.viewProviders.length > 1
             width: parent.width
             spacing: Style.spacing.md
             readonly property real cellWidth: root.viewProviders.length > 0
@@ -398,7 +601,7 @@ BarWidget {
           }
 
           BorderSurface {
-            visible: !!root.provider && String(root.provider.usageStatusText || "") !== ""
+            visible: !root.settingsMode && !!root.provider && String(root.provider.usageStatusText || "") !== ""
             width: parent.width
             implicitHeight: statusText.implicitHeight + Style.spacing.xl * 2
             color: root.alpha(root.urgent, 0.10)
@@ -420,13 +623,13 @@ BarWidget {
           }
 
           PanelSeparator {
-            visible: balanceSection.visible || limitsSection.visible
+            visible: !root.settingsMode && (balanceSection.visible || limitsSection.visible)
             foreground: root.foreground
           }
 
           Column {
             id: balanceSection
-            visible: !!root.balance
+            visible: !root.settingsMode && !!root.balance
             width: parent.width
             spacing: Style.space(10)
             readonly property real ratio: root.balance && Number(root.balance.funded) > 0
@@ -486,7 +689,7 @@ BarWidget {
 
           Column {
             id: limitsSection
-            visible: root.limits.length > 0
+            visible: !root.settingsMode && root.limits.length > 0
             width: parent.width
             spacing: Style.space(10)
 
@@ -507,13 +710,13 @@ BarWidget {
           }
 
           PanelSeparator {
-            visible: usageSection.visible
+            visible: !root.settingsMode && usageSection.visible
             foreground: root.foreground
           }
 
           Column {
             id: usageSection
-            visible: !!root.provider && root.provider.recentDays && root.provider.recentDays.length > 0
+            visible: !root.settingsMode && !!root.provider && root.provider.recentDays && root.provider.recentDays.length > 0
             width: parent.width
             spacing: Style.spacing.md
             readonly property var days: root.provider ? (root.provider.recentDays || []) : []
@@ -539,13 +742,13 @@ BarWidget {
           }
 
           PanelSeparator {
-            visible: modelSection.visible
+            visible: !root.settingsMode && modelSection.visible
             foreground: root.foreground
           }
 
           Column {
             id: modelSection
-            visible: root.models.length > 0
+            visible: !root.settingsMode && root.models.length > 0
             width: parent.width
             spacing: Style.spacing.md
 
@@ -569,7 +772,7 @@ BarWidget {
 
           Text {
             width: parent.width
-            text: root.refreshing ? "Refreshing…" : "s subs · a apis · r refresh · esc close"
+            text: root.refreshing ? "Refreshing…" : "settings · s subs · a apis · r refresh · esc close"
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption

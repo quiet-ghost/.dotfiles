@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "AI Usage",
-    "description": "Subs and APIs views for Codex, Grok, OpenCode, OpenAI, and xAI.",
+    "description": "Subs and APIs views for Codex, Grok, OpenCode, OpenAI, xAI, and OpenRouter.",
     "category": "AI",
     "allowMultiple": false,
     "defaultSection": "right",

@@ -5,6 +5,8 @@ typeset -U path PATH
 path=(
   "$HOME/.opencode/bin"
   "$HOME/.local/bin"
+  "$HOME/dev/tools/dev-tools/bin"
+  "$HOME/dev/tools/project-bootstrap/bin"
   "$HOME/usr/bin"
   "$HOME/go/bin"
   "$HOME/dev/school/Boot/Course 2 Linux/worldbanc/private/bin"

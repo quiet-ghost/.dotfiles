@@ -4,7 +4,7 @@ cursor-color = #ffffff
 cursor-text = #191724
 
 # Font
-font-family = "CaskaydiaCove Nerd Font"
+font-family = "CaskaydiaMono Nerd Font"
 font-size = 14
 font-feature = +calt
 

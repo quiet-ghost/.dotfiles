@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_dir="${XDG_DATA_HOME:-$HOME/.local/share}/dbeaver-rose-pine"
+version=1.0.1
+jar_name="org.rosepine.dbeaver.theme_${version}.jar"
+build_dir="${XDG_CACHE_HOME:-$HOME/.cache}/dbeaver-rose-pine"
+
+rm -rf -- "$build_dir"
+mkdir -p -- "$build_dir"
+jar --create --file "$build_dir/$jar_name" \
+  --manifest "$source_dir/META-INF/MANIFEST.MF" \
+  -C "$source_dir" plugin.xml \
+  -C "$source_dir" css
+
+if [[ ${1:-} != --install ]]; then
+  printf 'Built %s\nRun dbeaver-rose-pine --install to register it with DBeaver.\n' "$build_dir/$jar_name"
+  exit 0
+fi
+
+install_script="$build_dir/install"
+cat > "$install_script" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+rm -f /usr/lib/dbeaver/plugins/org.rosepine.dbeaver.theme_*.jar
+install -Dm644 '$build_dir/$jar_name' '/usr/lib/dbeaver/plugins/$jar_name'
+printf '%s\n' 'org.rosepine.dbeaver.theme,$version,plugins/$jar_name,4,false' > /etc/dbeaver/bundles.d/50-rose-pine.info
+cat /etc/dbeaver/bundles.d/*.info > /etc/dbeaver/bundles.info
+EOF
+chmod +x "$install_script"
+pkexec "$install_script"
+printf 'Installed Rosé Pine. Restart DBeaver with: dbeaver -clean\n'

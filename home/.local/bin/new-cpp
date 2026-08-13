@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-
-# Compatibility wrapper. The unified C/C++ project generator lives in new-clion.
-exec new-clion "$@"

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "local.youtube-music",
+  "name": "YouTube Music",
+  "version": "0.1.0",
+  "description": "Native YouTube Music search, queue, and playback",
+  "kinds": ["service", "panel"],
+  "activation": "on-demand",
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "panel": "Panel.qml"
+  }
+}

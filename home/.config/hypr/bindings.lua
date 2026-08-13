@@ -5,6 +5,7 @@ hl.unbind("SUPER + F")
 hl.unbind("SUPER + ALT + F")
 hl.unbind("SUPER + C")
 hl.unbind("SUPER + G")
+hl.unbind("SUPER + L")
 hl.unbind("SUPER + X")
 hl.unbind("SUPER + T")
 
@@ -14,7 +15,7 @@ o.bind("SUPER + B", "Browser", { omarchy = "browser" })
 o.bind("SUPER + SHIFT + B", "Browser (private)", { omarchy = "browser --private" })
 o.bind("SUPER + N", "Editor", { omarchy = "editor" })
 o.bind("SUPER + D", "Docker", { tui = "lazydocker" })
-o.bind("SUPER + SHIFT + E", "File manager (cwd)", { launch = "thunar $(omarchy-cmd-terminal-cwd)" })
+o.bind("SUPER + SHIFT + E", "File manager (cwd)", { launch = "env GTK_THEME=rose-pine-gtk:light /usr/bin/thunar $(omarchy-cmd-terminal-cwd)" })
 o.bind("SUPER + SHIFT + S", "Signal", { omarchy = "signal" })
 o.bind(
 	"SUPER + SHIFT + K",
@@ -26,6 +27,7 @@ o.bind("SUPER + SHIFT + O", "Omawrite", { launch = "omawrite" })
 o.bind("SUPER + C", "Close window", hl.dsp.window.close())
 o.bind("SUPER + F", "Full width", hl.dsp.window.fullscreen({ mode = "maximized" }))
 o.bind("SUPER + ALT + F", "Force full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
+o.bind("SUPER + L", "Lock system", "omarchy-system-lock")
 
 o.bind("ALT + SPACE", "Launch apps", "omarchy-menu toggle")
 o.bind("ALT + P", "Screenshot of region", "omarchy-capture-screenshot region")
@@ -35,6 +37,7 @@ o.bind("ALT + SHIFT + R", "Screen record with audio", "omarchy-capture-screenrec
 o.bind("SUPER + H", "ChatGPT", { webapp = "https://chatgpt.com" })
 o.bind("SUPER + G", "Grok", { webapp = "https://grok.com" })
 o.bind("SUPER + Y", "YouTube", { webapp = "https://youtube.com/" })
+o.bind("SUPER + SHIFT + Y", "YouTube Music", "omarchy-shell shell summon local.youtube-music")
 o.bind("SUPER + X", "X", { webapp = "https://x.com/" })
 o.bind("SUPER + T", "Monkeytype", { webapp = "https://monkeytype.com/" })
 
