@@ -54,6 +54,10 @@
 /home/.pi/agent/models-store.json
 /home/.config/nvim/.jdtls-out/
 /home/.config/omarchy/current/
+/home/.config/omarchy/calendar-ics.json
+/home/.config/omarchy/calendar-sync.json
+/home/.config/govee-lights/
+/home/.config/gws-omarchy-calendar/
 /home/.config/systemd/user/*.target.wants/
 
 # Backups and sync-conflict artifacts

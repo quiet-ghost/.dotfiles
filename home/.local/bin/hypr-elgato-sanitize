@@ -68,14 +68,14 @@ target_for_workspace() {
   local odyssey="$3"
 
   case "$id" in
-    1 | 6 | 7 | 8 | 9 | 10)
+    1 | 7 | 8 | 9 | 10)
       if [[ -n "$acer" ]]; then
         echo "$acer"
       else
         echo "$odyssey"
       fi
       ;;
-    2 | 3 | 4 | 5)
+    2 | 3 | 4 | 5 | 6)
       if [[ -n "$odyssey" ]]; then
         echo "$odyssey"
       else

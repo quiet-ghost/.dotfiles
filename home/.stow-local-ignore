@@ -13,6 +13,8 @@
 \.config/nvim/\.jdtls-out
 ^\.local/bin/(glow|uv)$
 \.config/omarchy/current$
+\.config/omarchy/calendar-ics\.json$
+\.config/omarchy/calendar-sync\.json$
 \.config/opencode/logs$
 \.config/opencode/node_modules$
 \.config/systemd/user/.*\.target\.wants$

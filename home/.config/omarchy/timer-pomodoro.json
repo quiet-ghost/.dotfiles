@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Classic",
+    "focus": 25,
+    "shortBreak": 5,
+    "longBreak": 15,
+    "longEvery": 4
+  },
+  {
+    "name": "Study",
+    "focus": 45,
+    "shortBreak": 10,
+    "longBreak": 20,
+    "longEvery": 3
+  },
+  {
+    "name": "Deep",
+    "focus": 50,
+    "shortBreak": 10,
+    "longBreak": 20,
+    "longEvery": 2
+  }
+]

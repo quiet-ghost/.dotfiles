@@ -3,12 +3,12 @@
     "icon": "󰔛",
     "label": "Timer",
     "aliases": ["pomodoro", "countdown"],
-    "action": "omarchy-shell shell toggle local.timer '{}'"
+    "action": "omarchy-shell shell toggle local.timer '{}'",
   },
   "ssh": {
-    "icon": "󰣀",
+    "icon": "󰌘",
     "label": "SSH",
     "aliases": ["hosts", "servers"],
-    "action": "omarchy-shell shell toggle local.ssh '{}'"
-  }
+    "action": "omarchy-shell shell toggle local.ssh '{}'",
+  },
 }

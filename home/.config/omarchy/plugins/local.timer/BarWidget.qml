@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
@@ -10,10 +11,16 @@ BarWidget {
   readonly property var timerService: bar?.shell?.serviceFor("local.timer")
   property bool opened: false
   property bool popoutSwitchClosing: false
-  property int customMinutes: 20
+  property bool showSettings: false
+  property int newPresetMinutes: 20
+  property string newPomoName: "Study"
+  property int newPomoFocus: 45
+  property int newPomoShort: 10
+  property int newPomoLong: 20
+  property int newPomoEvery: 4
 
   function open() { opened = true }
-  function close() { opened = false }
+  function close() { opened = false; showSettings = false }
   function toggle() { opened = !opened }
   function closeForPopoutSwitch() {
     popoutSwitchClosing = true
@@ -46,14 +53,22 @@ BarWidget {
     bar: root.bar
     open: root.opened
     focusTarget: panelFocus
-    contentWidth: panel.fittedContentWidth(Style.space(360))
-    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(560))
+    contentWidth: panel.fittedContentWidth(Style.space(420))
+    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(520))
 
     FocusScope {
       id: panelFocus
       anchors.fill: parent
       focus: true
       Keys.onEscapePressed: root.close()
+
+      Flickable {
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: content.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
       Column {
         id: content
@@ -76,78 +91,190 @@ BarWidget {
           }
         }
 
-        PanelSectionHeader { text: "PRESETS"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
-
-        Row {
+        RowLayout {
           width: parent.width
-          spacing: Style.space(5)
-          Repeater {
-            model: [5, 10, 15, 30, 60]
-            Button {
-              required property int modelData
-              text: String(modelData) + "m"
-              foreground: root.bar.foreground
-              focusable: true
-              onClicked: if (root.timerService) root.timerService.startMinutes(modelData, String(modelData) + " minute timer")
+          PanelSectionHeader {
+            text: "PRESETS"
+            foreground: root.bar.foreground
+            fontFamily: root.bar.fontFamily
+            Layout.fillWidth: true
+          }
+          Button {
+            text: root.showSettings ? "Done" : "Settings"
+            foreground: root.bar.foreground
+            focusable: true
+            onClicked: root.showSettings = !root.showSettings
+          }
+        }
+
+        Column {
+          visible: !root.showSettings
+          width: parent.width
+          spacing: Style.space(14)
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(5)
+            Repeater {
+              model: root.timerService ? root.timerService.presets : [5, 10, 15, 25, 30, 45, 50, 60]
+              Button {
+                required property int modelData
+                text: String(modelData) + "m"
+                foreground: root.bar.foreground
+                focusable: true
+                onClicked: if (root.timerService) root.timerService.startMinutes(modelData, String(modelData) + " minute timer")
+              }
+            }
+          }
+
+          PanelSeparator { foreground: root.bar.foreground }
+          PanelSectionHeader { text: "POMODORO"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(5)
+            Repeater {
+              model: root.timerService ? root.timerService.pomodoroPresets : []
+              Button {
+                required property var modelData
+                text: modelData.name
+                foreground: root.bar.foreground
+                selected: root.timerService && root.timerService.currentPomodoro && root.timerService.currentPomodoro.name === modelData.name
+                focusable: true
+                enabled: !root.timerService || !root.timerService.active
+                opacity: enabled ? 1 : 0.4
+                onClicked: if (root.timerService) root.timerService.startPomodoro(modelData)
+              }
             }
           }
         }
 
-        RowLayout {
-          width: parent.width
-          spacing: Style.space(8)
-          NumberField {
-            label: "Custom minutes"
-            value: root.customMinutes
-            from: 1
-            to: 1440
-            foreground: root.bar.foreground
-            Layout.fillWidth: true
-            onModified: function(value) { root.customMinutes = value }
-          }
-          Button {
-            text: "Start"
-            iconText: "󰐊"
-            foreground: root.bar.foreground
-            bordered: true
-            focusable: true
-            Layout.alignment: Qt.AlignBottom
-            onClicked: if (root.timerService) root.timerService.startMinutes(root.customMinutes, String(root.customMinutes) + " minute timer")
-          }
-        }
-
-        PanelSeparator { foreground: root.bar.foreground }
-        PanelSectionHeader { text: "POMODORO"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
-
-        RowLayout {
+        Column {
+          visible: root.showSettings
           width: parent.width
           spacing: Style.space(10)
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: Style.space(2)
-            Text {
-              text: root.timerService ? root.timerService.nextPomodoroLabel : "Start focus 1"
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.subtitle
-              font.bold: true
+
+          RowLayout {
+            width: parent.width
+            spacing: Style.space(8)
+            NumberField {
+              label: "Add minutes"
+              value: root.newPresetMinutes
+              from: 1
+              to: 1440
+              foreground: root.bar.foreground
+              Layout.fillWidth: true
+              onModified: function(value) { root.newPresetMinutes = value }
             }
-            Text {
-              text: "25m focus · 5m break · 15m after four"
-              color: Qt.darker(root.bar.foreground, 1.45)
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.bodySmall
+            Button {
+              text: "Add"
+              foreground: root.bar.foreground
+              bordered: true
+              focusable: true
+              Layout.alignment: Qt.AlignBottom
+              onClicked: if (root.timerService) root.timerService.addPreset(root.newPresetMinutes)
             }
           }
-          Button {
-            text: "Start"
-            iconText: "󰐊"
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(5)
+            Repeater {
+              model: root.timerService ? root.timerService.presets : []
+              Button {
+                required property int modelData
+                text: String(modelData) + "m"
+                iconText: "󰅖"
+                bordered: true
+                foreground: root.bar.foreground
+                focusable: true
+                onClicked: if (root.timerService) root.timerService.removePreset(modelData)
+              }
+            }
+          }
+
+          PanelSeparator { foreground: root.bar.foreground }
+          PanelSectionHeader { text: "POMODORO"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
+
+          TextField {
+            width: parent.width
             foreground: root.bar.foreground
+            placeholderText: "Name"
+            text: root.newPomoName
+            onTextChanged: root.newPomoName = text
+          }
+
+          GridLayout {
+            width: parent.width
+            columns: 2
+            columnSpacing: Style.space(10)
+            rowSpacing: Style.space(8)
+            NumberField {
+              label: "Focus"
+              value: root.newPomoFocus
+              from: 1
+              to: 1440
+              fieldWidth: Style.space(160)
+              foreground: root.bar.foreground
+              Layout.fillWidth: true
+              onModified: function(value) { root.newPomoFocus = value }
+            }
+            NumberField {
+              label: "Break"
+              value: root.newPomoShort
+              from: 1
+              to: 1440
+              fieldWidth: Style.space(160)
+              foreground: root.bar.foreground
+              Layout.fillWidth: true
+              onModified: function(value) { root.newPomoShort = value }
+            }
+            NumberField {
+              label: "Long"
+              value: root.newPomoLong
+              from: 1
+              to: 1440
+              fieldWidth: Style.space(160)
+              foreground: root.bar.foreground
+              Layout.fillWidth: true
+              onModified: function(value) { root.newPomoLong = value }
+            }
+            NumberField {
+              label: "Long every"
+              value: root.newPomoEvery
+              from: 1
+              to: 12
+              fieldWidth: Style.space(160)
+              foreground: root.bar.foreground
+              Layout.fillWidth: true
+              onModified: function(value) { root.newPomoEvery = value }
+            }
+          }
+
+          Button {
+            text: "Add pomodoro"
+            foreground: root.bar.foreground
+            bordered: true
             selected: true
             focusable: true
-            enabled: !root.timerService || !root.timerService.active
-            opacity: enabled ? 1 : 0.4
-            onClicked: if (root.timerService) root.timerService.startPomodoro()
+            onClicked: if (root.timerService) root.timerService.addPomodoro(root.newPomoName, root.newPomoFocus, root.newPomoShort, root.newPomoLong, root.newPomoEvery)
+          }
+
+          Flow {
+            width: parent.width
+            spacing: Style.space(5)
+            Repeater {
+              model: root.timerService ? root.timerService.pomodoroPresets : []
+              Button {
+                required property var modelData
+                text: modelData.name
+                iconText: "󰅖"
+                bordered: true
+                foreground: root.bar.foreground
+                focusable: true
+                onClicked: if (root.timerService) root.timerService.removePomodoro(modelData.name)
+              }
+            }
           }
         }
 
@@ -178,6 +305,7 @@ BarWidget {
           font.pixelSize: Style.font.bodySmall
           wrapMode: Text.WordWrap
         }
+      }
       }
     }
   }

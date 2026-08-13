@@ -36,7 +36,7 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 │   ├── templates/repo/         # repo-init inputs, not live config
 │   └── cloudflared/            # Privileged tunnel installer
 ├── skills-lock.json            # Hashed skill pin
-└── .gitmodules                 # herdr-splits, Omarchy themes, tmux plugins
+└── .gitmodules                 # herdr-splits, Omarchy themes/plugins, tmux plugins
 ```
 
 ## WHERE TO LOOK
@@ -95,7 +95,7 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 
 - Edit live `~/.config/*` (lost on restow; edit `home/` instead)
 - Stow `extras/`
-- Inspect, expose, or commit secrets/sessions: `.env*`, `.dev.vars`, `home/.pi/agent/{auth,mcp-*,sessions}`
+- Inspect, expose, or commit secrets/sessions: `.env*`, `.dev.vars`, `home/.pi/agent/{auth,mcp-*,sessions}`, `calendar-ics.json`, `calendar-sync.json`
 - Commit generated/runtime: `node_modules/`, caches, logs, socks, `plugins.json`, Omarchy `current/`
 - Edit `home/.config/opencode/plugins/herdr-agent-state.js` (Herdr-managed; put hooks beside it)
 - Blind `npm/bun install` under `home/.config/opencode/` (lock must match the intended package manager)
@@ -130,7 +130,7 @@ Career Ops commands run only in `home/.config/opencode/career-ops` when that pac
 | Hyprland | `hyprland.lua` | Omarchy defaults → local Lua overlays → generated toggles |
 | Herdr | `config.toml` | Prefix `ctrl+space`; reload via CLI |
 | OpenCode | `opencode.json` | Default agent `plan` |
-| Pi | `settings.json` | Wrapper: `home/.local/bin/pi` |
+| Pi | `settings.json` | `PLANNOTATOR_PORT=19432` via `.zshenv` / `uwsm/default` |
 | Git | `.gitconfig` | `pull.rebase`, delta rose-pine, worktrees via `wt`/`wd`/`wl` |
 | Ghostty | `ghostty/config` | Tight padding so herdr fills the surface |
 | Tmux | `tmux.conf` | Prefix `C-Space`; still bound from zsh |

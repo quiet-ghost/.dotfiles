@@ -8,4 +8,4 @@ if [[ ! -x $pi_bin ]]; then
   exit 127
 fi
 
-PLANNOTATOR_PORT=19433 exec "$pi_bin" "$@"
+PLANNOTATOR_PORT=19432 exec "$pi_bin" "$@"

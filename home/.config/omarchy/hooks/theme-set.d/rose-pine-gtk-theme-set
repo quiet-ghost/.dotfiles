@@ -1,0 +1,7 @@
+#!/bin/bash
+
+case "${1:-}" in
+  rose-pine|rose-pine-dark)
+    gsettings set org.gnome.desktop.interface icon-theme "rose-pine-icons"
+    ;;
+esac

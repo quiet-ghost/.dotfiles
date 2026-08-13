@@ -1,18 +1,4 @@
 [tools]
-bun = "latest"
-deno = "latest"
-flutter = { version = "latest", checksum_expr = '"sha256:" + filter(fromJSON(body).releases, { #.archive endsWith filename })[0].sha256', platforms = { linux-arm64 = { url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_arm64_{{ version }}-stable.tar.xz" }, linux-x64 = { url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_{{ version }}-stable.tar.xz" } }, version_expr = 'fromJSON(body).releases | filter({ #.channel == "stable" }) | map({ #.version }) | sortVersions()', version_list_url = "https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json", url = 'https://storage.googleapis.com/flutter_infra_release/releases/stable/{{ os() }}/flutter_{{ os() }}{{ arch(arm64="_arm64", x64="") }}_{{ version }}-stable.zip' }
-go = "latest"
-java = "latest"
-node = "latest"
-python = "latest"
-ruby = "latest"
-rust = "latest"
-zig = "latest"
-zls = "latest"
-
-[settings]
-idiomatic_version_file_enable_tools = ["ruby"]
-
-[settings.ruby]
-compile = false
+codex = "latest"
+gh = "latest"
+opencode = "latest"

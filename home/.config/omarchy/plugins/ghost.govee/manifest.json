@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.govee",
+  "name": "Govee Lights",
+  "version": "0.1.0",
+  "author": "ghost",
+  "description": "Control Govee lights from the Omarchy bar",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Govee Lights",
+    "description": "Power, brightness, color, and scenes for Govee lights",
+    "category": "Devices",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

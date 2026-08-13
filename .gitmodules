@@ -57,3 +57,19 @@
 [submodule "vim-tmux-navigator"]
 	path = home/.config/tmux/plugins/vim-tmux-navigator
 	url = https://github.com/christoomey/vim-tmux-navigator.git
+
+[submodule "omarchy-opencode-model-usage"]
+	path = home/.config/omarchy/plugins/dizziee.opencode-model-usage
+	url = https://github.com/JJDizz1L/dizziee.opencode-model-usage.git
+
+[submodule "omarchy-docker-monitor"]
+	path = home/.config/omarchy/plugins/djjeane.docker-monitor
+	url = https://github.com/djjeane/omarchy-docker-plugin.git
+
+[submodule "omarchy-activity-monitor"]
+	path = home/.config/omarchy/plugins/stappmus.activity-monitor
+	url = https://github.com/stappmus/omarchy-activity-monitor.git
+
+[submodule "omarchy-calendar"]
+	path = home/.config/omarchy/plugins/tmn73.calendar
+	url = https://github.com/tmn73/omarchy-calendar.git

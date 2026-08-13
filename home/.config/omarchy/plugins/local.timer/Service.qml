@@ -15,6 +15,15 @@ Item {
   property string nextPomodoroKind: "focus"
   property string error: ""
   property bool pendingPomodoroReset: false
+  property var presets: [5, 10, 15, 25, 30, 45, 50, 60]
+  property var pomodoroPresets: [
+    { name: "Classic", focus: 25, shortBreak: 5, longBreak: 15, longEvery: 4 }
+  ]
+  property var currentPomodoro: pomodoroPresets[0]
+
+  readonly property string home: Quickshell.env("HOME") || ""
+  readonly property string presetsPath: home + "/.config/omarchy/timer-presets.json"
+  readonly property string pomodoroPath: home + "/.config/omarchy/timer-pomodoro.json"
 
   readonly property string displayTime: formatTime(remaining)
   readonly property string nextPomodoroLabel: nextPomodoroKind === "focus"
@@ -44,16 +53,151 @@ Item {
     return run(["omarchy-timer", "start", String(value) + "m", timerLabel || String(value) + " minute timer", "timer", "0"])
   }
 
-  function startPomodoro() {
+  function startFocus(minutes) {
     if (active) return false
-    if (nextPomodoroKind === "focus")
-      return run(["omarchy-timer", "start", "25m", "Pomodoro focus", "focus", String(completedFocusCycles + 1)])
+    var value = Math.max(1, Math.min(1440, Number(minutes) || 25))
+    return run(["omarchy-timer", "start", String(value) + "m", "Focus " + String(value) + "m", "focus", String(completedFocusCycles + 1)])
+  }
+
+  function pomodoroConfig() {
+    return currentPomodoro || { name: "Classic", focus: 25, shortBreak: 5, longBreak: 15, longEvery: 4 }
+  }
+
+  function startPomodoro(preset) {
+    if (preset) currentPomodoro = preset
+    if (active) return false
+    var pomo = pomodoroConfig()
+    if (nextPomodoroKind === "focus") return startFocus(pomo.focus)
     if (nextPomodoroKind === "long-break")
-      return run(["omarchy-timer", "start", "15m", "Pomodoro long break", "long-break", String(completedFocusCycles)])
-    return run(["omarchy-timer", "start", "5m", "Pomodoro short break", "short-break", String(completedFocusCycles)])
+      return run(["omarchy-timer", "start", String(pomo.longBreak) + "m", pomo.name + " long break", "long-break", String(completedFocusCycles)])
+    return run(["omarchy-timer", "start", String(pomo.shortBreak) + "m", pomo.name + " short break", "short-break", String(completedFocusCycles)])
   }
 
   function cancel() { return run(["omarchy-timer", "cancel"]) }
+
+  function normalizePreset(minutes) {
+    return Math.max(1, Math.min(1440, Math.round(Number(minutes) || 0)))
+  }
+
+  function applyPresets(raw) {
+    try {
+      var parsed = JSON.parse(String(raw || "[]"))
+      if (!Array.isArray(parsed)) return
+      var next = []
+      for (var i = 0; i < parsed.length; i++) {
+        var value = normalizePreset(parsed[i])
+        if (next.indexOf(value) === -1) next.push(value)
+      }
+      next.sort(function(left, right) { return left - right })
+      if (next.length > 0) presets = next
+    } catch (e) {
+    }
+  }
+
+  function savePresets() {
+    if (writePresets.running) return
+    writePresets.command = [
+      "python3", "-c",
+      "import json, pathlib, sys\npathlib.Path(sys.argv[1]).write_text(json.dumps(json.loads(sys.argv[2]), indent=2) + chr(10))\n",
+      presetsPath,
+      JSON.stringify(presets)
+    ]
+    writePresets.running = true
+  }
+
+  function addPreset(minutes) {
+    var value = normalizePreset(minutes)
+    if (value < 1) return false
+    var next = presets.slice()
+    if (next.indexOf(value) !== -1) return false
+    next.push(value)
+    next.sort(function(left, right) { return left - right })
+    presets = next
+    savePresets()
+    return true
+  }
+
+  function normalizePomodoro(raw) {
+    var item = raw && typeof raw === "object" ? raw : {}
+    var name = String(item.name || "").trim()
+    var focus = normalizePreset(item.focus)
+    var shortBreak = normalizePreset(item.shortBreak)
+    var longBreak = normalizePreset(item.longBreak)
+    var longEvery = Math.max(1, Math.min(12, Math.round(Number(item.longEvery) || 4)))
+    if (name === "" || focus < 1 || shortBreak < 1 || longBreak < 1) return null
+    return { name: name, focus: focus, shortBreak: shortBreak, longBreak: longBreak, longEvery: longEvery }
+  }
+
+  function applyPomodoros(raw) {
+    try {
+      var parsed = JSON.parse(String(raw || "[]"))
+      if (!Array.isArray(parsed)) return
+      var next = []
+      for (var i = 0; i < parsed.length; i++) {
+        var item = normalizePomodoro(parsed[i])
+        if (item) next.push(item)
+      }
+      if (next.length === 0) return
+      pomodoroPresets = next
+      if (!currentPomodoro) currentPomodoro = next[0]
+    } catch (e) {
+    }
+  }
+
+  function savePomodoros() {
+    if (writePomodoros.running) return
+    writePomodoros.command = [
+      "python3", "-c",
+      "import json, pathlib, sys\npathlib.Path(sys.argv[1]).write_text(json.dumps(json.loads(sys.argv[2]), indent=2) + chr(10))\n",
+      pomodoroPath,
+      JSON.stringify(pomodoroPresets)
+    ]
+    writePomodoros.running = true
+  }
+
+  function addPomodoro(name, focus, shortBreak, longBreak, longEvery) {
+    var item = normalizePomodoro({
+      name: name,
+      focus: focus,
+      shortBreak: shortBreak,
+      longBreak: longBreak,
+      longEvery: longEvery
+    })
+    if (!item) return false
+    var next = pomodoroPresets.slice()
+    for (var i = 0; i < next.length; i++) {
+      if (next[i].name === item.name) return false
+    }
+    next.push(item)
+    pomodoroPresets = next
+    if (!currentPomodoro) currentPomodoro = item
+    savePomodoros()
+    return true
+  }
+
+  function removePomodoro(name) {
+    var next = []
+    for (var i = 0; i < pomodoroPresets.length; i++) {
+      if (pomodoroPresets[i].name !== name) next.push(pomodoroPresets[i])
+    }
+    if (next.length === 0) return false
+    pomodoroPresets = next
+    if (currentPomodoro && currentPomodoro.name === name) currentPomodoro = next[0]
+    savePomodoros()
+    return true
+  }
+
+  function removePreset(minutes) {
+    var value = normalizePreset(minutes)
+    var next = []
+    for (var i = 0; i < presets.length; i++) {
+      if (presets[i] !== value) next.push(presets[i])
+    }
+    if (next.length === 0) return false
+    presets = next
+    savePresets()
+    return true
+  }
 
   function resetPomodoro() {
     if (actionProcess.running) return false
@@ -99,7 +243,8 @@ Item {
         var finishedCycle = Number(finished.cycle) || 0
         if (finishedKind === "focus") {
           completedFocusCycles = Math.max(completedFocusCycles, finishedCycle)
-          nextPomodoroKind = completedFocusCycles > 0 && completedFocusCycles % 4 === 0 ? "long-break" : "short-break"
+          var every = Math.max(1, Number(pomodoroConfig().longEvery) || 4)
+          nextPomodoroKind = completedFocusCycles > 0 && completedFocusCycles % every === 0 ? "long-break" : "short-break"
         } else if (finishedKind === "short-break" || finishedKind === "long-break") {
           completedFocusCycles = Math.max(completedFocusCycles, finishedCycle)
           nextPomodoroKind = "focus"
@@ -144,6 +289,32 @@ Item {
       }
       root.refresh()
     }
+  }
+
+  FileView {
+    id: presetsFile
+    path: root.presetsPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.applyPresets(text())
+  }
+
+  FileView {
+    id: pomodoroFile
+    path: root.pomodoroPath
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.applyPomodoros(text())
+  }
+
+  Process {
+    id: writePresets
+    running: false
+  }
+
+  Process {
+    id: writePomodoros
+    running: false
   }
 
   IpcHandler {

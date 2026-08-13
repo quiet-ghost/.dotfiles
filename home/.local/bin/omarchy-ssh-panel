@@ -44,12 +44,25 @@ hosts() {
   read_hosts_file "$CONFIG_FILE" | awk '!seen[$0]++'
 }
 
-host_exists() {
-  local wanted=$1 host
-  while IFS= read -r host; do
-    [[ $host == "$wanted" ]] && return 0
-  done < <(hosts)
-  return 1
+known_hosts() {
+  local file="${HOME}/.ssh/known_hosts" entry host
+  [[ -f $file ]] || return 0
+  while read -r entry _; do
+    [[ -z ${entry:-} || $entry == \#* || $entry == \|* ]] && continue
+    IFS=',' read -ra hosts <<<"$entry"
+    for host in "${hosts[@]}"; do
+      host=${host#[}
+      if [[ $host == *']:'* ]]; then
+        host=${host%%]:*}
+      fi
+      host=${host%]}
+      [[ $host =~ ^[A-Za-z0-9._:-]+$ ]] && printf '%s\n' "$host"
+    done
+  done <"$file" | awk '!seen[$0]++'
+}
+
+valid_host() {
+  [[ ${1:-} =~ ^[A-Za-z0-9._:-]+$ ]]
 }
 
 record_history() {
@@ -86,23 +99,48 @@ active_connections() {
   done < <(pgrep -a -u "${USER:?USER is not set}" ssh || true)
 }
 
+host_record() {
+  local host=$1 source=$2 resolved hostname user
+  resolved=$(ssh -G "$host" 2>/dev/null || true)
+  hostname=$(awk '$1 == "hostname" { print $2; exit }' <<<"$resolved")
+  user=$(awk '$1 == "user" { print $2; exit }' <<<"$resolved")
+  jq -cn --arg alias "$host" --arg hostname "${hostname:-$host}" --arg user "$user" --arg source "$source" \
+    '{alias:$alias,hostname:$hostname,user:$user,source:$source}'
+}
+
 snapshot() {
-  local host resolved hostname user
-  local hosts_json='[]' history_json='[]' active_json='[]'
+  local host
+  local hosts_json='[]' known_json='[]' history_json='[]' active_json='[]'
+  local -A config_hosts=()
 
   while IFS= read -r host; do
-    resolved=$(ssh -G "$host" 2>/dev/null || true)
-    hostname=$(awk '$1 == "hostname" { print $2; exit }' <<<"$resolved")
-    user=$(awk '$1 == "user" { print $2; exit }' <<<"$resolved")
-    hosts_json=$(jq -cn --argjson rows "$hosts_json" --arg alias "$host" --arg hostname "$hostname" --arg user "$user" '$rows + [{alias:$alias,hostname:$hostname,user:$user}]')
+    config_hosts[$host]=1
+    hosts_json=$(jq -cn --argjson rows "$hosts_json" --argjson row "$(host_record "$host" "config")" '$rows + [$row]')
   done < <(hosts)
+
+  while IFS= read -r host; do
+    [[ -n ${config_hosts[$host]:-} ]] && continue
+    known_json=$(jq -cn --argjson rows "$known_json" --argjson row "$(host_record "$host" "known_hosts")" '$rows + [$row]')
+  done < <(known_hosts)
 
   if [[ -f $HISTORY_FILE ]]; then
     history_json=$(jq -Rsc 'split("\n") | map(select(length > 0))' "$HISTORY_FILE")
   fi
 
   active_json=$(active_connections | jq -sc '.')
-  jq -cn --argjson hosts "$hosts_json" --argjson history "$history_json" --argjson active "$active_json" '{hosts:$hosts,history:$history,active:$active}'
+  jq -cn --argjson hosts "$hosts_json" --argjson known "$known_json" --argjson history "$history_json" --argjson active "$active_json" \
+    '{hosts:$hosts,known:$known,history:$history,active:$active}'
+}
+
+forget_host() {
+  local host=$1
+  valid_host "$host" || return 1
+  mkdir -p "$STATE_DIR"
+  ssh-keygen -R "$host" >/dev/null 2>&1 || true
+  if [[ -f $HISTORY_FILE ]]; then
+    awk -v host="$host" '$0 != host' "$HISTORY_FILE" >"$HISTORY_FILE.tmp"
+    mv "$HISTORY_FILE.tmp" "$HISTORY_FILE"
+  fi
 }
 
 case ${1:-} in
@@ -111,15 +149,22 @@ case ${1:-} in
     ;;
   connect)
     host=${2:-}
-    [[ $host =~ ^[A-Za-z0-9._:-]+$ ]] && host_exists "$host" || {
+    valid_host "$host" || {
       printf 'Unknown SSH host: %s\n' "$host" >&2
       exit 2
     }
     record_history "$host"
     exec ssh "$host"
     ;;
+  forget)
+    host=${2:-}
+    forget_host "$host" || {
+      printf 'Unknown SSH host: %s\n' "$host" >&2
+      exit 2
+    }
+    ;;
   *)
-    printf 'Usage: %s {snapshot|connect <host>}\n' "$0" >&2
+    printf 'Usage: %s {snapshot|connect <host>|forget <host>}\n' "$0" >&2
     exit 1
     ;;
 esac

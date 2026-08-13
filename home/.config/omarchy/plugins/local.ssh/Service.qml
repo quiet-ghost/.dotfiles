@@ -6,6 +6,7 @@ Item {
   id: root
 
   property var hosts: []
+  property var known: []
   property var history: []
   property var activeConnections: []
   property string error: ""
@@ -26,10 +27,19 @@ Item {
     return true
   }
 
+  function forget(alias) {
+    var host = String(alias || "")
+    if (host === "") return false
+    Quickshell.execDetached(["omarchy-ssh-panel", "forget", host])
+    delayedRefresh.restart()
+    return true
+  }
+
   function applySnapshot(raw) {
     try {
       var data = JSON.parse(String(raw || "{}"))
       hosts = Array.isArray(data.hosts) ? data.hosts : []
+      known = Array.isArray(data.known) ? data.known : []
       history = Array.isArray(data.history) ? data.history : []
       activeConnections = Array.isArray(data.active) ? data.active : []
       error = ""
@@ -62,6 +72,7 @@ Item {
   IpcHandler {
     target: "local.ssh"
     function connect(host: string): string { return root.connect(host) ? "ok" : "invalid host" }
+    function forget(host: string): string { return root.forget(host) ? "ok" : "invalid host" }
     function previous(): string { return root.previousHost !== "" && root.connect(root.previousHost) ? "ok" : "no history" }
     function refresh(): string { root.refresh(); return "ok" }
     function status(): string { return String(root.activeConnections.length) }

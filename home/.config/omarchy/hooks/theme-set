@@ -1,10 +1,9 @@
 #!/bin/bash
 
-THEME_NAME="$1"
-
-# For custom Rose Pine Dark Chromium theming, avoid Omarchy's managed
-# BrowserThemeColor policy so Chromium can use the unpacked theme extension.
-if [[ "$THEME_NAME" == "rose-pine-dark" ]]; then
-  rm -f /etc/chromium/policies/managed/color.json
-  chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
-fi
+# Omarchy writes BrowserThemeColor into /etc/chromium/policies/managed/color.json.
+# That marks Helium/Chromium as org-managed and blocks theme extensions.
+rm -f /etc/chromium/policies/managed/color.json
+rm -f /etc/opt/chrome/policies/managed/color.json
+rm -f /etc/brave/policies/managed/color.json
+helium-browser --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
+chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true

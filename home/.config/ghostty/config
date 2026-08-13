@@ -1,11 +1,11 @@
 # Dynamic theme colors
-config-file = ?"~/.config/omarchy/current/theme/ghostty.conf"
+config-file = ?"~/.local/state/omarchy/current/theme/ghostty.conf"
 cursor-color = #ffffff
 cursor-text = #191724
 
 # Font
-font-family = "Cascadia Code"
-font-size = 15
+font-family = "CaskaydiaCove Nerd Font"
+font-size = 14
 font-feature = +calt
 
 # Window — tight padding so herdr/tmux fill the surface
