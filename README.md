@@ -2,7 +2,7 @@
 
 Personal Arch Linux and Omarchy development environment, managed as one [GNU Stow](https://www.gnu.org/software/stow/) package.
 
-This branch is the Omarchy 4/Quattro profile. Deploy it only after upgrading to Quattro.
+This repository targets Omarchy 4/Quattro.
 
 ## Overview
 
@@ -38,26 +38,15 @@ stow home
 
 These files describe my machines, not a universal installer. Review SSH, systemd, desktop, hardware, and network configuration before deploying them elsewhere.
 
-## Future Quattro Upgrade Runbook
+## Deployment Notes
 
-Before upgrading, stop and disable the custom idle service because upstream will not retire it:
+Machine-specific monitor identifiers belong only in the ignored
+`home/.config/hypr/monitors_local.lua`. Session environment overrides belong in
+`home/.config/uwsm/default`; do not create `~/.config/uwsm/env`.
 
-```bash
-systemctl --user disable --now hypridle-custom.service
-```
-
-Complete the upgrade and confirm stock Omarchy 4 boots successfully before stowing this profile.
-
-Quattro deletes `~/.config/uwsm/env`. Do not restow a replacement. Session env comes from `/usr/share/uwsm/env.d/10-omarchy`; keep personal overrides in `home/.config/uwsm/default`. After stow, re-apply the theme so generated templates refresh.
-
-`omarchy-idle-policy` keeps desktops in persistent stay-awake mode. Laptops use the shell screensaver and lock at 900/902 seconds, then suspend around 1500 seconds; Quattro lock handles display blanking.
-
-> **Monitor config:** Machine-specific identifiers belong only in ignored `home/.config/hypr/monitors_local.lua`. Public clones should copy the example and fill in local values.
-
-```bash
-cp home/.config/hypr/monitors_local.lua.example home/.config/hypr/monitors_local.lua
-stow --simulate --verbose --target="$HOME" home
-```
+`omarchy-idle-policy` keeps desktops in persistent stay-awake mode. Laptops use
+the shell screensaver and lock at 900/902 seconds, then suspend around 1500
+seconds.
 
 `home/.stow-local-ignore` prevents known runtime and generated files from deployment. Still inspect every simulated change, then omit `--simulate` only when all changes are expected:
 
@@ -67,8 +56,6 @@ systemctl --user enable --now syncthing.service
 ```
 
 The post-Stow command is required because Syncthing enablement stays host-local.
-
-The upgrade may create regular files where Stow needs to place symlinks, causing conflicts. Back up and remove only those conflicting files, keeping the backups outside Stow-managed destinations.
 
 > **Never use `stow --adopt`.** It can replace repository files with upgrade-created destination content.
 
@@ -129,41 +116,15 @@ stow -D home
 
 Unstowing removes managed links. It does not remove application state, installed packages, or enabled services.
 
-## Systemd
-
-User unit files live under `home/.config/systemd/user/`, but enablement remains host-local:
-
-```bash
-systemctl --user daemon-reload
-systemctl --user enable --now <unit>.service
-```
-
-Some units depend on machine-specific hardware or scripts. Inspect them before enabling.
-
 ## Companion Tools
 
-Development commands are synchronized separately in one `~/dev/tools/`
-repository. It contains `dev-tools/` for Git, GitHub, and worktree workflows,
-and `project-bootstrap/` for project generators and `repo-init` templates.
+Development commands live in the public
+[`quiet-ghost/tools`](https://github.com/quiet-ghost/tools) repository at
+`~/dev/tools/`. It contains `dev-tools/` for Git, GitHub, and worktree
+workflows, and `project-bootstrap/` for project generators and `repo-init`
+templates.
 
 Desktop-integrated helpers remain in `home/.local/bin/`, including Hyprland,
 Omarchy, Pi, Tmux, launcher, and application wrappers.
 
 Third-party binaries, package-manager outputs, `node_modules`, generated wrappers, and secrets do not belong in this Stow package.
-
-## Checks
-
-There is no repo-wide build or CI command. Validate the component changed.
-
-```bash
-# Herdr attach proxy
-python3 home/.config/herdr/scripts/test_herdr_attach_proxy.py
-
-# Pi TypeScript extensions
-cd home/.pi
-npm run check
-```
-
-## Privacy
-
-Credentials, sessions, logs, caches, dependencies, backups, and private environment files are ignored. Public configuration can still reveal usernames, hosts, domains, ports, and project names. Inspect changes and scan Git history before publishing.
