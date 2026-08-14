@@ -1,9 +1,21 @@
 [settings]
-minimum_release_age_excludes = ["codex", "gh"]
+minimum_release_age_excludes = ["codex", "gh", "npm:@opencode-ai/cli"]
+
+[settings.npm]
+package_manager = "npm"
 
 [tools]
 bun = "latest"
 codex = "latest"
 gh = "latest"
-"npm:@xai-official/grok" = "latest"
+"npm:@xai-official/grok" = { version = "latest", allow_builds = ["@xai-official/grok"], npm_args = "--min-release-age-exclude=@xai-official/*" }
+"npm:@opencode-ai/cli" = { version = "next", allow_builds = ["@opencode-ai/cli"], npm_args = "--min-release-age-exclude=@opencode-ai/cli" }
+"npm:mux-sesh" = "latest"
+opencode = "latest"
 pi = "latest"
+deno = "latest"
+flutter = "latest"
+go = "latest"
+java = "latest"
+python = "latest"
+ruby = "latest"

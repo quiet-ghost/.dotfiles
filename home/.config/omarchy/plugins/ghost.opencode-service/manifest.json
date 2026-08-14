@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.opencode-service",
+  "name": "OpenCode Service",
+  "version": "0.1.0",
+  "author": "ghost",
+  "license": "MIT",
+  "description": "Monitor and control the local OpenCode 2 shared service.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OpenCode Service",
+    "description": "Service health, active sessions, diagnostics, and lifecycle controls.",
+    "category": "AI",
+    "aliases": ["opencode", "service", "server"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "pollIntervalSec": 5,
+      "openExpanded": false
+    },
+    "schema": [
+      {
+        "key": "pollIntervalSec",
+        "type": "integer",
+        "label": "Poll interval (seconds)",
+        "min": 5,
+        "max": 60,
+        "step": 5,
+        "defaultValue": 5
+      },
+      {
+        "key": "openExpanded",
+        "type": "boolean",
+        "label": "Open detailed view",
+        "defaultValue": false
+      }
+    ]
+  }
+}

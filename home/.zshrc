@@ -3,7 +3,6 @@
 # ============================================================================
 typeset -U path PATH
 path=(
-  "$HOME/.opencode/bin"
   "$HOME/.local/bin"
   "$HOME/dev/tools/dev-tools/bin"
   "$HOME/dev/tools/project-bootstrap/bin"
@@ -56,8 +55,6 @@ source $ZSH/oh-my-zsh.sh
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi
-export BUN_INSTALL_BIN="$HOME/.local/share/bun/bin"
-path=("$BUN_INSTALL_BIN" $path)
 
 # direnv - per-directory environment loading
 if command -v direnv >/dev/null 2>&1; then

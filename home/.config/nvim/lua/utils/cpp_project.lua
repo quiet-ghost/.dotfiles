@@ -14,8 +14,6 @@ local function sanitize_name(input)
 
   name = name:gsub("\\", "/")
   name = name:gsub("^%./", "")
-  name = name:gsub("^src/", "")
-  name = name:gsub("^include/", "")
   name = name:gsub("%.cpp$", ""):gsub("%.hpp$", ""):gsub("%.h$", "")
   return name
 end
@@ -40,13 +38,6 @@ local function create_header_from_autocmd(path)
   vim.cmd("write")
   vim.api.nvim_set_current_win(current_win)
   return true
-end
-
-local function use_split_layout(cwd)
-  local has_cmake = vim.fn.filereadable(cwd .. "/CMakeLists.txt") == 1
-  local has_src = vim.fn.isdirectory(cwd .. "/src") == 1
-  local has_include = vim.fn.isdirectory(cwd .. "/include") == 1
-  return has_cmake or has_src or has_include
 end
 
 local function pick_header_ext(header_dir, name)
@@ -99,6 +90,7 @@ local function source_include_for_header(source_path, header_path, split_layout)
 end
 
 function M.new_pair(name_input, opts)
+  local visibility = normalize_visibility(opts)
   local name = sanitize_name(name_input)
   if not name then
     vim.notify("Provide a C++ file name", vim.log.levels.WARN)
@@ -106,22 +98,14 @@ function M.new_pair(name_input, opts)
   end
 
   local cwd = vim.fn.getcwd()
-  local split_layout = use_split_layout(cwd)
-  local visibility = normalize_visibility(opts)
+  local source_dir = cwd
+  local header_dir = visibility == "public" and (cwd .. "/include") or cwd
+  local header_stem = visibility == "public" and name:gsub("^src/", "") or name
 
-  local source_dir = split_layout and (cwd .. "/src") or cwd
-  local header_dir = source_dir
-  if split_layout and visibility == "public" then
-    header_dir = cwd .. "/include"
-  end
-
-  if split_layout then
-    vim.fn.mkdir(source_dir, "p")
-  end
   vim.fn.mkdir(header_dir, "p")
 
-  local header_ext = pick_header_ext(header_dir, name)
-  local header_name = name .. header_ext
+  local header_ext = pick_header_ext(header_dir, header_stem)
+  local header_name = header_stem .. header_ext
   local source_name = name .. ".cpp"
 
   local header_path = header_dir .. "/" .. header_name
@@ -131,7 +115,7 @@ function M.new_pair(name_input, opts)
 
   local created_header = create_header_from_autocmd(header_path)
   local created_source = write_if_missing(source_path, {
-    "#include \"" .. source_include_for_header(source_path, header_path, split_layout) .. "\"",
+    "#include \"" .. source_include_for_header(source_path, header_path, visibility == "public") .. "\"",
     "",
   })
 

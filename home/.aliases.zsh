@@ -24,6 +24,7 @@ alias ya='yazi'
 alias bd="bootdev"
 alias cc="calc"
 alias cat=bat
+alias mup='MISE_MINIMUM_RELEASE_AGE=0 mise up'
 
 #git
 alias lg='lazygit'

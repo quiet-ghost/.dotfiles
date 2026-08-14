@@ -55,7 +55,7 @@
           "assignments": {
             "codex": "subs",
             "grok": "subs",
-            "claude": "hidden",
+            "claude": "subs",
             "opencode": "subs",
             "openai-api": "apis",
             "xai-api": "apis",
@@ -64,9 +64,9 @@
           }
         },
         {
-          "id": "stappmus.activity-monitor",
-          "openExpanded": false,
-          "samplingSpeed": "Efficient"
+          "id": "ghost.opencode-service",
+          "pollIntervalSec": 5,
+          "openExpanded": false
         },
         {
           "id": "djjeane.docker-monitor"
@@ -78,6 +78,11 @@
           "id": "omarchy.tailscale"
         },
         {
+          "id": "stappmus.activity-monitor",
+          "openExpanded": false,
+          "samplingSpeed": "Efficient"
+        },
+        {
           "id": "omarchy.network"
         },
         {
@@ -87,7 +92,8 @@
           "id": "ghost.govee"
         },
         {
-          "id": "omarchy.power"
+          "id": "omarchy.power",
+          "showPercentage": true
         }
       ]
     }

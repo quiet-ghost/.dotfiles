@@ -8,6 +8,8 @@ hl.unbind("SUPER + G")
 hl.unbind("SUPER + L")
 hl.unbind("SUPER + X")
 hl.unbind("SUPER + T")
+hl.unbind("SUPER + SHIFT + SPACE")
+hl.unbind("SUPER + ALT + SPACE")
 
 o.bind("SUPER + CTRL + RETURN", "Herdr", { omarchy = "terminal-herdr" })
 o.bind("SUPER + E", "File manager", terminal .. ' --title="yazi" -e yazi')
@@ -29,7 +31,8 @@ o.bind("SUPER + F", "Full width", hl.dsp.window.fullscreen({ mode = "maximized" 
 o.bind("SUPER + ALT + F", "Force full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 o.bind("SUPER + L", "Lock system", "omarchy-system-lock")
 
-o.bind("ALT + SPACE", "Launch apps", "omarchy-menu toggle")
+o.bind("SUPER + SHIFT + SPACE", "Omarchy menu", "omarchy-menu toggle root")
+o.bind("ALT + SPACE", "Launch apps", "omarchy-menu toggle apps")
 o.bind("ALT + P", "Screenshot of region", "omarchy-capture-screenshot region")
 o.bind("ALT + CTRL + R", "Screen record a region", "omarchy-capture-screenrecording")
 o.bind("ALT + SHIFT + R", "Screen record with audio", "omarchy-capture-screenrecording --with-desktop-audio")

@@ -15,7 +15,7 @@
     "npm:pi-mcp-adapter@2.21.2",
     "npm:pi-web-access"
   ],
-  "lastChangelogVersion": "0.84.1",
+  "lastChangelogVersion": "0.84.2",
   "outputPad": 0,
   "treeFilterMode": "default",
   "hideThinkingBlock": true

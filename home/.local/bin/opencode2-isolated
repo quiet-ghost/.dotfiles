@@ -3,7 +3,7 @@ set -eu
 
 export XDG_CONFIG_HOME="$HOME/.config"
 export OPENCODE_CONFIG_DIR="$(readlink -f "$HOME/.config/opencode/v2")"
-opencode2_bin="${OPENCODE2_BIN_PATH:-$HOME/.opencode/bin/opencode2}"
+opencode2_bin="${OPENCODE2_BIN_PATH:-$HOME/.local/bin/opencode2}"
 
 case "${1:-}" in
   api | auth | console | debug | mcp | models | pair | plugin | service)

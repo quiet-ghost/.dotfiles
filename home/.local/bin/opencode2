@@ -1,0 +1,2 @@
+#!/bin/bash
+exec mise x "npm:@opencode-ai/cli" -- "opencode2" "$@"
