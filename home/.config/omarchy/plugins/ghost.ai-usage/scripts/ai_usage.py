@@ -290,7 +290,17 @@ def opencode_db() -> Path:
     return expand("~/.local/share/opencode/opencode.db")
 
 
-def scan_opencode_db() -> dict[str, Bucket]:
+def opencode_session_table(conn: sqlite3.Connection) -> str:
+    names = {
+        str(row[0])
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    if "session_v2" in names:
+        return "session_v2"
+    return "session"
+
+
+def scan_opencode_db(db: Path | None = None) -> dict[str, Bucket]:
     buckets = {
         "openai": Bucket(),
         "xai": Bucket(),
@@ -299,24 +309,25 @@ def scan_opencode_db() -> dict[str, Bucket]:
         "openrouter": Bucket(),
         "anthropic": Bucket(),
     }
-    db = opencode_db()
-    if not db.is_file():
+    path = db or opencode_db()
+    if not path.is_file():
         return buckets
     try:
-        conn = sqlite3.connect(f"file:{db}?mode=ro&immutable=1", uri=True, timeout=5)
+        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
         conn.row_factory = sqlite3.Row
     except sqlite3.Error:
         return buckets
     try:
+        table = opencode_session_table(conn)
         for row in conn.execute(
-            """
+            f"""
             SELECT id, model, time_created,
                    COALESCE(tokens_input,0) AS tokens_input,
                    COALESCE(tokens_output,0) AS tokens_output,
                    COALESCE(tokens_reasoning,0) AS tokens_reasoning,
                    COALESCE(tokens_cache_read,0) AS tokens_cache_read,
                    COALESCE(tokens_cache_write,0) AS tokens_cache_write
-            FROM session
+            FROM {table}
             WHERE time_created > 0
             """
         ):
