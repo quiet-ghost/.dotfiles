@@ -58,17 +58,17 @@ local function find_header_path(source_path)
   end
 
   local candidates = {
-    source_dir .. "/" .. base .. ".h",
     source_dir .. "/" .. base .. ".hpp",
+    source_dir .. "/" .. base .. ".h",
   }
 
   if relative_from_src then
-    table.insert(candidates, include_root .. "/" .. relative_from_src .. ".h")
     table.insert(candidates, include_root .. "/" .. relative_from_src .. ".hpp")
+    table.insert(candidates, include_root .. "/" .. relative_from_src .. ".h")
   end
 
-  table.insert(candidates, include_root .. "/" .. base .. ".h")
   table.insert(candidates, include_root .. "/" .. base .. ".hpp")
+  table.insert(candidates, include_root .. "/" .. base .. ".h")
 
   for _, path in ipairs(candidates) do
     if vim.fn.filereadable(path) == 1 then
@@ -78,13 +78,13 @@ local function find_header_path(source_path)
 
   if vim.fn.isdirectory(include_root) == 1 then
     if relative_from_src then
-      return include_root .. "/" .. relative_from_src .. ".h"
+      return include_root .. "/" .. relative_from_src .. ".hpp"
     end
 
-    return include_root .. "/" .. base .. ".h"
+    return include_root .. "/" .. base .. ".hpp"
   end
 
-  return source_dir .. "/" .. base .. ".h"
+  return source_dir .. "/" .. base .. ".hpp"
 end
 
 local function has_prototype(lines, prototype)

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.currency",
+  "name": "Currency",
+  "version": "0.1.0",
+  "author": "ghost",
+  "license": "MIT",
+  "description": "Live USD/JPY converter with an easy direction swap.",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Currency",
+    "description": "Convert USD and yen with live Frankfurter rates.",
+    "category": "Info",
+    "aliases": ["fx", "yen", "usd", "currency"],
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

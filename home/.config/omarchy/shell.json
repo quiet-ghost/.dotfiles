@@ -23,7 +23,7 @@
         },
         {
           "id": "tmn73.calendar",
-          "format": "ddd d MMM h:mm AP",
+          "format": "dddd h:mm AP",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "verticalFormat": "HH\n—\nmm",
           "showYearProgress": false
@@ -67,6 +67,9 @@
           "id": "ghost.opencode-service",
           "pollIntervalSec": 5,
           "openExpanded": false
+        },
+        {
+          "id": "mdick.cloudflare"
         },
         {
           "id": "djjeane.docker-monitor"

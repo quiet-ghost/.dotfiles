@@ -199,16 +199,30 @@ local function find_project_root()
     dir = vim.fn.getcwd()
   end
 
+  local fallback
   while dir and dir ~= "" and dir ~= "/" do
-    for _, marker in ipairs({ "CMakeLists.txt", "Makefile", "makefile", "meson.build" }) do
-      if vim.fn.filereadable(dir .. "/" .. marker) == 1 then
+    if vim.fn.filereadable(dir .. "/CMakePresets.json") == 1 then
+      return dir
+    end
+
+    local cmake_path = dir .. "/CMakeLists.txt"
+    if vim.fn.filereadable(cmake_path) == 1 then
+      fallback = fallback or dir
+      local content = table.concat(vim.fn.readfile(cmake_path), "\n")
+      if content:match("project%s*%(") then
         return dir
       end
     end
 
+    for _, marker in ipairs({ "Makefile", "makefile", "meson.build" }) do
+      if not fallback and vim.fn.filereadable(dir .. "/" .. marker) == 1 then
+        fallback = dir
+      end
+    end
+
     local pro_files = vim.fn.glob(dir .. "/*.pro", false, true)
-    if #pro_files > 0 then
-      return dir
+    if not fallback and #pro_files > 0 then
+      fallback = dir
     end
 
     local parent = vim.fn.fnamemodify(dir, ":h")
@@ -218,7 +232,7 @@ local function find_project_root()
     dir = parent
   end
 
-  return vim.fn.getcwd()
+  return fallback or vim.fn.getcwd()
 end
 
 local function is_gui_cmake_project(root)
@@ -269,6 +283,11 @@ end
 local function find_cmake_executable(root, build_dir_name)
   local build_dir = root .. "/" .. build_dir_name
   local project_name = vim.fn.fnamemodify(root, ":t")
+  local cmake_path = root .. "/CMakeLists.txt"
+  if vim.fn.filereadable(cmake_path) == 1 then
+    local content = table.concat(vim.fn.readfile(cmake_path), "\n")
+    project_name = content:match("project%s*%(%s*([%w_.+-]+)") or project_name
+  end
   
   -- Priority 1: Try project name directly in build root
   local main_exe = build_dir .. "/" .. project_name
@@ -302,20 +321,61 @@ local function find_cmake_executable(root, build_dir_name)
       local executables = {}
       for line in result:gmatch("[^\r\n]+") do
         -- Filter out CMake internal executables and tests
-        if not line:match("CMakeFiles/") and 
-           not line:match("CMakeDetermineCompiler") and
-           not line:match("/tests/tests") then
+        if not line:match("CMakeFiles/")
+          and not line:match("CMakeDetermineCompiler")
+          and not line:match("/_deps/")
+          and not line:match("/tests/") then
           table.insert(executables, line)
         end
       end
       
       if #executables > 0 then
+        for _, executable in ipairs(executables) do
+          local executable_name = vim.fn.fnamemodify(executable, ":t")
+          if executable_name:lower() == project_name:lower() then
+            return executable
+          end
+        end
         return executables[1]
       end
     end
   end
 
   return nil
+end
+
+local function find_cmake_preset(root)
+  local preset_path = root .. "/CMakePresets.json"
+  if vim.fn.filereadable(preset_path) ~= 1 then
+    return nil, false
+  end
+
+  local decoded, presets = pcall(vim.json.decode, table.concat(vim.fn.readfile(preset_path), "\n"))
+  if not decoded or type(presets) ~= "table" then
+    return nil, false
+  end
+
+  local selected
+  for _, preset in ipairs(presets.configurePresets or {}) do
+    if not preset.hidden and (not selected or preset.name == "dev") then
+      selected = preset.name
+    end
+    if selected == "dev" then
+      break
+    end
+  end
+
+  if not selected then
+    return nil, false
+  end
+
+  for _, preset in ipairs(presets.buildPresets or {}) do
+    if not preset.hidden and preset.name == selected then
+      return selected, true
+    end
+  end
+
+  return selected, false
 end
 
 -- Get current file info
@@ -348,12 +408,18 @@ end
 local function run_cmake(root)
   local build_dir = detect_build_dir(root)
   local build_path = root .. "/" .. build_dir
+  local preset, has_build_preset = find_cmake_preset(root)
 
   -- Create build directory if it doesn't exist
   vim.fn.mkdir(build_path, "p")
 
   -- Keep CMake builds in Debug mode for reliable breakpoints.
-  local configure_cmd = "cmake -S " .. shell_quote(root) .. " -B " .. shell_quote(build_path) .. " -DCMAKE_BUILD_TYPE=Debug"
+  local configure_cmd
+  if preset then
+    configure_cmd = "cd " .. shell_quote(root) .. " && cmake --preset " .. shell_quote(preset)
+  else
+    configure_cmd = "cmake -S " .. shell_quote(root) .. " -B " .. shell_quote(build_path) .. " -DCMAKE_BUILD_TYPE=Debug"
+  end
   print("Configuring CMake project (Debug)...")
   local result = vim.fn.system(configure_cmd)
   if vim.v.shell_error ~= 0 then
@@ -363,7 +429,12 @@ local function run_cmake(root)
   ensure_compile_commands_link(root, build_dir)
 
   -- Build
-  local build_cmd = "cmake --build " .. shell_quote(build_path)
+  local build_cmd
+  if preset and has_build_preset then
+    build_cmd = "cd " .. shell_quote(root) .. " && cmake --build --preset " .. shell_quote(preset)
+  else
+    build_cmd = "cmake --build " .. shell_quote(build_path)
+  end
   print("Building CMake project...")
   local result = vim.fn.system(build_cmd)
   if vim.v.shell_error ~= 0 then

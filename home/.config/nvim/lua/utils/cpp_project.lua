@@ -41,17 +41,17 @@ local function create_header_from_autocmd(path)
 end
 
 local function pick_header_ext(header_dir, name)
-  local h_path = string.format("%s/%s.h", header_dir, name)
-  if vim.fn.filereadable(h_path) == 1 then
-    return ".h"
-  end
-
   local hpp_path = string.format("%s/%s.hpp", header_dir, name)
   if vim.fn.filereadable(hpp_path) == 1 then
     return ".hpp"
   end
 
-  return ".h"
+  local h_path = string.format("%s/%s.h", header_dir, name)
+  if vim.fn.filereadable(h_path) == 1 then
+    return ".h"
+  end
+
+  return ".hpp"
 end
 
 local function normalize_visibility(opts)
