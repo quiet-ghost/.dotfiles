@@ -14,7 +14,7 @@
   "prefix_key": "ctrl+x",
   "zoxide_mode": "rank",
   "sort_order": "zoxide-first",
-  "theme": "rosepine",
+  "theme": "system",
   "color_scheme": "dark",
   "auto_update": true,
   "dir_length": 1,
@@ -31,7 +31,8 @@
     "Boot",
     "TwitchChat",
     "mux-sesh",
-    "ghoststock"
+    "ghost-games",
+    "school"
   ],
   "icons": {
     "tmux": "",

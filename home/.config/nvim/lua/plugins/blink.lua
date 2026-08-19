@@ -28,9 +28,8 @@ return {
         -- DISABLE Enter - only Alt+Enter works
         ["<CR>"] = { "fallback" },
 
-        -- Tab accepts completion (including Supermaven suggestions)
-        ["<Tab>"] = { "accept", "fallback" },
-        ["<S-Tab>"] = { "fallback" },
+        ["<Tab>"] = { "snippet_forward", "accept", "fallback" },
+        ["<S-Tab>"] = { "snippet_backward", "fallback" },
       },
 
       appearance = {

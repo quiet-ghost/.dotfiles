@@ -202,5 +202,8 @@
       "enabled": true,
       "oauth": {}
     }
+  },
+  "websearch": {
+    "provider": "random"
   }
 }

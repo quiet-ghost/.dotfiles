@@ -5,7 +5,7 @@
 onboarding = false
 
 [theme]
-name = "rose-pine"
+name = "terminal"
 auto_switch = false
 
 [theme.custom]
@@ -292,6 +292,7 @@ agent_panel_sort = "spaces"
 accent = "#c4a7e7"
 
 
+status_indicators = "symbols"
 [ui.toast]
 delivery = "system"
 delay_seconds = 1

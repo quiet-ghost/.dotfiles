@@ -1,0 +1,234 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Retint the custom Discord CSS from the current Omarchy palette.
+# Canonical source: ~/Documents/Discord Themes/rose-pine.css
+# Live copies: Vesktop theme + Legcord quickCss/theme, if present.
+
+readonly SOURCE="${OMARCHY_DISCORD_THEME:-$HOME/Documents/Discord Themes/rose-pine.css}"
+readonly MARKER_START='/* omarchy-theme-sync:start */'
+readonly MARKER_END='/* omarchy-theme-sync:end */'
+
+mix_color() {
+  local start="${1#\#}"
+  local end="${2#\#}"
+  local amount="$3"
+
+  awk -v start="$start" -v end="$end" -v amount="$amount" '
+    function hex_value(char) {
+      return index("0123456789abcdef", tolower(char)) - 1
+    }
+
+    function hex_pair_to_int(hex, idx) {
+      return hex_value(substr(hex, idx, 1)) * 16 + hex_value(substr(hex, idx + 1, 1))
+    }
+
+    BEGIN {
+      if (amount ~ /%$/) {
+        sub(/%$/, "", amount)
+        amount = amount / 100
+      } else {
+        amount += 0
+        if (amount > 1) amount = amount / 100
+      }
+
+      if (amount < 0) amount = 0
+      if (amount > 1) amount = 1
+
+      start_r = hex_pair_to_int(start, 1)
+      start_g = hex_pair_to_int(start, 3)
+      start_b = hex_pair_to_int(start, 5)
+      end_r = hex_pair_to_int(end, 1)
+      end_g = hex_pair_to_int(end, 3)
+      end_b = hex_pair_to_int(end, 5)
+
+      red = int(start_r * (1 - amount) + end_r * amount + 0.5)
+      green = int(start_g * (1 - amount) + end_g * amount + 0.5)
+      blue = int(start_b * (1 - amount) + end_b * amount + 0.5)
+
+      printf "#%02x%02x%02x\n", red, green, blue
+    }
+  '
+}
+
+hex_to_rgb() {
+  local hex="${1#\#}"
+  printf '%d, %d, %d' "0x${hex:0:2}" "0x${hex:2:2}" "0x${hex:4:2}"
+}
+
+css_string() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '%s' "$value"
+}
+
+theme_color() {
+  omarchy-theme-color "$1"
+}
+
+require_hex() {
+  local name="$1"
+  local value="$2"
+  if [[ ! $value =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+    printf 'omarchy-theme-set-discord: %s is not a hex color (%s)\n' "$name" "$value" >&2
+    exit 1
+  fi
+}
+
+THEME_SLUG="${1:-}"
+if [[ -z $THEME_SLUG && -f $HOME/.local/state/omarchy/current/theme.name ]]; then
+  THEME_SLUG=$(<"$HOME/.local/state/omarchy/current/theme.name")
+fi
+THEME_LABEL=$(omarchy theme current 2>/dev/null || printf '%s' "${THEME_SLUG:-Omarchy}")
+
+BASE=$(theme_color background)
+OVERLAY=$(theme_color lighter_background)
+MUTED=$(theme_color muted)
+SUBTLE=$(theme_color light_foreground)
+TEXT=$(theme_color foreground)
+LOVE=$(theme_color red)
+GOLD=$(theme_color yellow)
+ROSE=$(theme_color accent)
+PINE=$(theme_color green)
+FOAM=$(theme_color cyan)
+IRIS=$(theme_color magenta)
+HIGHLIGHT_HIGH=$(theme_color selection)
+
+for pair in \
+  base:"$BASE" \
+  overlay:"$OVERLAY" \
+  muted:"$MUTED" \
+  subtle:"$SUBTLE" \
+  text:"$TEXT" \
+  love:"$LOVE" \
+  gold:"$GOLD" \
+  rose:"$ROSE" \
+  pine:"$PINE" \
+  foam:"$FOAM" \
+  iris:"$IRIS" \
+  highlightHigh:"$HIGHLIGHT_HIGH"
+do
+  require_hex "${pair%%:*}" "${pair#*:}"
+done
+
+SURFACE=$(mix_color "$BASE" "$OVERLAY" 40%)
+HIGHLIGHT_LOW=$(mix_color "$BASE" "$HIGHLIGHT_HIGH" 18%)
+HIGHLIGHT_MED=$(mix_color "$BASE" "$HIGHLIGHT_HIGH" 70%)
+LABEL=$(css_string "$THEME_LABEL")
+
+read -r -d '' OVERRIDE_CSS <<EOF || true
+:root {
+    --base: ${BASE};
+    --surface: ${SURFACE};
+    --overlay: ${OVERLAY};
+    --muted: ${MUTED};
+    --subtle: ${SUBTLE};
+    --text: ${TEXT};
+    --love: ${LOVE};
+    --gold: ${GOLD};
+    --rose: ${ROSE};
+    --pine: ${PINE};
+    --foam: ${FOAM};
+    --iris: ${IRIS};
+    --highlightLow: ${HIGHLIGHT_LOW};
+    --highlightMed: ${HIGHLIGHT_MED};
+    --highlightHigh: ${HIGHLIGHT_HIGH};
+    --main: ${SURFACE};
+    --main-elevated: ${OVERLAY};
+}
+
+.bar_c38106::before {
+    content: "${LABEL}";
+    color: color-mix(in srgb, var(--text) 47%, transparent);
+}
+EOF
+
+strip_sync_block() {
+  awk -v start="$MARKER_START" -v end="$MARKER_END" '
+    $0 == start { skip = 1; next }
+    $0 == end { skip = 0; next }
+    !skip { print }
+  '
+}
+
+apply_override() {
+  local file="$1"
+  local tmp
+
+  [[ -f $file ]] || return 1
+
+  tmp=$(mktemp)
+  strip_sync_block <"$file" | awk '
+    NF { pending = pending $0 ORS; printf "%s", pending; pending = "" }
+    !NF { pending = pending ORS }
+  ' >"$tmp"
+  printf '\n\n%s\n%s\n%s\n' "$MARKER_START" "$OVERRIDE_CSS" "$MARKER_END" >>"$tmp"
+  mv "$tmp" "$file"
+}
+
+copy_if_different() {
+  local src="$1"
+  local dest="$2"
+
+  mkdir -p "$(dirname "$dest")"
+  if [[ -f $dest ]] && cmp -s "$src" "$dest"; then
+    return 0
+  fi
+  cp "$src" "$dest"
+}
+
+update_vesktop_splash() {
+  local settings="$HOME/.config/vesktop/settings.json"
+  local tmp
+
+  [[ -f $settings ]] || return 0
+  command -v jq >/dev/null || return 0
+
+  tmp=$(mktemp)
+  if jq \
+    --arg fg "rgb($(hex_to_rgb "$TEXT"))" \
+    --arg bg "rgb($(hex_to_rgb "$BASE"))" \
+    '.splashColor = $fg | .splashBackground = $bg' \
+    "$settings" >"$tmp"
+  then
+    mv "$tmp" "$settings"
+  else
+    rm -f "$tmp"
+  fi
+}
+
+if [[ ! -f $SOURCE ]]; then
+  for candidate in \
+    "$HOME/.config/vesktop/themes/rose-pine.css" \
+    "$HOME/.config/legcord/quickCss.css" \
+    "$HOME/.config/legcord/themes/Rosé-Pine-BD/src.css"
+  do
+    if [[ -f $candidate ]]; then
+      mkdir -p "$(dirname "$SOURCE")"
+      cp "$candidate" "$SOURCE"
+      break
+    fi
+  done
+fi
+
+if [[ ! -f $SOURCE ]]; then
+  printf 'omarchy-theme-set-discord: no Discord theme found at %s\n' "$SOURCE" >&2
+  exit 0
+fi
+
+apply_override "$SOURCE"
+
+if [[ -d $HOME/.config/vesktop/themes ]]; then
+  copy_if_different "$SOURCE" "$HOME/.config/vesktop/themes/rose-pine.css"
+fi
+
+for dest in \
+  "$HOME/.config/legcord/quickCss.css" \
+  "$HOME/.config/legcord/themes/Rosé-Pine-BD/src.css"
+do
+  [[ -f $dest ]] || continue
+  copy_if_different "$SOURCE" "$dest"
+done
+
+update_vesktop_splash

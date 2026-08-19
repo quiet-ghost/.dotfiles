@@ -17,11 +17,21 @@ return {
       filetypes = { "swift" },
     })
 
-    opts.servers.clangd = vim.tbl_deep_extend("force", opts.servers.clangd or {}, {
-      cmd = {
-        "clangd",
-        "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++,/usr/bin/clang++",
-      },
+    local clangd = opts.servers.clangd or {}
+    local clangd_cmd = vim.deepcopy(clangd.cmd or { "clangd" })
+    local query_driver = "--query-driver=/usr/bin/g++,/usr/bin/gcc,/usr/bin/c++,/usr/bin/clang++"
+    local has_query_driver = false
+    for _, arg in ipairs(clangd_cmd) do
+      if vim.startswith(arg, "--query-driver=") then
+        has_query_driver = true
+        break
+      end
+    end
+    if not has_query_driver then
+      table.insert(clangd_cmd, query_driver)
+    end
+    opts.servers.clangd = vim.tbl_deep_extend("force", clangd, {
+      cmd = clangd_cmd,
     })
 
     opts.servers.gopls = vim.tbl_deep_extend("force", opts.servers.gopls or {}, {

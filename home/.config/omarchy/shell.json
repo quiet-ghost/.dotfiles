@@ -23,7 +23,7 @@
         },
         {
           "id": "tmn73.calendar",
-          "format": "dddd h:mm AP",
+          "format": "ddd d MMM h:mm AP",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "verticalFormat": "HH\n—\nmm",
           "showYearProgress": false
@@ -40,7 +40,12 @@
       ],
       "right": [
         {
-          "id": "omarchy.tray"
+          "id": "omarchy.tray",
+          "pinned": [],
+          "hidden": []
+        },
+        {
+          "id": "dev.git"
         },
         {
           "id": "omarchy.bluetooth"
@@ -104,6 +109,9 @@
   "plugins": [
     {
       "id": "local.youtube-music"
+    },
+    {
+      "id": "nosignal.quattrolitaire"
     }
   ]
 }

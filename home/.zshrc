@@ -42,7 +42,9 @@ ZSH_THEME=""
 zstyle ':omz:update' mode auto
 
 # Plugins
-plugins=(git zsh-autosuggestions fast-syntax-highlighting zsh-autocomplete)
+plugins=(git zsh-autosuggestions fast-syntax-highlighting)
+# zsh-autocomplete currently broken?
+
 
 # Load Oh My Zsh
 source $ZSH/oh-my-zsh.sh
