@@ -98,9 +98,13 @@ function glyphFor(kind) {
   case "r2":     return ""  // archive
   case "d1":     return ""  // database
   case "kv":     return ""  // key
-  case "queue":  return ""  // inbox
-  case "zone":   return ""  // sitemap
-  case "token":  return ""  // shield
+  case "queue":      return ""  // inbox
+  case "do":         return ""  // cube
+  case "workflow":   return ""  // cog
+  case "hyperdrive": return ""  // server
+  case "vectorize":  return ""  // pie-chart
+  case "zone":       return ""  // sitemap
+  case "token":      return ""  // shield
   }
   return ""                 // cloud
 }
@@ -114,14 +118,21 @@ function typeLabel(kind) {
   case "r2":     return "R2 buckets"
   case "d1":     return "D1 databases"
   case "kv":     return "KV namespaces"
-  case "queue":  return "Queues"
-  case "zone":   return "Zones"
-  case "token":  return "Create a token"
+  case "queue":      return "Queues"
+  case "do":         return "Durable Objects"
+  case "workflow":   return "Workflows"
+  case "hyperdrive": return "Hyperdrive"
+  case "vectorize":  return "Vectorize"
+  case "zone":       return "Zones"
+  case "token":      return "Create a token"
   }
   return kind
 }
 
-var RESOURCE_KINDS = ["worker", "pages", "r2", "d1", "kv", "queue", "zone"]
+var RESOURCE_KINDS = [
+  "worker", "pages", "do", "workflow",
+  "r2", "d1", "kv", "queue", "hyperdrive", "vectorize", "zone"
+]
 
 // ---------------------------------------------------------------- live URLs
 
@@ -310,6 +321,18 @@ function buildUsage(analytics, limits) {
     formatCount(analytics.d1RowsRead) + " rows",
     "d1RowsReadPerDay", "rows"))
 
+  if (analytics.doRequests > 0 || analytics.doErrors > 0 || analytics.doBytes > 0) {
+    rows.push(valueRow(
+      "do-requests", "Durable Object requests, 24h", analytics.doRequests,
+      formatCount(analytics.doRequests)
+        + (analytics.doErrors > 0 ? "  ·  " + formatCount(analytics.doErrors) + " err" : "")
+        + (analytics.doBytes > 0 ? "  ·  " + formatBytes(analytics.doBytes) : ""),
+      formatExact(analytics.doRequests) + " requests"
+        + (analytics.doErrors > 0 ? ", " + formatExact(analytics.doErrors) + " errors" : "")
+        + (analytics.doBytes > 0 ? ", " + formatBytes(analytics.doBytes) + " stored" : "")
+        + " in the last 24 hours"))
+  }
+
   if (analytics.zoneRequests > 0 || analytics.zoneBytes > 0) {
     rows.push(valueRow(
       "zone-traffic", "Zone traffic, 7d", analytics.zoneRequests,
@@ -407,6 +430,74 @@ function resourcesOf(kind, state, analytics) {
         detail: consumers > 0 ? consumers + (consumers === 1 ? " consumer" : " consumers") : "no consumers"
       })
     }
+  } else if (kind === "do") {
+    for (i = 0; i < state.durableObjects.length; i++) {
+      var ns = state.durableObjects[i]
+      var nsid = String(ns.id || "")
+      var nsstats = analytics.perDurableObject[nsid]
+      var klass = String(ns["class"] || "")
+      var script = String(ns.script || "")
+      var storage = ns.use_sqlite === true ? "sqlite" : "kv"
+      rows.push({
+        kind: "do", name: String(ns.name || klass || nsid), id: nsid,
+        weight: nsstats ? nsstats.requests : -1,
+        detail: nsstats
+          ? formatCount(nsstats.requests) + " req/24h"
+            + (nsstats.errors > 0 ? "  ·  " + formatCount(nsstats.errors) + " err" : "")
+            + (klass ? "  ·  " + klass : "")
+          : ([klass, script, storage].filter(function(part) { return part !== "" }).join("  · ") || "idle")
+      })
+    }
+  } else if (kind === "workflow") {
+    for (i = 0; i < state.workflows.length; i++) {
+      var wf = state.workflows[i]
+      var inst = wf.instances || {}
+      var running = Number(inst.running || 0) || 0
+      var errored = Number(inst.errored || 0) || 0
+      var waiting = Number(inst.waiting || 0) || 0
+      var complete = Number(inst.complete || 0) || 0
+      var parts = []
+      if (running > 0) parts.push(running + " running")
+      if (waiting > 0) parts.push(waiting + " waiting")
+      if (errored > 0) parts.push(errored + " errored")
+      if (parts.length === 0) parts.push(complete > 0 ? complete + " complete" : "idle")
+      rows.push({
+        kind: "workflow", name: String(wf.name || ""), id: String(wf.id || wf.name || ""),
+        weight: running + waiting + errored,
+        detail: parts.join("  ·  "),
+        alarming: errored > 0,
+        reason: errored > 0 ? errored + (errored === 1 ? " errored instance" : " errored instances") : ""
+      })
+    }
+  } else if (kind === "hyperdrive") {
+    for (i = 0; i < state.hyperdrives.length; i++) {
+      var h = state.hyperdrives[i]
+      var origin = h.origin || {}
+      var host = String(origin.host || "")
+      var scheme = String(origin.scheme || "")
+      var database = String(origin.database || "")
+      var hdetail = [scheme, host, database].filter(function(part) { return part !== "" }).join("  · ")
+      rows.push({
+        kind: "hyperdrive", name: String(h.name || ""), id: String(h.id || ""),
+        weight: parseTime(h.modified_on || h.created_on),
+        detail: hdetail || "no origin"
+      })
+    }
+  } else if (kind === "vectorize") {
+    for (i = 0; i < state.vectorize.length; i++) {
+      var v = state.vectorize[i]
+      var cfg = v.config || {}
+      var dims = Number(cfg.dimensions) || 0
+      var metric = String(cfg.metric || "")
+      var vparts = []
+      if (dims > 0) vparts.push(dims + "d")
+      if (metric) vparts.push(metric)
+      rows.push({
+        kind: "vectorize", name: String(v.name || ""), id: String(v.name || ""),
+        weight: parseTime(v.modified_on || v.created_on),
+        detail: vparts.join("  · ") || String(v.description || "")
+      })
+    }
   } else if (kind === "zone") {
     for (i = 0; i < state.zones.length; i++) {
       var z = state.zones[i]
@@ -492,6 +583,12 @@ function groupRow(kind, state, analytics) {
     var consumers = 0
     for (i = 0; i < rows.length; i++) consumers += Number(rows[i].weight) || 0
     detail = consumers + (consumers === 1 ? " consumer" : " consumers")
+  }
+  else if (kind === "do") detail = formatCount(analytics.doRequests) + " req/24h"
+  else if (kind === "workflow") {
+    var active = 0
+    for (i = 0; i < rows.length; i++) active += Number(rows[i].weight) || 0
+    detail = active + (active === 1 ? " active instance" : " active instances")
   }
 
   if (alarming > 0) detail = alarming + (alarming === 1 ? " needs attention" : " need attention")

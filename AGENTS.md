@@ -32,7 +32,7 @@ Arch Linux + Omarchy via GNU Stow. Zsh + Neovim + Hyprland + Herdr + OpenCode + 
 │       └── mise/               # Runtime versions
 ├── extras/                     # Source-only. NEVER Stow
 │   ├── keyboard/               # Programmer QWERTY XKB source
-│   └── cloudflared/            # Privileged tunnel installer
+│   └── cloudflared/            # Existing stream-dev tunnel installer
 ├── skills-lock.json            # Hashed skill pin
 └── .gitmodules                 # herdr-splits, Omarchy themes/plugins, tmux plugins
 ```
@@ -153,7 +153,7 @@ Career Ops commands run only in `home/.config/opencode/career-ops` when that pac
 - Hypr sources Omarchy from `~/.local/share/omarchy/` and toggles from `~/.local/state/omarchy/toggles/`. Do not edit those defaults; override in `home/.config/hypr/`.
 - Do not ship `~/.config/uwsm/env`. Quattro owns session env via `/usr/share/uwsm/env.d/10-omarchy`; user overrides stay in `uwsm/default` or `uwsm/env.d/`.
 - Several user units call scripts outside this repo (`ghost-server` audio helpers, Omarchy bins). Inspect each unit before changing deploy assumptions.
-- `extras/cloudflared/install.sh` is privileged and stateful: tunnel, routes, system service, symlink.
+- `extras/cloudflared/install.sh` validates the Stowed config, verifies the host-local `stream-dev` credentials, and enables its user service.
 - Public diffs can still leak usernames, hosts, domains, ports, project names. Review before publish.
 - Nested projects (`home/.pi/`, `home/.config/opencode/`) have their own locks. Component-local checks only.
 - Tmux config remains for non-herdr sessions; zsh still binds `tmux-sessionizer`.

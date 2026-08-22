@@ -53,6 +53,10 @@ Item {
   property var databases: []
   property var namespaces: []
   property var queues: []
+  property var durableObjects: []
+  property var workflows: []
+  property var hyperdrives: []
+  property var vectorize: []
   property var zones: []
 
   // --- live URLs -----------------------------------------------------------
@@ -117,8 +121,10 @@ Item {
       r2Bytes: 0, r2Objects: 0,
       d1RowsRead: 0, d1RowsWritten: 0,
       zoneRequests: 0, zoneBytes: 0, zoneThreats: 0,
+      doRequests: 0, doErrors: 0, doBytes: 0,
       workersOverErrorRate: 0,
-      perWorker: ({}), perBucket: ({}), perDatabase: ({}), perZone: ({})
+      perWorker: ({}), perBucket: ({}), perDatabase: ({}), perZone: ({}),
+      perDurableObject: ({})
     }
   }
 
@@ -127,7 +133,9 @@ Item {
   function resourceState() {
     return {
       workers: workers, pages: pages, buckets: buckets, databases: databases,
-      namespaces: namespaces, queues: queues, zones: zones,
+      namespaces: namespaces, queues: queues, durableObjects: durableObjects,
+      workflows: workflows, hyperdrives: hyperdrives, vectorize: vectorize,
+      zones: zones,
       errorRateThreshold: errorRatePercent,
       accountSubdomain: accountSubdomain, workerDomains: workerDomains,
       workerDotDev: workerDotDev
@@ -316,6 +324,10 @@ Item {
   Request { id: d1Req }
   Request { id: kvReq }
   Request { id: queuesReq }
+  Request { id: durableObjectsReq }
+  Request { id: workflowsReq }
+  Request { id: hyperdriveReq }
+  Request { id: vectorizeReq }
   Request { id: zonesReq }
   Request { id: domainsReq }
   Request { id: subdomainReq }
@@ -364,6 +376,19 @@ Item {
     }
   }
 
+  // Hyperdrive and Vectorize sit outside the wrangler OAuth grant. A 403
+  // there is "this account has none we can see", not a broken login, so it
+  // must not paint the panel or kick off a token refresh.
+  function handleOptional(assign) {
+    return function(exitCode, text) {
+      if (exitCode === 0) {
+        var env = Api.parseEnvelope(text)
+        if (env.ok) assign(env.result)
+      }
+      root.endOne()
+    }
+  }
+
   function asArray(value) { return Array.isArray(value) ? value : [] }
 
   function refresh() {
@@ -372,13 +397,17 @@ Item {
     if (root.accountId === "") { resolveAccount(); return }
 
     root.lastError = ""
-    beginSweep(8)
+    beginSweep(12)
     workersReq.send(Api.workersUrl(accountId), "", handle("workers", function(r) { root.workers = asArray(r) }))
     pagesReq.send(Api.pagesUrl(accountId), "", handle("pages", function(r) { root.pages = asArray(r) }))
     r2Req.send(Api.r2Url(accountId), "", handle("r2", function(r) { root.buckets = r && r.buckets ? asArray(r.buckets) : [] }))
     d1Req.send(Api.d1Url(accountId), "", handle("d1", function(r) { root.databases = asArray(r) }))
     kvReq.send(Api.kvUrl(accountId), "", handle("kv", function(r) { root.namespaces = asArray(r) }))
     queuesReq.send(Api.queuesUrl(accountId), "", handle("queues", function(r) { root.queues = asArray(r) }))
+    durableObjectsReq.send(Api.durableObjectsUrl(accountId), "", handle("durable objects", function(r) { root.durableObjects = asArray(r) }))
+    workflowsReq.send(Api.workflowsUrl(accountId), "", handle("workflows", function(r) { root.workflows = asArray(r) }))
+    hyperdriveReq.send(Api.hyperdriveUrl(accountId), "", handleOptional(function(r) { root.hyperdrives = asArray(r) }))
+    vectorizeReq.send(Api.vectorizeUrl(accountId), "", handleOptional(function(r) { root.vectorize = asArray(r) }))
     // One call covers every custom domain in the account; the per-script
     // workers.dev probe below only has to cover what is left over.
     domainsReq.send(Api.workersDomainsUrl(accountId), "", handle("domains", function(r) {
@@ -483,18 +512,32 @@ Item {
     }
 
     root.analyticsRefreshing = true
-    graphqlReq.send(Api.graphqlUrl(), Api.usageQuery(root.accountId, zoneIds, Date.now()), function(exitCode, text, errorText) {
-      root.analyticsRefreshing = false
+    function finishAnalytics(exitCode, text, errorText, retried) {
       if (exitCode !== 0) {
+        root.analyticsRefreshing = false
         root.lastError = "analytics: " + (errorText || "curl exited " + exitCode)
         return
       }
       var parsed = Api.parseGraphql(text)
       if (!parsed.ok) {
+        var message = String(parsed.error || "")
+        // A Durable Objects field the schema does not expose would otherwise
+        // blank every usage row. Drop those nodes and retry once.
+        if (!retried && (message.indexOf("durableObjects") >= 0 || message.indexOf("namespaceId") >= 0)) {
+          var sent = graphqlReq.send(Api.graphqlUrl(), Api.usageQuery(root.accountId, zoneIds, Date.now(), false), function(retryExit, retryText, retryError) {
+            finishAnalytics(retryExit, retryText, retryError, true)
+          })
+          if (sent) return
+        }
+        root.analyticsRefreshing = false
         root.lastError = "analytics: " + parsed.error
         return
       }
+      root.analyticsRefreshing = false
       root.analytics = root.reduceAnalytics(parsed.data)
+    }
+    graphqlReq.send(Api.graphqlUrl(), Api.usageQuery(root.accountId, zoneIds, Date.now()), function(exitCode, text, errorText) {
+      finishAnalytics(exitCode, text, errorText, false)
     })
   }
 
@@ -540,6 +583,26 @@ Item {
     for (var b in next.perBucket) {
       next.r2Bytes += next.perBucket[b].bytes
       next.r2Objects += next.perBucket[b].objects
+    }
+
+    var invocationsDo = Array.isArray(account.durableObjectsInvocationsAdaptiveGroups)
+      ? account.durableObjectsInvocationsAdaptiveGroups : []
+    for (i = 0; i < invocationsDo.length; i++) {
+      var dinv = invocationsDo[i]
+      var nsId = String(dinv.dimensions ? dinv.dimensions.namespaceId : "")
+      var doRequests = Number(dinv.sum ? dinv.sum.requests : 0) || 0
+      var doErrors = Number(dinv.sum ? dinv.sum.errors : 0) || 0
+      next.doRequests += doRequests
+      next.doErrors += doErrors
+      var priorDo = next.perDurableObject[nsId] || { requests: 0, errors: 0, bytes: 0 }
+      priorDo.requests += doRequests
+      priorDo.errors += doErrors
+      next.perDurableObject[nsId] = priorDo
+    }
+
+    var doStorage = Array.isArray(account.durableObjectsStorageGroups) ? account.durableObjectsStorageGroups : []
+    for (i = 0; i < doStorage.length; i++) {
+      next.doBytes = Math.max(next.doBytes, Number(doStorage[i].max ? doStorage[i].max.storedBytes : 0) || 0)
     }
 
     var d1 = Array.isArray(account.d1AnalyticsAdaptiveGroups) ? account.d1AnalyticsAdaptiveGroups : []
@@ -748,7 +811,10 @@ Item {
     repeat: true
     running: root.refreshing || root.analyticsRefreshing
     onTriggered: {
-      var slots = [accountsReq, workersReq, pagesReq, r2Req, d1Req, kvReq, queuesReq, zonesReq, graphqlReq]
+      var slots = [
+        accountsReq, workersReq, pagesReq, r2Req, d1Req, kvReq, queuesReq,
+        durableObjectsReq, workflowsReq, hyperdriveReq, vectorizeReq, zonesReq, graphqlReq
+      ]
       for (var i = 0; i < slots.length; i++) if (slots[i].running) slots[i].running = false
       root._pending = 0
       root.refreshing = false

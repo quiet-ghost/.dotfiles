@@ -110,6 +110,10 @@ function r2Url(acc) { return API + "/accounts/" + acc + "/r2/buckets?per_page=10
 function d1Url(acc) { return API + "/accounts/" + acc + "/d1/database?per_page=100" }
 function kvUrl(acc) { return API + "/accounts/" + acc + "/storage/kv/namespaces?per_page=100" }
 function queuesUrl(acc) { return API + "/accounts/" + acc + "/queues" }
+function durableObjectsUrl(acc) { return API + "/accounts/" + acc + "/workers/durable_objects/namespaces?per_page=100" }
+function workflowsUrl(acc) { return API + "/accounts/" + acc + "/workflows?per_page=100" }
+function hyperdriveUrl(acc) { return API + "/accounts/" + acc + "/hyperdrive/configs?per_page=100" }
+function vectorizeUrl(acc) { return API + "/accounts/" + acc + "/vectorize/v2/indexes" }
 
 // Live URLs. Custom domains come back for the whole account in one call, which
 // is the cheap half of the problem.
@@ -135,7 +139,7 @@ function isoStamp(ms) { return new Date(ms).toISOString().slice(0, 19) + "Z" }
 // `zoneTag` is selected alongside the zone's groups: the zones array comes back
 // in an unspecified order, so correlating by position would silently attribute
 // one domain's traffic to another.
-function usageQuery(accountId, zoneIds, nowMs) {
+function usageQuery(accountId, zoneIds, nowMs, includeDurableObjects) {
   var dayAgo = nowMs - 24 * 60 * 60 * 1000
   var weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000
   var q = 'query{viewer{'
@@ -146,6 +150,12 @@ function usageQuery(accountId, zoneIds, nowMs) {
   q += '{max{payloadSize objectCount}dimensions{bucketName}}'
   q += 'd1AnalyticsAdaptiveGroups(limit:100,filter:{datetime_geq:"' + isoStamp(dayAgo) + '",datetime_leq:"' + isoStamp(nowMs) + '"})'
   q += '{sum{readQueries writeQueries rowsRead rowsWritten}dimensions{databaseId}}'
+  if (includeDurableObjects !== false) {
+    q += 'durableObjectsInvocationsAdaptiveGroups(limit:200,filter:{date_geq:"' + isoDay(dayAgo) + '",date_leq:"' + isoDay(nowMs) + '"})'
+    q += '{sum{requests errors}dimensions{namespaceId}}'
+    q += 'durableObjectsStorageGroups(limit:1,filter:{date_geq:"' + isoDay(dayAgo) + '",date_leq:"' + isoDay(nowMs) + '"})'
+    q += '{max{storedBytes}}'
+  }
   q += '}'
   if (zoneIds && zoneIds.length > 0) {
     var tags = zoneIds.map(function(id) { return '"' + id + '"' }).join(",")
@@ -172,8 +182,12 @@ function dashUrlFor(row) {
   case "r2":      return dashAccount("/r2/default/buckets/" + encodeURIComponent(row.name))
   case "d1":      return dashAccount("/workers/d1/databases/" + encodeURIComponent(row.id))
   case "kv":      return dashAccount("/workers/kv/namespaces/" + encodeURIComponent(row.id))
-  case "queue":   return dashAccount("/workers/queues/view/" + encodeURIComponent(row.id))
-  case "zone":    return DASH + "/?to=/" + encodeURIComponent(row.name)
+  case "queue":      return dashAccount("/workers/queues/view/" + encodeURIComponent(row.id))
+  case "do":         return dashAccount("/workers/durable-objects/" + encodeURIComponent(row.id))
+  case "workflow":   return dashAccount("/workers/workflows/" + encodeURIComponent(row.name))
+  case "hyperdrive": return dashAccount("/hyperdrive/" + encodeURIComponent(row.id))
+  case "vectorize":  return dashAccount("/vectorize/" + encodeURIComponent(row.name))
+  case "zone":       return DASH + "/?to=/" + encodeURIComponent(row.name)
   case "token":   return row.url
   case "deploy":  return row.target === "pages"
     ? dashAccount("/pages/view/" + encodeURIComponent(row.name))

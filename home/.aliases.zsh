@@ -12,6 +12,31 @@ alias nvim-tj='NVIM_APPNAME=nvim-tj nvim'
 alias nvim-prime='NVIM_APPNAME=nvim-prime nvim'
 alias oc='opencode'
 alias oc2='opencode2-isolated'
+oc2up() {
+  # Wrapper postinstall resolve-walks into leftover ~/node_modules/@opencode-ai
+  # (stale next-channel ELF) and ~/.npmrc min-release-age=7 blocks the matching
+  # platform package. Fetch that binary in isolation, then replace the ELF.
+  npm_config_min_release_age=0 mise install -f 'npm:@opencode-ai/cli@beta' || return
+
+  local cli tmp ver src
+  cli="$(mise where 'npm:@opencode-ai/cli')/lib/node_modules/@opencode-ai/cli" || return
+  ver="$(node -p "require('${cli}/package.json').version")" || return
+  tmp="$(mktemp -d)" || return
+  {
+    npm_config_min_release_age=0 npm install --ignore-scripts --no-save --loglevel=error \
+      --prefix "$tmp" "@opencode-ai/cli-linux-x64@${ver}" &&
+      src="$tmp/node_modules/@opencode-ai/cli-linux-x64/bin/opencode2" &&
+      [[ -x $src ]] &&
+      rm -f "$cli/bin/opencode2.exe" &&
+      install -m 755 "$src" "$cli/bin/opencode2.exe"
+  }
+  local st=$?
+  rm -rf "$tmp"
+  (( st == 0 )) || return $st
+
+  oc2 service restart &&
+    opencode2 --version
+}
 alias df='duf'
 alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
@@ -25,6 +50,45 @@ alias bd="bootdev"
 alias cc="calc"
 alias cat=bat
 alias mup='MISE_MINIMUM_RELEASE_AGE=0 mise up'
+
+win() {
+  local password
+
+  ssh -o BatchMode=yes ghost-dev '
+    compose="$HOME/.config/windows/docker-compose.yml"
+    docker compose -f "$compose" up -d >/dev/null || exit 1
+
+    for _ in $(seq 1 60); do
+      docker logs omarchy-windows 2>&1 | grep -qi "windows started successfully" && exit 0
+      sleep 2
+    done
+
+    echo "Windows did not become ready within two minutes." >&2
+    exit 1
+  ' || return 1
+
+  password=$(ssh -o BatchMode=yes ghost-dev \
+    'docker inspect omarchy-windows --format "{{range .Config.Env}}{{println .}}{{end}}" | sed -n "s/^PASSWORD=//p"') || {
+    print -u2 'Could not retrieve the Windows password from ghost-dev.'
+    return 1
+  }
+
+  [[ -n "$password" ]] || {
+    print -u2 'The omarchy-windows container has no configured password.'
+    return 1
+  }
+
+  printf '%s\n' \
+    '/v:ghost-dev' \
+    '/u:ghost-win' \
+    '/cert:tofu' \
+    '/auth-pkg-list:!kerberos,!u2u' \
+    '/dynamic-resolution' \
+    '+clipboard' \
+    '+auto-reconnect' \
+    "/p:$password" |
+    xfreerdp3 /args-from:stdin
+}
 
 #git
 alias lg='lazygit'

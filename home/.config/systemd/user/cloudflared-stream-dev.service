@@ -1,0 +1,14 @@
+[Unit]
+Description=Cloudflare Tunnel (stream-dev)
+Documentation=https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared tunnel --config %h/.cloudflared/config.yml --no-autoupdate run stream-dev
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

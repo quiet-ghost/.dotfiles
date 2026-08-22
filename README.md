@@ -24,7 +24,7 @@ On this branch, Hyprland starts at `home/.config/hypr/hyprland.lua`. Custom Quic
 `extras/` contains material that should not be linked into `$HOME`:
 
 - `keyboard/` contains keyboard source files and installation notes.
-- `cloudflared/` contains privileged, stateful deployment tooling.
+- `cloudflared/` contains the stateful `stream-dev` tunnel deployment tooling.
 
 ## Install
 
@@ -59,7 +59,8 @@ The post-Stow command is required because Syncthing enablement stays host-local.
 
 > **Never use `stow --adopt`.** It can replace repository files with upgrade-created destination content.
 
-Install Cloudflared separately because it is stateful:
+After creating the host-local `stream-dev` tunnel credentials and Stowing `home`,
+validate the config and enable its user service:
 
 ```bash
 ./extras/cloudflared/install.sh

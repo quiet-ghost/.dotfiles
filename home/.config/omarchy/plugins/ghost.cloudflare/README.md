@@ -5,9 +5,10 @@ Local Omarchy bar widget for a Cloudflare account. Vendored from
 1.1.0 (MIT). Not a submodule.
 
 - Overview: attention, recent deploys, usage, resource counts, live sites
-- Drill into Workers, Pages, R2, D1, KV, Queues, and zones
+- Drill into Workers, Pages, Durable Objects, Workflows, R2, D1, KV, Queues, Hyperdrive, Vectorize, and zones
 - `/` search, `o` live site, `t` tail, `D`/`R` deploy/rollback
 - Uses the wrangler OAuth token; no separate API token
+- Hyperdrive and Vectorize stay hidden if wrangler lacks those product scopes
 
 Left click toggles the panel. Right click refreshes. Middle click opens the
 Workers dashboard. Dashboard URLs open as a webapp; other URLs use the browser.

@@ -73,6 +73,7 @@ Panel {
     var parts = []
     if (cf.workers.length) parts.push(cf.workers.length + " workers")
     if (cf.pages.length) parts.push(cf.pages.length + " pages")
+    if (cf.durableObjects.length) parts.push(cf.durableObjects.length + " durable objects")
     if (cf.buckets.length) parts.push(cf.buckets.length + " buckets")
     if (cf.zones.length) parts.push(cf.zones.length + " zones")
     if (parts.length === 0) return "No resources"
@@ -320,7 +321,9 @@ Panel {
         counts: {
           workers: cf.workers.length, pages: cf.pages.length, buckets: cf.buckets.length,
           databases: cf.databases.length, namespaces: cf.namespaces.length,
-          queues: cf.queues.length, zones: cf.zones.length
+          queues: cf.queues.length, durableObjects: cf.durableObjects.length,
+          workflows: cf.workflows.length, hyperdrives: cf.hyperdrives.length,
+          vectorize: cf.vectorize.length, zones: cf.zones.length
         },
         projectDirs: Object.keys(cf.projectDirs).length,
         accountSubdomain: cf.accountSubdomain,

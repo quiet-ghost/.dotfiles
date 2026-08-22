@@ -10,7 +10,7 @@ BarWidget {
   moduleName: "ghost.ai-usage"
 
   property bool popupOpen: false
-  property int cacheBust: 3
+  property int cacheBust: 5
   property bool settingsMode: false
   property string activeView: String(settings && settings.defaultView ? settings.defaultView : "subs")
   property string selectedProviderId: ""
@@ -148,10 +148,12 @@ BarWidget {
     selectedProviderId = String(viewProviders[wrapped].id || "")
   }
 
-  function refreshNow() {
+  function refreshNow(force) {
     if (scanner.running) return
     refreshing = true
-    scanner.command = ["python3", scannerPath]
+    scanner.command = force
+      ? ["python3", scannerPath, "--force-refresh"]
+      : ["python3", scannerPath]
     scanner.running = true
   }
 
@@ -338,7 +340,7 @@ BarWidget {
     function open(): string { root.open(); return "ok" }
     function close(): string { root.close(); return "ok" }
     function toggle(): string { root.toggle(); return "ok" }
-    function refresh(): string { root.refreshNow(); return "ok" }
+    function refresh(): string { root.refreshNow(true); return "ok" }
     function settings(): string { root.openSettings(); return "ok" }
     function subs(): string { root.selectView("subs"); root.open(); return "ok" }
     function apis(): string { root.selectView("apis"); root.open(); return "ok" }
@@ -352,7 +354,7 @@ BarWidget {
     tooltipText: "AI usage"
     active: root.alarming
     onPressed: function(buttonCode) {
-      if (buttonCode === Qt.MiddleButton) root.refreshNow()
+      if (buttonCode === Qt.MiddleButton) root.refreshNow(true)
       else if (buttonCode === Qt.RightButton) root.selectView(root.activeView === "subs" ? "apis" : "subs")
       else root.toggle()
     }
@@ -378,10 +380,10 @@ BarWidget {
           panelFlick.contentY = root.clamp(panelFlick.contentY + dy * Style.space(56), 0,
                                            Math.max(0, panelFlick.contentHeight - panelFlick.height))
       }
-      onActivateRequested: root.refreshNow()
+      onActivateRequested: root.refreshNow(true)
       onCloseRequested: root.close()
       onTextKey: function(t) {
-        if (t === "r" || t === "R") root.refreshNow()
+        if (t === "r" || t === "R") root.refreshNow(true)
         if (t === "s" || t === "S") root.settingsMode ? root.saveSettings() : root.selectView("subs")
         if (t === "a" || t === "A") root.selectView("apis")
         if (t === ",") root.openSettings()

@@ -4,24 +4,40 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import concurrent.futures
 import datetime as dt
+import email.utils
+import fcntl
 import json
 import os
+import re
 import sqlite3
+import stat
 import subprocess
 import sys
+import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 SEC_MS_THRESHOLD = 10_000_000_000
 BROWSER_UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
 )
+CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+CODEX_UA = "codex-cli"
+CLAUDE_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
+CLAUDE_PROBE_MIN_INTERVAL_SEC = 15
+TOKEN_SKEW_SEC = 60
+DEFAULT_BACKOFF_SEC = 300
+FORCE_REFRESH = False
+CACHE_ROOT: Path | None = None
 
 
 def home() -> Path:
@@ -29,7 +45,12 @@ def home() -> Path:
 
 
 def expand(path: str) -> Path:
-    return Path(os.path.expandvars(os.path.expanduser(path))).resolve()
+    text = os.path.expandvars(path)
+    if text == "~":
+        return home().resolve()
+    if text.startswith("~/"):
+        return (home() / text[2:]).resolve()
+    return Path(os.path.expanduser(text)).resolve()
 
 
 def now_local() -> dt.datetime:
@@ -110,32 +131,155 @@ def secret(name: str, *config_keys: str) -> str:
     return ""
 
 
+def cache_dir() -> Path:
+    if CACHE_ROOT is not None:
+        return CACHE_ROOT
+    return home() / ".cache" / "omarchy" / "ai-usage"
+
+
+def cache_path(name: str) -> Path:
+    return cache_dir() / name
+
+
+def atomic_write_json(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    encoded = json.dumps(payload, indent=2) + "\n"
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
+        tmp.replace(path)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def parse_retry_after(headers: dict[str, str] | None, fallback: int = DEFAULT_BACKOFF_SEC) -> int:
+    if not headers:
+        return fallback
+    raw = str(headers.get("Retry-After") or headers.get("retry-after") or "").strip()
+    if not raw:
+        return fallback
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        pass
+    try:
+        when = email.utils.parsedate_to_datetime(raw)
+    except (TypeError, ValueError, OverflowError):
+        return fallback
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=dt.timezone.utc)
+    delay = int((when - dt.datetime.now(dt.timezone.utc)).total_seconds())
+    return max(1, delay)
+
+
+def load_backoff(name: str) -> int:
+    raw = read_json(cache_path(f"{name}.backoff.json"))
+    if not isinstance(raw, dict):
+        return 0
+    until = number(raw.get("until"))
+    remaining = until - int(time.time())
+    return remaining if remaining > 0 else 0
+
+
+def store_backoff(name: str, seconds: int) -> None:
+    atomic_write_json(
+        cache_path(f"{name}.backoff.json"),
+        {"until": int(time.time()) + max(1, seconds)},
+    )
+
+
+def clear_backoff(name: str) -> None:
+    cache_path(f"{name}.backoff.json").unlink(missing_ok=True)
+
+
+def load_cached_limits(name: str) -> tuple[list[dict[str, Any]], str] | None:
+    raw = read_json(cache_path(f"{name}.limits.json"))
+    if not isinstance(raw, dict):
+        return None
+    limits = raw.get("limits")
+    if not isinstance(limits, list):
+        return None
+    return limits, str(raw.get("tier") or "")
+
+
+def store_cached_limits(name: str, limits: list[dict[str, Any]], tier: str) -> None:
+    atomic_write_json(
+        cache_path(f"{name}.limits.json"),
+        {"limits": limits, "tier": tier, "updatedAt": iso_now()},
+    )
+
+
+@contextmanager
+def file_lock(name: str) -> Iterator[None]:
+    path = cache_path(f"{name}.lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = path.open("a+")
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
+
+
+def jwt_exp(token: str) -> int:
+    parts = token.split(".")
+    if len(parts) < 2:
+        return 0
+    try:
+        padded = parts[1] + "=" * (-len(parts[1]) % 4)
+        claims = json.loads(base64.urlsafe_b64decode(padded))
+    except Exception:
+        return 0
+    return number(claims.get("exp")) if isinstance(claims, dict) else 0
+
+
+def token_fresh(token: str, expires_at_ms: Any = None) -> bool:
+    now = int(time.time())
+    exp = jwt_exp(token)
+    if exp > 0:
+        return exp - TOKEN_SKEW_SEC > now
+    stamp = number(expires_at_ms)
+    if stamp <= 0:
+        return bool(token)
+    if stamp > SEC_MS_THRESHOLD:
+        stamp //= 1000
+    return stamp - TOKEN_SKEW_SEC > now
+
+
 def http_json(
     url: str,
     headers: dict[str, str],
     timeout: int = 20,
     data: bytes | None = None,
     method: str | None = None,
-) -> tuple[int, Any]:
+) -> tuple[int, Any, dict[str, str]]:
     request_headers = {"User-Agent": BROWSER_UA, "Accept": "application/json", **headers}
     req = urllib.request.Request(url, data=data, headers=request_headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             body = response.read()
+            response_headers = dict(response.headers.items())
             if not body:
-                return response.status, None
+                return response.status, None, response_headers
             try:
-                return response.status, json.loads(body)
+                return response.status, json.loads(body), response_headers
             except json.JSONDecodeError:
-                return response.status, None
+                return response.status, None, response_headers
     except urllib.error.HTTPError as exc:
         try:
             payload = json.loads(exc.read().decode("utf-8", "replace"))
         except Exception:
             payload = None
-        return exc.code, payload
+        return exc.code, payload, dict(exc.headers.items()) if exc.headers else {}
     except Exception:
-        return 0, None
+        return 0, None, {}
 
 
 class Bucket:
@@ -458,24 +602,26 @@ def unix_to_iso(value: Any) -> str:
     return dt.datetime.fromtimestamp(stamp, dt.timezone.utc).isoformat()
 
 
-def fetch_codex_limits() -> tuple[list[dict[str, Any]], str, str, str]:
-    auth = read_json(expand("~/.codex/auth.json"))
-    if not isinstance(auth, dict):
-        return [], "", "Codex not logged in", "Run `codex login`."
-    tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
-    access = str(tokens.get("access_token") or "")
-    account = str(tokens.get("account_id") or "")
-    if not access:
-        return [], "", "Codex not logged in", "Run `codex login`."
-    status, payload = http_json(
-        "https://chatgpt.com/backend-api/wham/usage",
-        {
-            "Authorization": f"Bearer {access}",
-            "ChatGPT-Account-Id": account,
-        },
+def cached_limit_result(
+    name: str, status: str, help_text: str
+) -> tuple[list[dict[str, Any]], str, str, str]:
+    cached = load_cached_limits(name)
+    if cached is None:
+        return [], "", status, help_text
+    limits, tier = cached
+    return limits, tier, status, help_text
+
+
+def backoff_limit_result(name: str, seconds: int) -> tuple[list[dict[str, Any]], str, str, str]:
+    minutes = max(1, (seconds + 59) // 60)
+    return cached_limit_result(
+        name,
+        f"{name.title()} limits cooling down",
+        f"Last good meters shown. Next live check in about {minutes}m.",
     )
-    if status != 200 or not isinstance(payload, dict):
-        return [], "", "Codex limits unavailable", "Refresh Codex login if this persists."
+
+
+def parse_codex_limits(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], str]:
     limits: list[dict[str, Any]] = []
     rate = payload.get("rate_limit") if isinstance(payload.get("rate_limit"), dict) else {}
     for key, fallback_title in (("primary_window", "Weekly"), ("secondary_window", "Session")):
@@ -510,7 +656,111 @@ def fetch_codex_limits() -> tuple[list[dict[str, Any]], str, str, str]:
                     unix_to_iso(window.get("reset_at")),
                 )
             )
-    return limits, str(payload.get("plan_type") or ""), "", ""
+    return limits, str(payload.get("plan_type") or "")
+
+
+def codex_auth_path() -> Path:
+    return expand("~/.codex/auth.json")
+
+
+def refresh_codex_tokens(auth: dict[str, Any]) -> dict[str, Any] | None:
+    tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
+    refresh = str(tokens.get("refresh_token") or "")
+    if not refresh:
+        return None
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh,
+            "client_id": CODEX_CLIENT_ID,
+        }
+    ).encode()
+    status, payload, _headers = http_json(
+        "https://auth.openai.com/oauth/token",
+        {"Content-Type": "application/x-www-form-urlencoded", "User-Agent": CODEX_UA},
+        data=body,
+        method="POST",
+    )
+    if status != 200 or not isinstance(payload, dict) or not payload.get("access_token"):
+        return None
+    next_tokens = dict(tokens)
+    next_tokens["access_token"] = str(payload.get("access_token") or "")
+    if payload.get("refresh_token"):
+        next_tokens["refresh_token"] = str(payload.get("refresh_token"))
+    if payload.get("id_token"):
+        next_tokens["id_token"] = str(payload.get("id_token"))
+    updated = dict(auth)
+    updated["tokens"] = next_tokens
+    updated["last_refresh"] = iso_now()
+    atomic_write_json(codex_auth_path(), updated)
+    return updated
+
+
+def load_codex_auth() -> dict[str, Any] | None:
+    with file_lock("codex-auth"):
+        auth = read_json(codex_auth_path())
+        if not isinstance(auth, dict):
+            return None
+        tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
+        access = str(tokens.get("access_token") or "")
+        if access and token_fresh(access):
+            return auth
+        return refresh_codex_tokens(auth) or auth
+
+
+def request_codex_usage(auth: dict[str, Any]) -> tuple[int, Any, dict[str, str]]:
+    tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
+    access = str(tokens.get("access_token") or "")
+    account = str(tokens.get("account_id") or "")
+    if not access:
+        return 0, None, {}
+    return http_json(
+        "https://chatgpt.com/backend-api/wham/usage",
+        {
+            "Authorization": f"Bearer {access}",
+            "ChatGPT-Account-Id": account,
+            "User-Agent": CODEX_UA,
+        },
+    )
+
+
+def fetch_codex_limits() -> tuple[list[dict[str, Any]], str, str, str]:
+    if not FORCE_REFRESH:
+        remaining = load_backoff("codex")
+        if remaining > 0:
+            return backoff_limit_result("codex", remaining)
+    auth = load_codex_auth()
+    if not isinstance(auth, dict):
+        return [], "", "Codex not logged in", "Run `codex login`."
+    tokens = auth.get("tokens") if isinstance(auth.get("tokens"), dict) else {}
+    if not str(tokens.get("access_token") or ""):
+        return [], "", "Codex not logged in", "Run `codex login`."
+    status, payload, headers = request_codex_usage(auth)
+    if status in {401, 403}:
+        refreshed = refresh_codex_tokens(auth)
+        if refreshed is not None:
+            auth = refreshed
+            status, payload, headers = request_codex_usage(auth)
+    if status == 429:
+        seconds = parse_retry_after(headers)
+        store_backoff("codex", seconds)
+        return backoff_limit_result("codex", seconds)
+    if status != 200 or not isinstance(payload, dict):
+        if status in {401, 403}:
+            return cached_limit_result(
+                "codex",
+                "Codex login expired",
+                "Token refresh failed. Run `codex login` if this persists.",
+            )
+        return cached_limit_result(
+            "codex",
+            "Codex limits unavailable",
+            "Could not reach ChatGPT usage. Last good meters shown if available.",
+        )
+    limits, tier = parse_codex_limits(payload)
+    store_cached_limits("codex", limits, tier)
+    clear_backoff("codex")
+    return limits, tier, "", ""
 
 
 def fetch_grok_limits() -> tuple[list[dict[str, Any]], str, str, str]:
@@ -559,7 +809,7 @@ def fetch_opencode_go() -> tuple[list[dict[str, Any]], str, str]:
                 break
     if not key:
         return [], "OpenCode key missing", "Connect OpenCode Zen / Go in `opencode`."
-    status, payload = http_json(
+    status, payload, _headers = http_json(
         "https://opencode.ai/zen/go/v1/usage",
         {"Authorization": f"Bearer {key}"},
     )
@@ -598,12 +848,12 @@ def fetch_openai_api() -> tuple[dict[str, Any] | None, dict[str, Any], str, str]
         )
     start = int((dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).timestamp())
     headers = {"Authorization": f"Bearer {key}"}
-    cost_status, cost_payload = http_json(
+    cost_status, cost_payload, _cost_headers = http_json(
         "https://api.openai.com/v1/organization/costs?"
         + urllib.parse.urlencode({"start_time": start, "bucket_width": "1d", "limit": 7}),
         headers,
     )
-    usage_status, usage_payload = http_json(
+    usage_status, usage_payload, _usage_headers = http_json(
         "https://api.openai.com/v1/organization/usage/completions?"
         + urllib.parse.urlencode(
             {"start_time": start, "bucket_width": "1d", "group_by": "model", "limit": 7}
@@ -676,7 +926,7 @@ def fetch_xai_api() -> tuple[dict[str, Any] | None, str, str]:
         )
     if not team:
         return None, "xAI team id missing", "Set xaiTeamId or run `grok login`."
-    status, payload = http_json(
+    status, payload, _headers = http_json(
         f"https://management-api.x.ai/v1/billing/teams/{team}/prepaid/balance",
         {"Authorization": f"Bearer {key}"},
     )
@@ -748,7 +998,7 @@ def fetch_openrouter() -> tuple[dict[str, Any] | None, list[dict[str, Any]], str
     status_text = ""
 
     if management:
-        status, payload = http_json(
+        status, payload, _headers = http_json(
             "https://openrouter.ai/api/v1/credits",
             {"Authorization": f"Bearer {management}"},
         )
@@ -778,7 +1028,7 @@ def fetch_openrouter() -> tuple[dict[str, Any] | None, list[dict[str, Any]], str
             help_text = "GET /api/v1/credits failed."
 
     if key and (balance is None or not limits):
-        status, payload = http_json(
+        status, payload, _headers = http_json(
             "https://openrouter.ai/api/v1/key",
             {"Authorization": f"Bearer {key}"},
         )
@@ -811,59 +1061,258 @@ def fetch_openrouter() -> tuple[dict[str, Any] | None, list[dict[str, Any]], str
     return balance, limits, label, status_text, help_text
 
 
-def claude_percent(value: Any) -> float:
+def parse_utilization(value: Any) -> float:
     try:
-        amount = float(value or 0)
+        return float(str(value).strip().replace("%", ""))
     except (TypeError, ValueError):
-        return -1.0
-    if amount < 0:
-        return -1.0
-    return amount / 100.0 if amount > 1 else amount
+        return float("nan")
 
 
-def fetch_claude_limits() -> tuple[list[dict[str, Any]], str, str, str]:
-    creds = read_json(expand("~/.claude/.credentials.json"))
+def normalize_utilization(value: Any, percent_scale: bool) -> float:
+    amount = parse_utilization(value)
+    if not (amount >= 0):
+        return -1.0
+    if percent_scale or amount > 1:
+        return min(1.0, amount / 100.0)
+    return min(1.0, amount)
+
+
+def normalize_reset_at(value: Any) -> str:
+    if value is None:
+        return ""
+    raw = str(value).strip()
+    if raw == "":
+        return ""
+    if raw.isdigit():
+        stamp = int(raw)
+        if stamp < 1e12:
+            stamp *= 1000
+        try:
+            return dt.datetime.fromtimestamp(stamp / 1000, dt.timezone.utc).isoformat()
+        except (OverflowError, OSError, ValueError):
+            return raw
+    try:
+        parsed = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        return parsed.isoformat()
+    except ValueError:
+        return raw
+
+
+def claude_plan_label(tier: str, subscription: str) -> str:
+    if tier:
+        match = re.search(r"max_(\d+x)", tier, re.IGNORECASE)
+        if match:
+            return "Max " + match.group(1)
+    if subscription:
+        return subscription[0].upper() + subscription[1:]
+    return ""
+
+
+def claude_usage_bucket(payload: dict[str, Any], key: str) -> dict[str, Any] | None:
+    bucket = payload.get(key)
+    return bucket if isinstance(bucket, dict) else None
+
+
+def claude_scoped_window(kind: str) -> str:
+    text = kind.lower()
+    if "month" in text:
+        return "Monthly"
+    if "week" in text or "day" in text:
+        return "Weekly"
+    if "hour" in text or "session" in text:
+        return "Session"
+    return ""
+
+
+def claude_scoped_limits(payload: dict[str, Any], percent_scale: bool) -> list[dict[str, Any]]:
+    entries = payload.get("limits")
+    if not isinstance(entries, list):
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        scope = entry.get("scope")
+        model = scope.get("model") if isinstance(scope, dict) else None
+        if not isinstance(model, dict):
+            continue
+        name = str(model.get("display_name") or model.get("id") or "").strip()
+        kind = str(entry.get("kind") or "").strip()
+        if name == "" or (name, kind) in seen:
+            continue
+        percent = normalize_utilization(entry.get("percent"), percent_scale)
+        if percent < 0:
+            continue
+        seen.add((name, kind))
+        window = claude_scoped_window(kind)
+        title = f"{name} {window}" if window else name
+        out.append(limit_entry(title, percent, normalize_reset_at(entry.get("resets_at"))))
+    return out
+
+
+def parse_claude_limits(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    weekly = claude_usage_bucket(payload, "seven_day_oauth_apps") or claude_usage_bucket(
+        payload, "seven_day"
+    )
+    session = claude_usage_bucket(payload, "five_hour")
+    raw = [
+        session.get("utilization") if session else None,
+        weekly.get("utilization") if weekly else None,
+    ]
+    entries = payload.get("limits")
+    if isinstance(entries, list):
+        raw += [entry.get("percent") for entry in entries if isinstance(entry, dict)]
+    percent_scale = any(parse_utilization(value) >= 1 for value in raw)
+    limits: list[dict[str, Any]] = []
+    if session is not None:
+        percent = normalize_utilization(session.get("utilization"), percent_scale)
+        if percent >= 0:
+            limits.append(
+                limit_entry("Session", percent, normalize_reset_at(session.get("resets_at")))
+            )
+    if weekly is not None:
+        percent = normalize_utilization(weekly.get("utilization"), percent_scale)
+        if percent >= 0:
+            limits.append(
+                limit_entry("Weekly", percent, normalize_reset_at(weekly.get("resets_at")))
+            )
+    limits.extend(claude_scoped_limits(payload, percent_scale))
+    extra = payload.get("extra_usage")
+    if isinstance(extra, dict) and extra.get("is_enabled"):
+        percent = normalize_utilization(extra.get("utilization"), percent_scale)
+        if percent >= 0:
+            limits.append(limit_entry("Extra", percent, ""))
+    return limits
+
+
+def claude_config_dir() -> Path:
+    return expand(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude")
+
+
+def claude_creds_path() -> Path:
+    return claude_config_dir() / ".credentials.json"
+
+
+def claude_oauth_login() -> tuple[str, int, str]:
+    creds = read_json(claude_creds_path())
     login = creds.get("claudeAiOauth") if isinstance(creds, dict) else None
     if not isinstance(login, dict):
-        return [], "", "Claude Code not logged in", "Run `claude auth login`."
-    token = str(login.get("accessToken") or "")
-    if not token:
-        return [], "", "Claude Code not logged in", "Run `claude auth login`."
-    status, payload = http_json(
-        "https://api.anthropic.com/api/oauth/usage",
+        return "", 0, ""
+    plan = claude_plan_label(
+        str(login.get("rateLimitTier") or ""),
+        str(login.get("subscriptionType") or ""),
+    )
+    return str(login.get("accessToken") or ""), number(login.get("expiresAt")), plan
+
+
+def claude_limit_window_open(entry: dict[str, Any], now: dt.datetime) -> bool:
+    raw = str(entry.get("resetsAt") or "")
+    if raw == "":
+        return True
+    try:
+        resets_at = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if resets_at.tzinfo is None:
+        resets_at = resets_at.replace(tzinfo=dt.timezone.utc)
+    return resets_at > now
+
+
+def usable_cached_claude_limits(cached: dict[str, Any]) -> list[dict[str, Any]]:
+    entries = cached.get("limits")
+    if not isinstance(entries, list):
+        return []
+    now = dt.datetime.now(dt.timezone.utc)
+    return [
+        entry
+        for entry in entries
+        if isinstance(entry, dict) and claude_limit_window_open(entry, now)
+    ]
+
+
+def load_claude_probe_cache() -> dict[str, Any]:
+    raw = read_json(cache_path("claude.limits.json"))
+    return raw if isinstance(raw, dict) else {}
+
+
+def store_claude_probe_cache(limits: list[dict[str, Any]], tier: str) -> None:
+    atomic_write_json(
+        cache_path("claude.limits.json"),
         {
-            "Authorization": f"Bearer {token}",
+            "fetchedAtMs": int(time.time() * 1000),
+            "limits": limits,
+            "tier": tier,
+            "updatedAt": iso_now(),
+        },
+    )
+
+
+def probe_claude_limits(access_token: str) -> dict[str, Any]:
+    status, payload, headers = http_json(
+        CLAUDE_USAGE_ENDPOINT,
+        {
+            "Authorization": f"Bearer {access_token}",
             "anthropic-beta": "oauth-2025-04-20",
+            "Accept": "application/json",
         },
     )
     if status == 429:
-        return [], "", "Claude limits rate-limited", "Anthropic is throttling /api/oauth/usage. Try later."
-    if status in {401, 403}:
-        return [], "", "Claude login expired", "Run `claude auth login` again."
+        retry_after = str(headers.get("Retry-After") or headers.get("retry-after") or "")
+        help_text = "Anthropic's usage endpoint is rate limiting checks right now"
+        if retry_after:
+            help_text += f" (retry after {retry_after}s)"
+        help_text += ". Local Claude Code stats are still shown."
+        return {"ok": False, "helpText": help_text}
+    if status == 0:
+        return {
+            "ok": False,
+            "transport": True,
+            "helpText": "Couldn't reach Anthropic's usage endpoint. Retrying shortly. Local Claude Code stats are still shown.",
+        }
     if status != 200 or not isinstance(payload, dict):
-        return [], "", "Claude limits unavailable", "Could not reach Anthropic usage."
-    limits: list[dict[str, Any]] = []
-    mapping = (
-        ("five_hour", "Session"),
-        ("seven_day", "Weekly"),
-        ("seven_day_sonnet", "Sonnet week"),
-        ("seven_day_opus", "Opus week"),
-    )
-    for key, title in mapping:
-        window = payload.get(key)
-        if not isinstance(window, dict):
-            continue
-        percent = claude_percent(window.get("utilization"))
-        if percent < 0:
-            continue
-        limits.append(limit_entry(title, percent, str(window.get("resets_at") or "")))
-    extra = payload.get("extra_usage")
-    if isinstance(extra, dict) and extra.get("is_enabled"):
-        percent = claude_percent(extra.get("utilization"))
-        if percent >= 0:
-            limits.append(limit_entry("Extra", percent, ""))
-    plan = str(login.get("rateLimitTier") or login.get("subscriptionType") or "Claude")
-    return limits, plan, "", ""
+        return {
+            "ok": False,
+            "helpText": f"Anthropic's usage endpoint returned status {status or 0}. Local Claude Code stats are still shown.",
+        }
+    limits = parse_claude_limits(payload)
+    if not limits:
+        return {
+            "ok": False,
+            "helpText": "Anthropic's usage endpoint returned no limits. Local Claude Code stats are still shown.",
+        }
+    return {"ok": True, "limits": limits}
+
+
+def fetch_claude_limits() -> tuple[list[dict[str, Any]], str, str, str]:
+    token, expires_at_ms, plan = claude_oauth_login()
+    cached = load_claude_probe_cache()
+    fallback = usable_cached_claude_limits(cached)
+    cached_tier = str(cached.get("tier") or plan)
+
+    if token == "":
+        return fallback, cached_tier, "Waiting for auth", "Run `claude auth login` to restore authoritative usage."
+    if expires_at_ms > 0 and expires_at_ms <= time.time() * 1000:
+        help_text = "Claude Code's saved sign-in expired"
+        if fallback:
+            help_text += " — showing the last known limits."
+        else:
+            help_text += "."
+        help_text += " Start Claude Code, or run `claude auth login`, to refresh it."
+        return fallback, cached_tier, "Sign-in expired", help_text
+
+    fetched_at = number(cached.get("fetchedAtMs")) / 1000
+    if fallback and not FORCE_REFRESH and time.time() - fetched_at < CLAUDE_PROBE_MIN_INTERVAL_SEC:
+        return fallback, cached_tier, "", ""
+
+    probe = probe_claude_limits(token)
+    if probe.get("ok"):
+        limits = probe["limits"]
+        store_claude_probe_cache(limits, plan)
+        return limits, plan, "", ""
+    if fallback:
+        return fallback, cached_tier, "", ""
+    return [], plan, "Claude limits unavailable", str(probe.get("helpText") or "")
 
 
 def fetch_claude_api() -> tuple[dict[str, Any] | None, dict[str, Any], str, str]:
@@ -876,7 +1325,7 @@ def fetch_claude_api() -> tuple[dict[str, Any] | None, dict[str, Any], str, str]
             "Org spend needs sk-ant-admin-… from console.anthropic.com. Individual accounts have no remaining-credit API.",
         )
     start = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)).strftime("%Y-%m-%d")
-    status, payload = http_json(
+    status, payload, _headers = http_json(
         "https://api.anthropic.com/v1/organizations/cost_report?"
         + urllib.parse.urlencode({"starting_at": start, "bucket_width": "1d", "limit": 7}),
         {
@@ -1073,7 +1522,14 @@ def build_snapshot() -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", help="optional snapshot path")
+    parser.add_argument(
+        "--force-refresh",
+        action="store_true",
+        help="bypass usage backoff and refresh OAuth tokens if they look stale",
+    )
     args = parser.parse_args()
+    global FORCE_REFRESH
+    FORCE_REFRESH = bool(args.force_refresh)
     snapshot = build_snapshot()
     encoded = json.dumps(snapshot, separators=(",", ":"))
     if args.out:

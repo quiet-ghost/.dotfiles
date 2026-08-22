@@ -29,8 +29,9 @@
     "_quietghost",
     "~",
     "Boot",
-    "TwitchChat",
     "mux-sesh",
+    "streaming",
+    "TwitchChat",
     "ghost-games",
     "school"
   ],

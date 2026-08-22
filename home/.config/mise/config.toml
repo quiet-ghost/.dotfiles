@@ -9,8 +9,9 @@ bun = "latest"
 codex = "latest"
 gh = "latest"
 "npm:@xai-official/grok" = { version = "latest", allow_builds = ["@xai-official/grok"], npm_args = "--min-release-age-exclude=@xai-official/*" }
-"npm:@opencode-ai/cli" = { version = "beta", allow_builds = ["@opencode-ai/cli"], npm_args = "--min-release-age-exclude=@opencode-ai/cli" }
+"npm:@opencode-ai/cli" = { version = "beta", allow_builds = ["@opencode-ai/cli"], npm_args = "--min-release-age-exclude=@opencode-ai/*" }
 "npm:mux-sesh" = "latest"
+"npm:@quietghost/x-cli" = { version = "latest", allow_builds = ["@quietghost/x-cli"] }
 opencode = "latest"
 pi = "latest"
 deno = "latest"
@@ -24,3 +25,4 @@ zig = "latest"
 zls = "latest"
 node = "latest"
 claude = "latest"
+"npm:playwright" = "latest"

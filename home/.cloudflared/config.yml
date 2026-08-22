@@ -1,0 +1,7 @@
+tunnel: stream-dev
+credentials-file: /home/ghost/.cloudflared/f7fe8dd4-cfd7-4e29-90ee-48140f5ca134.json
+
+ingress:
+  - hostname: dev-stream.quietghost.dev
+    service: http://localhost:8787
+  - service: http_status:404

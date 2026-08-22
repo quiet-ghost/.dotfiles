@@ -31,7 +31,7 @@
     "title": true
   },
   "debug": {
-    "devtools": true
+    "devtools": false
   },
   "tabs": {
     "layout": "vertical",

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "ghost.cloudflare",
   "name": "Cloudflare",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "ghost",
   "license": "MIT",
   "description": "Cloudflare account resources, deployment status, usage meters, and dashboard token shortcuts in the Omarchy bar.",
@@ -14,7 +14,7 @@
   },
   "barWidget": {
     "displayName": "Cloudflare",
-    "description": "Browse Workers, Pages, R2, D1, KV, Queues and zones; watch deployments; read usage against your plan limits; jump to the dashboard pages that mint API tokens.",
+    "description": "Browse Workers, Pages, Durable Objects, Workflows, R2, D1, KV, Queues, Hyperdrive, Vectorize and zones; watch deployments; read usage against your plan limits; jump to the dashboard pages that mint API tokens.",
     "category": "Cloud",
     "aliases": [
       "cloudflare",

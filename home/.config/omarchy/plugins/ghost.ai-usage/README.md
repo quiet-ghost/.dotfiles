@@ -2,7 +2,13 @@
 
 One Omarchy bar panel for subscription quotas and API spend.
 
-Left click opens the panel. Right click switches Subs / APIs. Middle click refreshes.
+Left click opens the panel. Right click switches Subs / APIs. Middle click, `r`, or Enter force-refreshes.
+
+Subscription meters come from Codex / Claude Code OAuth, not API keys. Rotating `ai-usage.json` keys will not fix those banners.
+
+Claude follows the stock `omarchy.agents` collector: it reads the Claude Code login, probes `GET /api/oauth/usage` with the same headers, reuses a 15s last-good cache, and keeps open windows when Anthropic 429s. It does not mint Claude tokens — start Claude Code or run `claude auth login` if the saved sign-in expired.
+
+Codex still refreshes `~/.codex/auth.json` when that access token is stale.
 
 ## Views
 
