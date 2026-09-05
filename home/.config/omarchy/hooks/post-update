@@ -7,6 +7,12 @@ PORTAL_CONF="$PORTAL_DIR/hyprland-portals.conf"
 ENV_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/environment.d"
 ENV_CONF="$ENV_DIR/99-chromium-secret.conf"
 KEYRING_DEFAULT="$HOME/.local/share/keyrings/default"
+BROWSER_COLOR_POLICIES=(
+  /etc/chromium/policies/managed/color.json
+  /etc/opt/chrome/policies/managed/color.json
+  /etc/opt/edge/policies/managed/color.json
+  /etc/brave/policies/managed/color.json
+)
 
 mkdir -p "$PORTAL_DIR" "$ENV_DIR" "$HOME/.local/share/keyrings"
 
@@ -49,6 +55,14 @@ if [[ -f "$legacy" ]] && head -c 16 "$legacy" 2>/dev/null | grep -q '\[keyring\]
   mv "$legacy" "$legacy.invalid-old-format.$(date +%s%N)"
   echo "[post-update] quarantined invalid legacy keyring format"
 fi
+
+# Package migrations may bypass the user-level browser theme override. Reuse
+# the update's sudo authorization without ever prompting from this hook.
+for policy in "${BROWSER_COLOR_POLICIES[@]}"; do
+  if [[ -e "$policy" ]] && sudo -n rm -f -- "$policy"; then
+    echo "[post-update] removed Omarchy browser color policy"
+  fi
+done
 
 systemctl --user enable gnome-keyring-daemon.service >/dev/null 2>&1 || true
 

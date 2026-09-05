@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "yoyo.system-tidy",
+  "name": "System Tidy",
+  "version": "1.2.0",
+  "author": "yoyo",
+  "description": "Audit user-added packages, disk cleanup targets, startup items (autostart + systemd user services), and webapp launchers",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "System Tidy",
+    "description": "Package/cleanup/startup/webapp audit panel",
+    "category": "System",
+    "allowMultiple": false
+  }
+}

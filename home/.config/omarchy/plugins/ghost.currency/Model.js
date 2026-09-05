@@ -2,7 +2,8 @@ var CURRENCIES = [
   { code: "USD", symbol: "$", name: "US Dollar", digits: 2 },
   { code: "JPY", symbol: "¥", name: "Japanese Yen", digits: 2 },
   { code: "EUR", symbol: "€", name: "Euro", digits: 2 },
-  { code: "GBP", symbol: "£", name: "Pound Sterling", digits: 2 }
+  { code: "GBP", symbol: "£", name: "Pound Sterling", digits: 2 },
+  { code: "ARS", symbol: "AR$", name: "Argentine Peso", digits: 2 }
 ]
 
 function currencyList() {

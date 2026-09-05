@@ -42,10 +42,12 @@ map("n", "<leader>jf", function()
     require("utils.rust").compile_and_run()
   elseif vim.bo.filetype == "typescript" or vim.bo.filetype == "typescriptreact" then
     require("utils.typescript").compile_and_run()
+  elseif vim.bo.filetype == "cs" then
+    require("utils.csharp").compile_and_run()
   else
     vim.notify("No run configuration for filetype: " .. vim.bo.filetype, vim.log.levels.WARN)
   end
-end, { desc = "Run current file (Java/C++/Python/Rust/TS)" })
+end, { desc = "Run current file (Java/C++/Python/Rust/TS/C#)" })
 
 map("n", "<leader>rh", function()
   require("utils.cpp_header").prototype_to_header()

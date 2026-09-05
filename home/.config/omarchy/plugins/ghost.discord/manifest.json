@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.discord",
+  "name": "Discord",
+  "version": "1.0.1",
+  "author": "ghost",
+  "license": "MIT",
+  "description": "Vesktop in the Omarchy bar: attention badge, call state, volume, window focus, and memory footprint.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Discord",
+    "description": "Raise or launch Vesktop, see and control the voice call, and watch what it costs in memory.",
+    "category": "Social",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "hideWhenStopped": false
+    },
+    "schema": [
+      {
+        "key": "hideWhenStopped",
+        "type": "boolean",
+        "label": "Hide the icon when Vesktop is not running",
+        "defaultValue": false
+      }
+    ]
+  }
+}

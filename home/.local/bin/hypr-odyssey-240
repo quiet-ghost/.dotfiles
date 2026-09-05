@@ -2,17 +2,25 @@
 set -euo pipefail
 
 # Force Odyssey G81SF onto 4K@240 after Hypr/Aquamarine boot.
-# Cold start often rejects 3840x2160@240 (atomic Invalid argument) and
-# silently lands on 119.88; a 1440p@240 → 4K@240 bounce makes DSC stick.
+# 4K@240 on RTX 4090 DP 1.4 needs DSC. Cold start often rejects that
+# modeset (atomic Invalid argument) and silently lands on 119.88.
+# Two extra traps on Hyprland 0.56 / Omarchy 4:
+#   1. `hyprctl keyword` is a no-op on the Lua parser — must use eval.
+#   2. Elgato 4K X mirroring the Odyssey makes the 4K@240 commit fail;
+#      disable the capture sink, bounce 1440p@240 → 4K@240, then restore.
 # Safe no-op when Odyssey absent or already >=200Hz.
 
 readonly TAG="hypr-odyssey-240"
 readonly ODYSSEY_DESC="Samsung Electric Company Odyssey G81SF HNAY402474"
-readonly TARGET_MODE="3840x2160@240"
+readonly ODYSSEY_OUT="desc:${ODYSSEY_DESC}"
+readonly ELGATO_DESC="Elgato Systems LLC Elgato 4K X 0x00000001"
+readonly ELGATO_OUT="desc:${ELGATO_DESC}"
+readonly TARGET_MODE="3840x2160@240.00"
 readonly TARGET_POS="0x0"
 readonly TARGET_SCALE="1.5"
 readonly BOUNCE_MODE="2560x1440@240"
 readonly BOUNCE_SCALE="1"
+readonly ELGATO_MODE="3840x2160@60"
 readonly MIN_OK_HZ=200
 readonly SETTLE_SECS="${HYPR_ODYSSEY_240_SETTLE:-3}"
 readonly RETRIES="${HYPR_ODYSSEY_240_RETRIES:-2}"
@@ -39,10 +47,19 @@ monitors_json() {
   hyprctl monitors all -j 2>/dev/null || hyprctl monitors -j 2>/dev/null || echo "[]"
 }
 
-odyssey_json() {
-  monitors_json | jq -c --arg p "$ODYSSEY_DESC" '
+monitor_json() {
+  local needle="$1"
+  monitors_json | jq -c --arg p "$needle" '
     [.[] | select((.description // "") | contains($p))] | .[0] // empty
   '
+}
+
+odyssey_json() {
+  monitor_json "$ODYSSEY_DESC"
+}
+
+elgato_json() {
+  monitor_json "$ELGATO_DESC"
 }
 
 refresh_hz() {
@@ -50,9 +67,33 @@ refresh_hz() {
   jq -r '(.refreshRate // 0) | tonumber' <<<"$mon" 2>/dev/null || echo 0
 }
 
-apply_monitor() {
+monitor_disabled() {
+  local mon="$1"
+  [[ -n "$mon" ]] || return 1
+  jq -e '.disabled == true' <<<"$mon" >/dev/null 2>&1
+}
+
+eval_monitor() {
+  local lua="$1"
+  local out
+  out="$(hyprctl eval "$lua" 2>&1)" || true
+  if [[ "$out" != "ok" ]]; then
+    log_warn "eval failed: ${out}"
+    return 1
+  fi
+}
+
+apply_odyssey() {
   local mode="$1" pos="$2" scale="$3"
-  hyprctl keyword monitor "desc:${ODYSSEY_DESC},${mode},${pos},${scale}" >/dev/null 2>&1 || true
+  eval_monitor "hl.monitor({ output = \"${ODYSSEY_OUT}\", mode = \"${mode}\", position = \"${pos}\", scale = ${scale}, disabled = false })"
+}
+
+disable_elgato() {
+  eval_monitor "hl.monitor({ output = \"${ELGATO_OUT}\", disabled = true })"
+}
+
+restore_elgato() {
+  eval_monitor "hl.monitor({ output = \"${ELGATO_OUT}\", mode = \"${ELGATO_MODE}\", position = \"auto\", scale = 1, disabled = false, mirror = \"${ODYSSEY_OUT}\" })"
 }
 
 already_ok() {
@@ -65,9 +106,9 @@ already_ok() {
 
 bounce_once() {
   log_info "bounce ${BOUNCE_MODE} → ${TARGET_MODE}"
-  apply_monitor "$BOUNCE_MODE" "$TARGET_POS" "$BOUNCE_SCALE"
+  apply_odyssey "$BOUNCE_MODE" "$TARGET_POS" "$BOUNCE_SCALE" || true
   sleep 0.7
-  apply_monitor "$TARGET_MODE" "$TARGET_POS" "$TARGET_SCALE"
+  apply_odyssey "$TARGET_MODE" "$TARGET_POS" "$TARGET_SCALE" || true
   sleep 0.7
 }
 
@@ -86,6 +127,15 @@ main() {
     exit 0
   fi
 
+  local elgato elgato_was_enabled=0
+  elgato="$(elgato_json)"
+  if [[ -n "$elgato" ]] && ! monitor_disabled "$elgato"; then
+    elgato_was_enabled=1
+    log_info "disable Elgato mirror for 4K@240 modeset"
+    disable_elgato || true
+    sleep 0.5
+  fi
+
   local attempt hz
   for attempt in $(seq 1 "$RETRIES"); do
     hz="$(refresh_hz "$(odyssey_json)")"
@@ -94,9 +144,18 @@ main() {
     if already_ok; then
       hz="$(refresh_hz "$(odyssey_json)")"
       log_info "ok @ ${hz}Hz"
+      if [[ "$elgato_was_enabled" -eq 1 ]]; then
+        log_info "restore Elgato mirror"
+        restore_elgato || true
+      fi
       exit 0
     fi
   done
+
+  if [[ "$elgato_was_enabled" -eq 1 ]]; then
+    log_info "restore Elgato mirror after failed bounce"
+    restore_elgato || true
+  fi
 
   hz="$(refresh_hz "$(odyssey_json)")"
   log_warn "still ${hz}Hz after ${RETRIES} bounce(s)"

@@ -1,0 +1,34 @@
+#!/bin/bash
+set -euo pipefail
+
+# Mise treats the npm beta tag as a fixed version; `mise up` alone skips it.
+export MISE_MINIMUM_RELEASE_AGE=0
+export npm_config_min_release_age=0
+opencode2 plugin update
+mise install -f 'npm:@opencode-ai/cli@beta'
+cli="$(mise where 'npm:@opencode-ai/cli')/lib/node_modules/@opencode-ai/cli"
+version="$(node -p 'require(process.argv[1]).version' "$cli/package.json")"
+
+if [[ "$(opencode2 --version)" != "opencode2 v$version" ]]; then
+  # Older postinstall scripts can resolve an unrelated ancestor's platform package.
+  # Fetch the exact Linux package only when verification detects that mismatch.
+  case "$(uname -m)" in
+    x86_64) arch=x64 ;;
+    aarch64) arch=arm64 ;;
+    *) echo 'OpenCode binary/version mismatch on an unsupported architecture. Existing sessions are unchanged; reinstall the matching CLI platform package.' >&2; exit 1 ;;
+  esac
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/opencode-update.XXXXXXXX")"
+  trap 'rm -rf -- "$scratch"' EXIT
+  npm install --ignore-scripts --no-save --loglevel=error --prefix "$scratch" "@opencode-ai/cli-linux-$arch@$version"
+  source_bin="$scratch/node_modules/@opencode-ai/cli-linux-$arch/bin/opencode2"
+  [[ "$("$source_bin" --version)" == "opencode2 v$version" ]]
+  target="$(node -p 'require(process.argv[1]).bin.opencode2' "$cli/package.json")"
+  install -m 755 "$source_bin" "$cli/$target.new"
+  mv -f -- "$cli/$target.new" "$cli/$target"
+fi
+
+[[ "$(opencode2 --version)" == "opencode2 v$version" ]] || {
+  echo 'OpenCode update verification failed. Existing sessions are unchanged; check the Mise CLI installation.' >&2
+  exit 1
+}
+printf '%s\n' 'OpenCode CLI and package plugins updated. Run opencode2 service restart when active sessions can be interrupted.'

@@ -9,7 +9,7 @@ KIND=""
 CURRENT_PATH=""
 
 usage() {
-	printf 'usage: %s <opencode|opencode2|pi> [cwd]\n' "$(basename "$0")" >&2
+	printf 'usage: %s <opencode|pi> [cwd]\n' "$(basename "$0")" >&2
 }
 
 die() {
@@ -282,7 +282,7 @@ start_agent_on_pane() {
 	die "pane not ready for agent start after ${max_attempts} tries: $pane_id"
 }
 
-ensure_opencode2_agent() {
+ensure_opencode_agent() {
 	local cwd="$1"
 	local name="$2"
 	local ws="$3"
@@ -297,14 +297,14 @@ ensure_opencode2_agent() {
 	fi
 
 	if ! herdr_json agent get "$pane_id" >/dev/null 2>&1; then
-		herdr_json pane run "$pane_id" "$OPENCODE2" >/dev/null
+		herdr_json pane run "$pane_id" "$OPENCODE" >/dev/null
 		for attempt in {1..60}; do
 			if info="$(herdr_json agent get "$pane_id" 2>/dev/null)"; then
 				break
 			fi
 			sleep 0.25
 		done
-		[ -n "${info:-}" ] || die "opencode2 was not detected on pane $pane_id"
+		[ -n "${info:-}" ] || die "OpenCode was not detected on pane $pane_id"
 	fi
 
 	herdr_json agent rename "$pane_id" "$name" >/dev/null
@@ -320,7 +320,7 @@ main() {
 	KIND="$1"
 	shift
 	case "$KIND" in
-	opencode | opencode2 | pi) ;;
+	opencode | pi) ;;
 	*)
 		usage
 		die "unsupported kind: $KIND"
@@ -333,9 +333,9 @@ main() {
 	need_cmd git
 	need_cmd flock
 	need_cmd "$HERDR"
-	if [ "$KIND" = "opencode2" ]; then
-		OPENCODE2="$HOME/.local/bin/opencode2-isolated"
-		[ -x "$OPENCODE2" ] || die "missing executable: $OPENCODE2"
+	if [ "$KIND" = "opencode" ]; then
+		OPENCODE="$HOME/.local/bin/opencode"
+		[ -x "$OPENCODE" ] || die "missing executable: $OPENCODE"
 	else
 		need_cmd "$KIND"
 	fi
@@ -349,8 +349,8 @@ main() {
 	exec 9>"$lock_dir/$agent_name.lock"
 	flock 9
 	ws="$(ensure_agents_workspace)"
-	if [ "$KIND" = "opencode2" ]; then
-		agent_name="$(ensure_opencode2_agent "$CURRENT_PATH" "$agent_name" "$ws")"
+	if [ "$KIND" = "opencode" ]; then
+		agent_name="$(ensure_opencode_agent "$CURRENT_PATH" "$agent_name" "$ws")"
 	else
 		ensure_named_agent "$KIND" "$CURRENT_PATH" "$agent_name" "$ws"
 	fi

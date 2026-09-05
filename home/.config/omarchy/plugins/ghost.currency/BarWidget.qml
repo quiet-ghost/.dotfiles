@@ -36,7 +36,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.fx ? "󰎿 " + root.fx.displayText : "󰎿"
+    text: root.fx ? root.fx.displayText : "—"
     tooltipText: root.fx && root.fx.rateText !== "" ? root.fx.rateText : "Currency converter"
     onPressed: function(code) {
       if (code === Qt.RightButton && root.fx) root.fx.swap()

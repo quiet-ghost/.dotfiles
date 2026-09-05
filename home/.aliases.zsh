@@ -8,35 +8,12 @@ alias q='web-search'
 alias pbcopy='xsel --clipboard --input'
 alias pbpaste='xsel --clipboard --output'
 alias v='nvim'
+alias vim='nvim --clean'
 alias nvim-tj='NVIM_APPNAME=nvim-tj nvim'
 alias nvim-prime='NVIM_APPNAME=nvim-prime nvim'
 alias oc='opencode'
-alias oc2='opencode2-isolated'
-oc2up() {
-  # Wrapper postinstall resolve-walks into leftover ~/node_modules/@opencode-ai
-  # (stale next-channel ELF) and ~/.npmrc min-release-age=7 blocks the matching
-  # platform package. Fetch that binary in isolation, then replace the ELF.
-  npm_config_min_release_age=0 mise install -f 'npm:@opencode-ai/cli@beta' || return
-
-  local cli tmp ver src
-  cli="$(mise where 'npm:@opencode-ai/cli')/lib/node_modules/@opencode-ai/cli" || return
-  ver="$(node -p "require('${cli}/package.json').version")" || return
-  tmp="$(mktemp -d)" || return
-  {
-    npm_config_min_release_age=0 npm install --ignore-scripts --no-save --loglevel=error \
-      --prefix "$tmp" "@opencode-ai/cli-linux-x64@${ver}" &&
-      src="$tmp/node_modules/@opencode-ai/cli-linux-x64/bin/opencode2" &&
-      [[ -x $src ]] &&
-      rm -f "$cli/bin/opencode2.exe" &&
-      install -m 755 "$src" "$cli/bin/opencode2.exe"
-  }
-  local st=$?
-  rm -rf "$tmp"
-  (( st == 0 )) || return $st
-
-  oc2 service restart &&
-    opencode2 --version
-}
+unalias oc2 mup 2>/dev/null || true
+unfunction oc2up 2>/dev/null || true
 alias df='duf'
 alias windows='omarchy-windows-vm stop'
 alias sf='source ~/.fabric-patterns.zsh'
@@ -49,7 +26,10 @@ alias ya='yazi'
 alias bd="bootdev"
 alias cc="calc"
 alias cat=bat
-alias mup='MISE_MINIMUM_RELEASE_AGE=0 mise up'
+function mup() {
+  MISE_MINIMUM_RELEASE_AGE=0 npm_config_min_release_age=0 mise up "$@" || return
+  opencode-update
+}
 
 win() {
   local password

@@ -286,6 +286,113 @@ return {
       return nil
     end
 
+    local function resolve_dotnet_dll()
+      local remembered = vim.g.dap_cs_last_dll
+      if remembered and vim.fn.filereadable(remembered) == 1 then
+        return remembered
+      end
+
+      local root = vim.fs.root(0, function(name)
+        return name:match("%.sln$") ~= nil or name:match("%.csproj$") ~= nil
+      end) or vim.fn.getcwd()
+
+      local csproj = vim.fn.glob(root .. "/*.csproj", false, true)[1]
+      local project_name = csproj and vim.fn.fnamemodify(csproj, ":t:r") or vim.fn.fnamemodify(root, ":t")
+
+      local dlls = {}
+      for _, pattern in ipairs({
+        root .. "/bin/Debug/**/*.dll",
+        root .. "/**/bin/Debug/**/*.dll",
+      }) do
+        vim.list_extend(dlls, vim.fn.glob(pattern, false, true))
+      end
+
+      local filtered = {}
+      local seen = {}
+      for _, path in ipairs(dlls) do
+        if
+          not seen[path]
+          and not path:match("/ref/")
+          and not path:match("/runtimes/")
+          and not path:match("%.resources%.dll$")
+        then
+          seen[path] = true
+          table.insert(filtered, path)
+        end
+      end
+
+      local best_path = nil
+      local best_score = -math.huge
+      local best_mtime = -math.huge
+      for _, path in ipairs(filtered) do
+        local score = 0
+        if path:match("/" .. vim.pesc(project_name) .. "%.dll$") then
+          score = score + 100
+        end
+        if path:match("/bin/Debug/") then
+          score = score + 20
+        end
+
+        local stat = uv.fs_stat(path)
+        local mtime = stat and stat.mtime and (stat.mtime.sec or 0) or 0
+        if score > best_score or (score == best_score and mtime > best_mtime) then
+          best_score = score
+          best_mtime = mtime
+          best_path = path
+        end
+      end
+
+      if best_path then
+        vim.g.dap_cs_last_dll = best_path
+        vim.notify("DAP dll: " .. best_path, vim.log.levels.INFO)
+        return best_path
+      end
+
+      local manual = vim.fn.input("Path to dll: ", path_join(root, "bin/Debug/"), "file")
+      local resolved = vim.fn.fnamemodify(vim.fn.expand(manual), ":p")
+      if vim.fn.filereadable(resolved) == 1 then
+        vim.g.dap_cs_last_dll = resolved
+      end
+      return resolved
+    end
+
+    local function setup_netcoredbg_adapter()
+      local mason_netcoredbg = vim.fn.stdpath("data") .. "/mason/bin/netcoredbg"
+      local netcoredbg = vim.fn.exepath("netcoredbg")
+      if netcoredbg == "" and vim.fn.executable(mason_netcoredbg) == 1 then
+        netcoredbg = mason_netcoredbg
+      end
+      if netcoredbg == "" then
+        netcoredbg = "netcoredbg"
+        vim.notify("netcoredbg not found in PATH or Mason bin", vim.log.levels.WARN)
+      end
+
+      dap.adapters.netcoredbg = {
+        type = "executable",
+        command = netcoredbg,
+        args = { "--interpreter=vscode" },
+        options = {
+          detached = false,
+        },
+      }
+
+      dap.configurations.cs = {
+        {
+          type = "netcoredbg",
+          request = "launch",
+          name = "Launch (auto-detect dll)",
+          program = resolve_dotnet_dll,
+          cwd = "${workspaceFolder}",
+        },
+        {
+          type = "netcoredbg",
+          request = "attach",
+          name = "Attach to process",
+          processId = require("dap.utils").pick_process,
+        },
+      }
+    end
+
     local function setup_codelldb_adapter()
       local mason_codelldb = vim.fn.stdpath("data") .. "/mason/bin/codelldb"
       local codelldb = vim.fn.exepath("codelldb")
@@ -333,6 +440,7 @@ return {
     end
 
     setup_codelldb_adapter()
+    setup_netcoredbg_adapter()
 
     dapui.setup()
 

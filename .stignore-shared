@@ -26,6 +26,7 @@ out
 .zcompdump*
 
 // Machine-local and generated configuration source.
+/home/.config/mise
 /home/.config/hypr/monitors_local.lua
 /home/.config/herdr/session*.json
 /home/.config/herdr/plugins.json

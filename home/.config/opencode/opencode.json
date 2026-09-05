@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "autoupdate": true,
+  "update": "notify",
   "default_agent": "plan",
   "permission": {
     "external_directory": {
@@ -89,7 +89,6 @@
       "pbpaste": "allow",
       "pnpm *": "allow",
       "prettier *": "allow",
-
       "printf *": "allow",
       "pwd": "allow",
       "readlink *": "allow",
@@ -127,15 +126,14 @@
     "edit": "allow",
     "webfetch": "ask"
   },
-  "theme": "rosepine",
-  "plugin": [
-    [
-      "@plannotator/opencode@latest",
-      {
+  "plugins": [
+    {
+      "package": "@plannotator/opencode@latest",
+      "options": {
         "workflow": "plan-agent",
         "planningAgents": ["plan"]
       }
-    ]
+    }
   ],
   "mcp": {
     "backstage": {
@@ -180,12 +178,21 @@
     },
     "opensrc": {
       "type": "local",
-      "command": ["npx", "-y", "opensrc-mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "opensrc-mcp"
+      ],
       "enabled": true
     },
     "overseer": {
       "type": "local",
-      "command": ["npx", "-y", "@dmmulroy/overseer", "mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "@dmmulroy/overseer",
+        "mcp"
+      ],
       "enabled": false
     },
     "linear": {
@@ -194,5 +201,8 @@
       "enabled": true,
       "oauth": {}
     }
+  },
+  "websearch": {
+    "provider": "random"
   }
 }

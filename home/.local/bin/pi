@@ -1,5 +1,0 @@
-#!/bin/bash
-export MISE_MINIMUM_RELEASE_AGE=0
-export PLANNOTATOR_PORT=19432
-mise use -g "pi" || exit 1
-exec mise x "pi" -- "pi" "$@"

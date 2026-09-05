@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "ghost.messages",
+  "name": "Messages",
+  "version": "1.0.0",
+  "author": "ghost",
+  "license": "MIT",
+  "description": "Recent chat notifications and quick access to Slack, Signal, and Vesktop.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Messages",
+    "description": "Open recent chat notifications or focus a messaging app.",
+    "category": "Social",
+    "aliases": ["chat", "slack", "signal", "discord", "vesktop"],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

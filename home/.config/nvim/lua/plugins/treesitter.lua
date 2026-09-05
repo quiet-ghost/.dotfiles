@@ -34,6 +34,7 @@ return {
         "sql",
         "svelte",
         "swift",
+        "c_sharp",
         "git_config",
         "hyprlang",
         "fish",

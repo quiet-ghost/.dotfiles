@@ -10,6 +10,7 @@ return {
 
     opts.servers.jdtls = { enabled = false }
     opts.servers.omnisharp = { enabled = false }
+    opts.servers.roslyn_ls = { enabled = false }
     opts.servers.ts_ls = { enabled = false }
 
     opts.servers.sourcekit = vim.tbl_deep_extend("force", opts.servers.sourcekit or {}, {

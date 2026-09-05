@@ -153,19 +153,12 @@ type = "pane"
 command = "zsh -ic ghui"
 description = "ghui"
 
-# OpenCode (focus persistent agent tab; Alt+d returns)
-[[keys.command]]
-key = "ctrl+alt+o"
-type = "shell"
-command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode"
-description = "opencode session"
-
-# OpenCode 2 beta (focus persistent agent tab; Alt+d returns)
+# OpenCode 2 (focus persistent agent tab; Alt+d returns)
 [[keys.command]]
 key = "alt+o"
 type = "shell"
-command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode2"
-description = "opencode2 session"
+command = "$HOME/.config/herdr/scripts/agent-popup.sh opencode"
+description = "opencode session"
 
 # Pi (focus persistent agent tab; Alt+d returns)
 [[keys.command]]
@@ -241,7 +234,7 @@ description = "switch tab 9 (base layer)"
 key = "alt+w"
 type = "popup"
 # command = "$HOME/.config/herdr/scripts/workspace-picker.sh"
-command = "$HOME/.local/bin/mux-sesh"
+command = "zsh -ic mux-sesh"
 description = "workspace picker (switch/create)"
 width = "70%"
 height = "70%"

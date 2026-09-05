@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "author": "ghost",
   "license": "MIT",
-  "description": "Live USD/JPY converter with an easy direction swap.",
+  "description": "USD, JPY, EUR, GBP, and ARS converter with an easy direction swap.",
   "kinds": ["service", "bar-widget"],
   "keepLoaded": true,
   "entryPoints": {
@@ -14,9 +14,9 @@
   },
   "barWidget": {
     "displayName": "Currency",
-    "description": "Convert USD and yen with live Frankfurter rates.",
+    "description": "Convert USD, JPY, EUR, GBP, and ARS with Frankfurter rates.",
     "category": "Info",
-    "aliases": ["fx", "yen", "usd", "currency"],
+    "aliases": ["fx", "yen", "usd", "ars", "peso", "currency"],
     "allowMultiple": false,
     "defaultSection": "center"
   }

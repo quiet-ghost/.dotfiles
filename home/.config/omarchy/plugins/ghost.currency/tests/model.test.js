@@ -4,6 +4,23 @@ const Model = require("../Model.js")
 
 const RATES = { USD: 1, JPY: 159.33, EUR: 0.86573, GBP: 0.74042 }
 
+test("ARS is selectable and requested from Frankfurter", () => {
+  assert.ok(Model.currencyOptions().some(row => row.value === "ARS"))
+  assert.ok(Model.quoteCodes().includes("ARS"))
+  assert.ok(new URL(Model.ratesUrl()).searchParams.get("quotes").split(",").includes("ARS"))
+  assert.equal(Model.currency("ARS").name, "Argentine Peso")
+})
+
+test("ARS rates convert both ways and display a distinct peso symbol", () => {
+  const parsed = Model.parseRates(JSON.stringify([
+    { date: "2026-09-04", base: "USD", quote: "ARS", rate: 1500 }
+  ]))
+  assert.equal(Model.convert(2, "USD", "ARS", parsed.rates), 3000)
+  assert.equal(Model.convert(3000, "ARS", "USD", parsed.rates), 2)
+  assert.equal(Model.formatAmount(1500.5, "ARS", false), "1,500.50")
+  assert.equal(Model.barLabel(2, "USD", "ARS", parsed.rates), "$2 → AR$3,000")
+})
+
 test("parseAmount accepts grouped and decorated input", () => {
   assert.equal(Model.parseAmount("1,000.50"), 1000.5)
   assert.equal(Model.parseAmount("$20"), 20)

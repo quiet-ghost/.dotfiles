@@ -73,3 +73,23 @@
 [submodule "omarchy-calendar"]
 	path = home/.config/omarchy/plugins/tmn73.calendar
 	url = https://github.com/tmn73/omarchy-calendar.git
+
+[submodule "omarchy-mise-radar"]
+	path = home/.config/omarchy/plugins/chyld.mise-radar
+	url = https://github.com/chyld/omarchy-mise-radar.git
+
+[submodule "omarchy-linear"]
+	path = home/.config/omarchy/plugins/grigorip.linear
+	url = https://github.com/PanchTime/linear-widget.git
+
+[submodule "omarchy-syncthing"]
+	path = home/.config/omarchy/plugins/io.github.ilyazar.syncthing
+	url = https://github.com/omarchy-QOL/syncshell.git
+
+[submodule "omarchy-tray"]
+	path = home/.config/omarchy/plugins/io.github.tyrichards.tray
+	url = https://github.com/TyRichards/omarchy-tray.git
+
+[submodule "omarchy-herdr"]
+	path = home/.config/omarchy/plugins/njpatel.omaherdr
+	url = https://github.com/njpatel/omaherdr.git

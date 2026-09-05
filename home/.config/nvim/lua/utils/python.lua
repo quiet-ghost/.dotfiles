@@ -344,8 +344,28 @@ local function relative_path(path, root)
   return vim.fn.fnamemodify(path, ":t")
 end
 
+local function file_uses_pytest(file_path)
+  local filename = vim.fn.fnamemodify(file_path, ":t")
+  if vim.startswith(filename, "test_") or vim.endswith(filename, "_test.py") then
+    return true
+  end
+
+  local content = read_file(file_path)
+  if not content then
+    return false
+  end
+
+  local has_pytest = content:find("import pytest", 1, true) or content:find("from pytest", 1, true)
+  local has_test_fn = content:find("def test_", 1, true)
+  return has_pytest ~= nil and has_test_fn ~= nil
+end
+
 local function detect_run_mode(file_path, project)
   local filename = vim.fn.fnamemodify(file_path, ":t")
+
+  if file_uses_pytest(file_path) then
+    return "pytest", relative_path(file_path, project.root)
+  end
 
   if project.framework == "django" then
     return "django", "manage.py runserver"
@@ -368,6 +388,25 @@ local function build_execution_command(project, run_mode, target, python_path)
   local root = shell_quote(project.root)
   local py = shell_quote(python_path)
   local tgt = shell_quote(target)
+
+  if run_mode == "pytest" then
+    if project.manager == "uv" and vim.fn.executable("uv") == 1 then
+      return string.format("cd %s && uv run pytest -v -s %s", root, tgt)
+    end
+    if project.manager == "poetry" and vim.fn.executable("poetry") == 1 then
+      return string.format("cd %s && poetry run pytest -v -s %s", root, tgt)
+    end
+    if project.manager == "pipenv" and vim.fn.executable("pipenv") == 1 then
+      return string.format("cd %s && pipenv run pytest -v -s %s", root, tgt)
+    end
+    if project.manager == "pdm" and vim.fn.executable("pdm") == 1 then
+      return string.format("cd %s && pdm run pytest -v -s %s", root, tgt)
+    end
+    if project.manager == "hatch" and vim.fn.executable("hatch") == 1 then
+      return string.format("cd %s && hatch run pytest -v -s %s", root, tgt)
+    end
+    return string.format("cd %s && %s -m pytest -v -s %s", root, py, tgt)
+  end
 
   if project.manager == "uv" and vim.fn.executable("uv") == 1 then
     if run_mode == "module" then
@@ -471,12 +510,19 @@ function M.compile_and_run()
 
   local run_mode, target = detect_run_mode(file, project)
   local command = build_execution_command(project, run_mode, target, python_path)
-  local title = string.format(config.title_format, filename)
+  local title = run_mode == "pytest" and string.format("pytest: %s", filename)
+    or string.format(config.title_format, filename)
 
   run_in_split(command, title, project.root)
 
   vim.notify(
-    string.format("Running via %s (%s): %s", project.manager, project.kind, filename),
+    string.format(
+      "%s via %s (%s): %s",
+      run_mode == "pytest" and "Testing" or "Running",
+      project.manager,
+      project.kind,
+      filename
+    ),
     vim.log.levels.INFO
   )
 end

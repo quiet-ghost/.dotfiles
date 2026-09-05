@@ -29,10 +29,11 @@
     "_quietghost",
     "~",
     "Boot",
+    "boot",
+    "TwitchChat",
     "mux-sesh",
     "streaming",
-    "TwitchChat",
-    "ghost-games",
+    "OrderForge",
     "school"
   ],
   "icons": {

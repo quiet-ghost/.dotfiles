@@ -42,10 +42,90 @@
         {
           "id": "omarchy.tray",
           "pinned": [],
-          "hidden": []
+          "hidden": [
+            "steam"
+          ]
         },
         {
-          "id": "dev.git"
+          "id": "io.github.tyrichards.tray",
+          "hidden": [],
+          "order": [
+            "steam",
+            "grigorip.linear",
+            "dev.git",
+            "ghost.cloudflare",
+            "omarchy.tailscale",
+            "omarchy.monitor",
+            "io.github.ilyazar.syncthing",
+            "chyld.mise-radar",
+            "njpatel.omaherdr",
+            "ghost.govee",
+            "ghost.currency"
+          ],
+          "widgets": [
+            {
+              "entry": {
+                "id": "grigorip.linear"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "chyld.mise-radar"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "io.github.ilyazar.syncthing"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "ghost.govee"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "omarchy.monitor"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "ghost.cloudflare"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "dev.git"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "omarchy.tailscale"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "ghost.currency"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "njpatel.omaherdr",
+                "barStyle": "lights",
+                "barIcon": "server"
+              },
+              "listed": true
+            }
+          ]
         },
         {
           "id": "omarchy.bluetooth"
@@ -69,21 +149,11 @@
           }
         },
         {
-          "id": "ghost.opencode-service",
-          "pollIntervalSec": 5,
-          "openExpanded": false
-        },
-        {
-          "id": "ghost.cloudflare"
-        },
-        {
           "id": "djjeane.docker-monitor"
         },
         {
-          "id": "local.ssh"
-        },
-        {
-          "id": "omarchy.tailscale"
+          "id": "omarchy.power",
+          "showPercentage": true
         },
         {
           "id": "stappmus.activity-monitor",
@@ -92,16 +162,6 @@
         },
         {
           "id": "omarchy.network"
-        },
-        {
-          "id": "omarchy.monitor"
-        },
-        {
-          "id": "ghost.govee"
-        },
-        {
-          "id": "omarchy.power",
-          "showPercentage": true
         }
       ]
     }
@@ -112,6 +172,36 @@
     },
     {
       "id": "nosignal.quattrolitaire"
+    },
+    {
+      "id": "grigorip.linear"
+    },
+    {
+      "id": "chyld.mise-radar"
+    },
+    {
+      "id": "io.github.ilyazar.syncthing"
+    },
+    {
+      "id": "ghost.govee"
+    },
+    {
+      "id": "omarchy.monitor"
+    },
+    {
+      "id": "ghost.cloudflare"
+    },
+    {
+      "id": "dev.git"
+    },
+    {
+      "id": "omarchy.tailscale"
+    },
+    {
+      "id": "ghost.currency"
+    },
+    {
+      "id": "njpatel.omaherdr"
     }
   ]
 }

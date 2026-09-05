@@ -1,9 +1,6 @@
 #!/bin/bash
 
-# Omarchy writes BrowserThemeColor into /etc/chromium/policies/managed/color.json.
-# That marks Helium/Chromium as org-managed and blocks theme extensions.
-rm -f /etc/chromium/policies/managed/color.json
-rm -f /etc/opt/chrome/policies/managed/color.json
-rm -f /etc/brave/policies/managed/color.json
+# ~/.local/bin/omarchy-theme-set-browser prevents Omarchy from recreating the
+# managed BrowserThemeColor policy that overrides browser extension themes.
 helium-browser --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
 chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true

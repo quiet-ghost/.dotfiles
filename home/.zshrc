@@ -13,9 +13,8 @@ path=(
   $path
 )
 
-opencode2() {
-  command "$HOME/.local/bin/opencode2-isolated" "$@"
-}
+# Drop the retired launcher when re-sourcing an existing shell.
+unfunction opencode2 2>/dev/null || true
 
 # Oh My Zsh installation path
 export ZSH="$HOME/.oh-my-zsh"

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Browser extension themes must remain user-controlled. Omarchy's managed
+# BrowserThemeColor policy overrides them in both Chromium and Helium.
+exit 0
