@@ -7,11 +7,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opencode-ai/plugin": "0.0.0-beta-19135",
+    "@opencode/plugin": "2.0.2",
     "zod": "4.1.8"
   },
   "devDependencies": {
-    "@opencode-ai/theme": "^0.0.0-beta-19135",
+    "@opencode/theme": "2.0.2",
     "@opentui/core": "^0.5.10",
     "@opentui/solid": "^0.5.10",
     "@types/bun": "^1.4.1",

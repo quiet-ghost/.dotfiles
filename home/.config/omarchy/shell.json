@@ -22,74 +22,40 @@
           "id": "ghost.indicators"
         },
         {
+          "id": "omarchy.system-update"
+        },
+        {
           "id": "tmn73.calendar",
-          "format": "ddd d MMM h:mm AP",
-          "formatAlt": "d MMMM 'W'ww yyyy",
-          "verticalFormat": "HH\n—\nmm",
-          "showYearProgress": false
+          "format": "dddd h:mm AP"
         },
         {
           "id": "omarchy.weather"
         },
         {
-          "id": "omarchy.system-update"
+          "id": "local.timer"
         },
         {
-          "id": "local.timer"
+          "id": "ghost.currency"
         }
       ],
       "right": [
         {
-          "id": "omarchy.tray",
-          "pinned": [],
-          "hidden": [
-            "steam"
-          ]
-        },
-        {
-          "id": "io.github.tyrichards.tray",
-          "hidden": [],
+          "id": "ghost.tray",
+          "hidden": ["steam", "vesktop_status_icon_1", "wine-0x200e2-0"],
           "order": [
-            "steam",
-            "grigorip.linear",
+            "ghost.govee",
             "dev.git",
             "ghost.cloudflare",
             "omarchy.tailscale",
             "omarchy.monitor",
             "io.github.ilyazar.syncthing",
             "chyld.mise-radar",
-            "njpatel.omaherdr",
-            "ghost.govee",
-            "ghost.currency"
+            "njpatel.omaherdr"
           ],
           "widgets": [
             {
               "entry": {
-                "id": "grigorip.linear"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "chyld.mise-radar"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "io.github.ilyazar.syncthing"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "ghost.govee"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "omarchy.monitor"
+                "id": "dev.git"
               },
               "listed": true
             },
@@ -101,31 +67,44 @@
             },
             {
               "entry": {
-                "id": "dev.git"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
                 "id": "omarchy.tailscale"
               },
               "listed": true
             },
             {
               "entry": {
-                "id": "ghost.currency"
+                "id": "omarchy.monitor"
               },
               "listed": true
             },
             {
               "entry": {
-                "id": "njpatel.omaherdr",
+                "id": "io.github.ilyazar.syncthing"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "chyld.mise-radar"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "barIcon": "server",
                 "barStyle": "lights",
-                "barIcon": "server"
+                "id": "njpatel.omaherdr"
+              },
+              "listed": true
+            },
+            {
+              "entry": {
+                "id": "ghost.govee"
               },
               "listed": true
             }
-          ]
+          ],
+          "showTrayIcons": true
         },
         {
           "id": "omarchy.bluetooth"
@@ -162,6 +141,9 @@
         },
         {
           "id": "omarchy.network"
+        },
+        {
+          "id": "apurva.notifications"
         }
       ]
     }
@@ -177,31 +159,27 @@
       "id": "grigorip.linear"
     },
     {
-      "id": "chyld.mise-radar"
-    },
-    {
-      "id": "io.github.ilyazar.syncthing"
-    },
-    {
-      "id": "ghost.govee"
-    },
-    {
-      "id": "omarchy.monitor"
+      "id": "dev.git"
     },
     {
       "id": "ghost.cloudflare"
     },
     {
-      "id": "dev.git"
-    },
-    {
       "id": "omarchy.tailscale"
     },
     {
-      "id": "ghost.currency"
+      "id": "omarchy.monitor"
+    },
+    {
+      "id": "chyld.mise-radar"
     },
     {
       "id": "njpatel.omaherdr"
+    },
+    {
+      "id": "ghost.govee"
     }
-  ]
+  ],
+  "disabledPlugins": ["omarchy.notifications"],
+  "cloneSourceRestores": ["apurva.notifications"]
 }

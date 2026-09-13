@@ -3,12 +3,13 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "." as Backend
 
 BarWidget {
   id: root
   moduleName: "ghost.govee"
 
-  readonly property var lights: bar?.shell?.serviceFor("ghost.govee")
+  readonly property var lights: Backend.LightsService
   property bool opened: false
   property bool popoutSwitchClosing: false
   property int pendingBrightness: -1

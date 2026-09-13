@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode-ai/plugin";
+import { Plugin } from "@opencode/plugin";
 import { registerAstGrep } from "../lib/ast-grep";
 import { registerYouTube } from "../lib/youtube";
 

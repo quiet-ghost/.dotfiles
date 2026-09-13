@@ -334,8 +334,8 @@ main() {
 	need_cmd flock
 	need_cmd "$HERDR"
 	if [ "$KIND" = "opencode" ]; then
-		OPENCODE="$HOME/.local/bin/opencode"
-		[ -x "$OPENCODE" ] || die "missing executable: $OPENCODE"
+		OPENCODE="opencode2"
+		need_cmd "$OPENCODE"
 	else
 		need_cmd "$KIND"
 	fi
@@ -375,6 +375,8 @@ main() {
 		mv "$tmp" "$return_file"
 	fi
 	herdr_json agent focus "$agent_name" >/dev/null
+	# Herdr 0.9.0 agent.focus selects the pane but does not update attached clients.
+	herdr_json tab focus "$target_tab" >/dev/null
 	"$HOME/.config/herdr/scripts/agent-exit-watch.sh" \
 		"$target_pane" "$target_tab" "$target_pgid" "$return_file" >/dev/null 2>&1 &
 }

@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
-import { Plugin } from "@opencode-ai/plugin/tui";
+import { Plugin } from "@opencode/plugin/tui";
 import { createResource } from "solid-js";
-import { Caveman, CavemanRpc } from "../../lib/caveman";
+import { Caveman, CavemanRpc } from "../../../lib/caveman";
 
 export default Plugin.define({
   id: "caveman-tui",

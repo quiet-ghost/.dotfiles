@@ -1,4 +1,4 @@
-import type { ToolEditor } from "@opencode-ai/plugin/promise/tool";
+import type { ToolEditor } from "@opencode/plugin/promise/tool";
 import { z } from "zod";
 
 export function registerAstGrep(editor: ToolEditor, directory: string): void {

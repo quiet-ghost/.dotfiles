@@ -7,6 +7,8 @@ Item {
   id: root
 
   property var shell: null
+  property bool manageIpc: true
+  property bool active: true
   property string fromCode: "USD"
   property string toCode: "JPY"
   property string amountText: "1"
@@ -124,7 +126,7 @@ Item {
   Timer {
     interval: 900000
     repeat: true
-    running: true
+    running: root.active
     triggeredOnStart: true
     onTriggered: root.refresh()
   }
@@ -147,6 +149,7 @@ Item {
   }
 
   IpcHandler {
+    enabled: root.manageIpc
     target: "ghost.currency"
     function refresh(): string { return root.refresh() ? "ok" : "busy" }
     function swap(): string { root.swap(); return "ok" }

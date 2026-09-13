@@ -1,3 +1,5 @@
+pragma Singleton
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -5,7 +7,6 @@ import Quickshell.Io
 Item {
   id: root
 
-  property var shell: null
   property bool ready: false
   property bool busy: false
   property string error: ""

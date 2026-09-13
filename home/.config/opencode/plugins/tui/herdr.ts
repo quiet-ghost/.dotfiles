@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode-ai/plugin/tui";
+import { Plugin } from "@opencode/plugin/tui";
 import { HerdrState } from "../../lib/herdr-state";
 
 // Pane identity belongs to the terminal client, never to the shared server.

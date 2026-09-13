@@ -15,7 +15,7 @@
 \.config/hypr/monitors_local\.lua$
 \.config/nvim/\.jdtls-out
 \.config/nvim/\.ruff_cache$
-^\.local/bin/(glow|uv)$
+^\.local/bin/(glow|uv|opencode2)$
 \.config/mise$
 \.config/omarchy/current$
 \.config/omarchy/calendar-ics\.json$

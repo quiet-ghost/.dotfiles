@@ -2,14 +2,26 @@ import QtQuick
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "Model.js" as Model
 
 BarWidget {
   id: root
   moduleName: "ghost.currency"
 
-  readonly property var fx: bar?.shell?.serviceFor("ghost.currency")
+  readonly property color fg: bar ? bar.foreground : Color.foreground
+  readonly property color urgent: bar && bar.urgent ? bar.urgent : Color.urgent
+  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property var hostedFx: bar?.shell?.serviceFor("ghost.currency")
+  readonly property var fx: hostedFx || embeddedFx
   property bool opened: false
   property bool popoutSwitchClosing: false
+
+  Service {
+    id: embeddedFx
+    visible: false
+    manageIpc: false
+    active: hostedFx === null || hostedFx === undefined
+  }
 
   function open() { opened = true }
   function close() { opened = false }
@@ -36,8 +48,10 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.fx ? root.fx.displayText : "—"
-    tooltipText: root.fx && root.fx.rateText !== "" ? root.fx.rateText : "Currency converter"
+    text: "\uf0d6"
+    active: root.opened
+    activeColor: Color.accent
+    tooltipText: root.fx ? root.fx.displayText + "\nClick to convert" : "Currency converter"
     onPressed: function(code) {
       if (code === Qt.RightButton && root.fx) root.fx.swap()
       else if (code === Qt.MiddleButton && root.fx) root.fx.refresh()
@@ -60,38 +74,77 @@ BarWidget {
       width: parent.width
       spacing: Style.space(12)
 
-      PanelHero {
+      Rectangle {
         width: parent.width
-        title: root.fx ? root.fx.convertedText : "—"
-        meta: root.fx && root.fx.rateText !== "" ? root.fx.rateText : "Fetching live rates"
-        foreground: root.bar.foreground
-        fontFamily: root.bar.fontFamily
-        iconComponent: Component {
+        implicitHeight: resultContent.implicitHeight + Style.space(32)
+        radius: Style.cornerRadius
+        color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.08)
+        border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.25)
+        border.width: 1
+
+        Column {
+          id: resultContent
+          x: Style.space(16)
+          y: Style.space(16)
+          width: parent.width - Style.space(32)
+          spacing: Style.space(8)
+
           Text {
-            text: "󰎿"
-            color: root.fx && root.fx.ready ? Color.accent : root.bar.foreground
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.display
+            width: parent.width
+            text: {
+              if (!root.fx) return "CONVERTED AMOUNT"
+              var currency = Model.currency(root.fx.toCode)
+              return (currency ? currency.name : root.fx.toCode) + " · " + root.fx.toCode
+            }
+            color: root.fg
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            font.bold: true
+            wrapMode: Text.WordWrap
+          }
+
+          Text {
+            width: parent.width
+            text: root.fx && root.fx.ready ? Model.symbolFor(root.fx.toCode) + root.fx.convertedText : "—"
+            color: Color.accent
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.display * 1.5
+            font.bold: true
+            fontSizeMode: Text.HorizontalFit
+            minimumPixelSize: Style.font.body
+          }
+
+          Text {
+            width: parent.width
+            text: root.fx && root.fx.rateText !== "" ? root.fx.rateText : "Fetching live rates"
+            color: root.fg
+            opacity: 0.7
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            wrapMode: Text.WordWrap
           }
         }
-      }
-
-      TextField {
-        id: amountField
-        width: parent.width
-        foreground: root.bar.foreground
-        placeholderText: "Amount"
-        text: root.fx ? root.fx.amountText : "1"
-        inputMethodHints: Qt.ImhFormattedNumbersOnly
-        onTextChanged: if (root.fx && root.fx.amountText !== text) root.fx.setAmount(text)
-        onAccepted: root.close()
-        Keys.onEscapePressed: root.close()
       }
 
       Column {
         width: parent.width
         spacing: Style.space(6)
-        PanelSectionHeader { text: "FROM"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
+        PanelSectionHeader {
+          text: root.fx ? "FROM · " + root.fx.fromCode : "FROM"
+          foreground: root.fg
+          fontFamily: root.fontFamily
+        }
+        TextField {
+          id: amountField
+          width: parent.width
+          foreground: root.fg
+          placeholderText: "Amount"
+          text: root.fx ? root.fx.amountText : "1"
+          inputMethodHints: Qt.ImhFormattedNumbersOnly
+          onTextChanged: if (root.fx && root.fx.amountText !== text) root.fx.setAmount(text)
+          onAccepted: root.close()
+          Keys.onEscapePressed: root.close()
+        }
         Flow {
           width: parent.width
           spacing: Style.space(5)
@@ -101,7 +154,7 @@ BarWidget {
               required property var modelData
               text: String(modelData.value || "")
               selected: root.fx && root.fx.fromCode === modelData.value
-              foreground: root.bar.foreground
+              foreground: root.fg
               focusable: true
               onClicked: if (root.fx) root.fx.setFrom(modelData.value)
             }
@@ -110,11 +163,10 @@ BarWidget {
       }
 
       Button {
-        width: parent.width
         text: "Swap"
         iconText: "⇄"
         bordered: true
-        foreground: root.bar.foreground
+        foreground: root.fg
         focusable: true
         onClicked: if (root.fx) root.fx.swap()
       }
@@ -122,7 +174,11 @@ BarWidget {
       Column {
         width: parent.width
         spacing: Style.space(6)
-        PanelSectionHeader { text: "TO"; foreground: root.bar.foreground; fontFamily: root.bar.fontFamily }
+        PanelSectionHeader {
+          text: root.fx ? "TO · " + root.fx.toCode : "TO"
+          foreground: root.fg
+          fontFamily: root.fontFamily
+        }
         Flow {
           width: parent.width
           spacing: Style.space(5)
@@ -132,7 +188,7 @@ BarWidget {
               required property var modelData
               text: String(modelData.value || "")
               selected: root.fx && root.fx.toCode === modelData.value
-              foreground: root.bar.foreground
+              foreground: root.fg
               focusable: true
               onClicked: if (root.fx) root.fx.setTo(modelData.value)
             }
@@ -152,26 +208,26 @@ BarWidget {
             if (root.fx.rateDate !== "") return root.fx.rateDate + " · Frankfurter"
             return "Frankfurter live rates"
           }
-          color: Qt.darker(root.bar.foreground, 1.45)
-          font.family: root.bar.fontFamily
+          color: Qt.darker(root.fg, 1.45)
+          font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
         }
 
         Button {
           text: "Refresh"
-          foreground: root.bar.foreground
+          foreground: root.fg
           focusable: true
-          enabled: root.fx && !root.fx.refreshing
+          enabled: !!(root.fx && !root.fx.refreshing)
           onClicked: if (root.fx) root.fx.refresh()
         }
       }
 
       Text {
-        visible: root.fx && root.fx.error !== ""
+        visible: !!(root.fx && root.fx.error !== "")
         width: parent.width
         text: root.fx ? root.fx.error : ""
-        color: root.bar.urgent
-        font.family: root.bar.fontFamily
+        color: root.urgent
+        font.family: root.fontFamily
         font.pixelSize: Style.font.bodySmall
         wrapMode: Text.WordWrap
       }

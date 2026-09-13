@@ -86,10 +86,6 @@
 	path = home/.config/omarchy/plugins/io.github.ilyazar.syncthing
 	url = https://github.com/omarchy-QOL/syncshell.git
 
-[submodule "omarchy-tray"]
-	path = home/.config/omarchy/plugins/io.github.tyrichards.tray
-	url = https://github.com/TyRichards/omarchy-tray.git
-
 [submodule "omarchy-herdr"]
 	path = home/.config/omarchy/plugins/njpatel.omaherdr
 	url = https://github.com/njpatel/omaherdr.git

@@ -5,10 +5,8 @@
   "version": "0.1.0",
   "author": "ghost",
   "description": "Control Govee lights from the Omarchy bar",
-  "kinds": ["service", "bar-widget"],
-  "keepLoaded": true,
+  "kinds": ["bar-widget"],
   "entryPoints": {
-    "service": "Service.qml",
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {

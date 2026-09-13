@@ -1,21 +1,16 @@
 {
-  "defaultProvider": "xai",
-  "defaultModel": "grok-4.6",
-  "defaultThinkingLevel": "high",
-  "enabledModels": [
-    "openai-codex/gpt-5.6-sol",
-    "xai/grok-4.6"
-  ],
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-astra",
+  "defaultThinkingLevel": "medium",
+  "enabledModels": ["xai/grok-4.6", "openai-codex/gpt-6-astra"],
   "theme": "dark",
-  "npmCommand": [
-    "bun"
-  ],
+  "npmCommand": ["bun"],
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:pi-mcp-adapter@2.21.2",
     "npm:pi-web-access"
   ],
-  "lastChangelogVersion": "0.84.2",
+  "lastChangelogVersion": "0.85.1",
   "outputPad": 0,
   "treeFilterMode": "default",
   "hideThinkingBlock": true

@@ -13,16 +13,21 @@ hl.unbind("SUPER + SPACE")
 hl.unbind("SUPER + ALT + SPACE")
 
 o.bind("SUPER + CTRL + RETURN", "Herdr", { omarchy = "terminal-herdr" })
-o.bind("SUPER + E", "File manager", terminal .. ' --title="yazi" -e yazi')
+o.bind("SUPER + SHIFT + E", "File manager", terminal .. ' --title="yazi" -e yazi')
+-- flea --default: begin. Written by `flea --default`; `flea --default off` removes the block whole.
+hl.unbind("SUPER + SHIFT + F")
+o.bind("SUPER + E", "File manager", { launch = "flea --gui" })
+o.bind("SUPER + CTRL + SHIFT + E", "File manager (cwd)", { launch = 'flea --gui "$(omarchy-cmd-terminal-cwd)"' })
+-- flea --default: end.
 o.bind("SUPER + B", "Browser", { omarchy = "browser" })
 o.bind("SUPER + SHIFT + B", "Browser (private)", { omarchy = "browser --private" })
 o.bind("SUPER + N", "Editor", { omarchy = "editor" })
 o.bind("SUPER + D", "Docker", { tui = "lazydocker" })
-o.bind(
-	"SUPER + SHIFT + E",
-	"File manager (cwd)",
-	{ launch = "env GTK_THEME=rose-pine-gtk:light /usr/bin/thunar $(omarchy-cmd-terminal-cwd)" }
-)
+-- o.bind(
+-- 	"SUPER + SHIFT + E",
+-- 	"File manager (cwd)",
+-- 	{ launch = "env GTK_THEME=rose-pine-gtk:light /usr/bin/thunar $(omarchy-cmd-terminal-cwd)" }
+-- )
 o.bind("SUPER + SHIFT + S", "Signal", { omarchy = "signal" })
 o.bind(
 	"SUPER + SHIFT + K",
@@ -58,3 +63,7 @@ for workspace = 1, 10 do
 		hl.dsp.window.move({ workspace = tostring(workspace) })
 	)
 end
+
+-- flea --picker: begin. Written by `flea --picker`; `flea --picker off` removes the block whole.
+o.window("com.thisisgm.flea.picker", { tag = "+floating-window" })
+-- flea --picker: end.

@@ -25,16 +25,16 @@ function runUpdate(
     mise: `#!/bin/bash
 printf 'mise %s\\n' "$*" >> "$OC_UPDATE_TEST_ROOT/trace"
 if [[ $1 == where ]]; then printf '%s\\n' "$OC_UPDATE_TEST_ROOT/install"; fi
-if [[ $1 == install && $OC_UPDATE_TEST_FAIL == 1 ]]; then exit 17; fi
+if [[ $1 == use && $OC_UPDATE_TEST_FAIL == 1 ]]; then exit 17; fi
+if [[ $1 == exec ]]; then shift 3; exec "$@"; fi
 `,
-    opencode2: `#!/bin/bash
-printf 'opencode2 %s\\n' "$*" >> "$OC_UPDATE_TEST_ROOT/trace"
+    opencode: `#!/bin/bash
+printf 'opencode %s\\n' "$*" >> "$OC_UPDATE_TEST_ROOT/trace"
 if [[ $1 == --version ]]; then
-  if [[ $OC_UPDATE_TEST_MISMATCH == 1 ]]; then echo 'opencode2 vwrong'; else echo 'opencode2 v0.0.0-beta-test'; fi
+  if [[ $OC_UPDATE_TEST_MISMATCH == 1 ]]; then echo 'opencode vwrong'; else echo 'opencode v2.0.2'; fi
 fi
 `,
-    node: "#!/bin/bash\necho 0.0.0-beta-test\n",
-    npm: "#!/bin/bash\necho 'npm rejected mismatched binary repair' >> \"$OC_UPDATE_TEST_ROOT/trace\"\nexit 19\n",
+    node: "#!/bin/bash\necho 2.0.2\n",
   };
   try {
     for (const [name, script] of Object.entries(scripts)) {
@@ -61,12 +61,13 @@ fi
   }
 }
 
-it("forces a beta refresh and updates plugins before replacing the CLI", () => {
+it("tracks stable and updates plugins after verifying the installed CLI", () => {
   const result = runUpdate();
   expect(result.status).toBe(0);
   expect(result.trace).toMatch(
-    /^opencode2 plugin update\nmise install -f npm:@opencode-ai\/cli@beta\n/,
+    /^mise use --global --fuzzy npm:@opencode\/cli@latest\n/,
   );
+  expect(result.trace).toContain("opencode --version\nmise exec npm:@opencode/cli -- opencode plugin update\nopencode plugin update\n");
   expect(result.trace).not.toContain("service restart");
 });
 
@@ -78,7 +79,7 @@ it("propagates installation failure without claiming success", () => {
 
 it("does not accept a mismatched platform binary", () => {
   const result = runUpdate({ mismatch: true });
-  expect(result.status).toBe(19);
-  expect(result.trace).toContain("npm rejected mismatched binary repair");
+  expect(result.status).toBe(1);
+  expect(result.trace).not.toContain("plugin update");
   expect(result.stdout).not.toContain("CLI and package plugins updated");
 });
