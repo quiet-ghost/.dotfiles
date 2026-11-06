@@ -406,6 +406,160 @@ def provider_record(
     return record
 
 
+# Omarchy's collectors (omarchy-agent-usage-update) write one JSON record per
+# agent. Any record there is a provider, so one Omarchy adds later shows up here
+# by itself. These ids are collected by this script instead, with API balances
+# and history Omarchy's records don't carry.
+OMARCHY_COLLECTED_HERE = frozenset({"cerebras", "claude", "codex", "grok", "opencode", "openrouter"})
+# Billed per token with no plan to speak of, so they belong with the APIs even
+# before they report a balance.
+OMARCHY_API_PROVIDERS = frozenset({"deepseek", "fireworks"})
+OMARCHY_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+OMARCHY_RECORD_MAX_BYTES = 1_000_000
+OMARCHY_TEXT_MAX = 300
+OMARCHY_LIST_MAX = 200
+
+
+def omarchy_usage_dir() -> Path:
+    state = os.environ.get("XDG_STATE_HOME") or str(home() / ".local" / "state")
+    return Path(state) / "omarchy" / "agents" / "usage"
+
+
+def bounded_text(raw: Any) -> str:
+    return raw[:OMARCHY_TEXT_MAX] if isinstance(raw, str) else ""
+
+
+def finite_number(raw: Any) -> float | None:
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    return float(raw) if raw == raw and abs(raw) != float("inf") else None
+
+
+def count_value(raw: Any) -> int:
+    value = finite_number(raw)
+    return max(0, int(value)) if value is not None else 0
+
+
+def omarchy_limits(raw: Any) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for entry in raw[:OMARCHY_LIST_MAX] if isinstance(raw, list) else []:
+        percent = finite_number(entry.get("percent")) if isinstance(entry, dict) else None
+        if percent is None or percent < 0:
+            continue
+        out.append(
+            {
+                "title": bounded_text(entry.get("title")),
+                "label": bounded_text(entry.get("label")),
+                "percent": percent,
+                "resetsAt": bounded_text(entry.get("resetsAt")),
+            }
+        )
+    return out
+
+
+def omarchy_balance(raw: Any) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+    remaining = finite_number(raw.get("remaining"))
+    if remaining is None or remaining < 0:
+        return None
+    return {
+        "remaining": remaining,
+        "funded": max(0.0, finite_number(raw.get("funded")) or 0.0),
+        "spent": max(0.0, finite_number(raw.get("spent")) or 0.0),
+        "currency": bounded_text(raw.get("currency")) or "USD",
+        "estimated": raw.get("estimated") is True,
+    }
+
+
+def omarchy_recent_days(raw: Any) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for day in raw[:OMARCHY_LIST_MAX] if isinstance(raw, list) else []:
+        if isinstance(day, dict) and isinstance(day.get("date"), str):
+            out.append({"date": bounded_text(day["date"]), "messageCount": count_value(day.get("messageCount"))})
+    return out
+
+
+def omarchy_model_usage(raw: Any) -> dict[str, dict[str, int]]:
+    out: dict[str, dict[str, int]] = {}
+    for model, bucket in list(raw.items())[:OMARCHY_LIST_MAX] if isinstance(raw, dict) else []:
+        if isinstance(bucket, dict):
+            out[bounded_text(model)] = {
+                key: count_value(bucket.get(key))
+                for key in ("inputTokens", "outputTokens", "cacheReadInputTokens", "cacheCreationInputTokens")
+            }
+    return out
+
+
+def omarchy_default_view(record: dict[str, Any]) -> str:
+    """Empty records stay out of the views until chosen in settings."""
+    if record.get("balance"):
+        return "apis"
+    api_view = "apis" if record.get("id") in OMARCHY_API_PROVIDERS else "subs"
+    has_history = any(
+        count_value(record.get(key)) > 0
+        for key in ("totalPrompts", "totalSessions", "activeDays", "todayPrompts", "todaySessions", "todayTotalTokens")
+    )
+    signed_in = record.get("ready") is True and bounded_text(record.get("tierLabel")) != ""
+    if record.get("limits") or record.get("accounts") or has_history or signed_in:
+        return api_view
+    return "hidden"
+
+
+def omarchy_provider(raw: Any) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+    provider_id = raw.get("id")
+    if not isinstance(provider_id, str) or not OMARCHY_ID_RE.match(provider_id):
+        return None
+    limits = omarchy_limits(raw.get("limits"))
+    balance = omarchy_balance(raw.get("balance"))
+    stats = empty_bucket_snapshot()
+    for key in ("todayPrompts", "todaySessions", "todayTotalTokens", "totalPrompts", "totalSessions", "activeDays"):
+        stats[key] = count_value(raw.get(key))
+    stats["recentDays"] = omarchy_recent_days(raw.get("recentDays"))
+    stats["modelUsage"] = omarchy_model_usage(raw.get("modelUsage"))
+    stats["hasLocalStats"] = raw.get("hasLocalStats") is not False
+    record = provider_record(
+        provider_id,
+        bounded_text(raw.get("name")) or provider_id,
+        tier=bounded_text(raw.get("tierLabel")),
+        limits=limits,
+        balance=balance,
+        status=bounded_text(raw.get("usageStatusText")),
+        help_text=bounded_text(raw.get("authHelpText")),
+        ready=raw.get("ready") is True,
+        stats=stats,
+    )
+    record["source"] = "omarchy"
+    record["limitsStale"] = raw.get("limitsStale") is True
+    record["defaultView"] = omarchy_default_view({**raw, "limits": limits, "balance": balance})
+    return record
+
+
+def load_omarchy_providers(usage_dir: Path | None = None) -> list[dict[str, Any]]:
+    directory = usage_dir or omarchy_usage_dir()
+    providers: list[dict[str, Any]] = []
+    try:
+        paths = sorted(directory.glob("*.json"))
+    except OSError as exc:
+        print(f"ghost.ai-usage: cannot list {directory}: {exc}; showing built-in providers only", file=sys.stderr)
+        return []
+    for path in paths:
+        try:
+            if path.stat().st_size > OMARCHY_RECORD_MAX_BYTES:
+                print(f"ghost.ai-usage: skipping {path}: larger than {OMARCHY_RECORD_MAX_BYTES} bytes", file=sys.stderr)
+                continue
+            record = omarchy_provider(json.loads(path.read_text()))
+        except (OSError, ValueError) as exc:
+            print(f"ghost.ai-usage: skipping {path}: {exc}; other providers are unaffected", file=sys.stderr)
+            continue
+        if record and record["id"] not in OMARCHY_COLLECTED_HERE:
+            providers.append(record)
+    providers.sort(key=lambda p: (p["defaultView"] == "hidden", p["name"].lower()))
+    return providers
+
+
 def parse_model(raw: Any) -> tuple[str, str]:
     if isinstance(raw, dict):
         provider = str(raw.get("providerID") or raw.get("provider") or "")
@@ -452,6 +606,7 @@ def scan_opencode_db(db: Path | None = None) -> dict[str, Bucket]:
         "opencode-go": Bucket(),
         "openrouter": Bucket(),
         "anthropic": Bucket(),
+        "cerebras": Bucket(),
     }
     path = db or opencode_db()
     if not path.is_file():
@@ -1315,6 +1470,29 @@ def fetch_claude_limits() -> tuple[list[dict[str, Any]], str, str, str]:
     return [], plan, "Claude limits unavailable", str(probe.get("helpText") or "")
 
 
+def fetch_cerebras() -> tuple[str, str]:
+    """Check the key. Cerebras has no API for balance or spend, only its console."""
+    key = secret("CEREBRAS_API_KEY", "cerebrasApiKey", "CEREBRAS_API_KEY")
+    if not key:
+        auth = read_json(expand("~/.local/share/opencode/auth.json"))
+        entry = auth.get("cerebras") if isinstance(auth, dict) else None
+        key = str(entry.get("key") or "").strip() if isinstance(entry, dict) else ""
+    if not key:
+        return (
+            "Cerebras key missing",
+            "Set cerebrasApiKey in ~/.config/omarchy/ai-usage.json, or sign in to Cerebras in opencode.",
+        )
+    status, _payload, _headers = http_json(
+        "https://api.cerebras.ai/v1/models",
+        {"Authorization": f"Bearer {key}"},
+    )
+    if status in {401, 403}:
+        return "Cerebras key rejected", "Create a new key at cloud.cerebras.ai and update cerebrasApiKey."
+    if status != 200:
+        return "Cerebras unavailable", f"GET /v1/models answered {status or 'nothing'}. Local token history is unaffected."
+    return "", ""
+
+
 def fetch_claude_api() -> tuple[dict[str, Any] | None, dict[str, Any], str, str]:
     key = secret("ANTHROPIC_ADMIN_KEY", "anthropicAdminKey", "ANTHROPIC_ADMIN_KEY")
     if not key:
@@ -1379,6 +1557,7 @@ def build_snapshot() -> dict[str, Any]:
         openrouter_f = pool.submit(fetch_openrouter)
         claude_f = pool.submit(fetch_claude_limits)
         claude_api_f = pool.submit(fetch_claude_api)
+        cerebras_f = pool.submit(fetch_cerebras)
         codex_limits, codex_tier, codex_status, codex_help = codex_f.result()
         grok_limits, grok_tier, grok_status, grok_help = grok_f.result()
         go_limits, go_status, go_help = go_f.result()
@@ -1387,14 +1566,16 @@ def build_snapshot() -> dict[str, Any]:
         openrouter_balance, openrouter_limits, openrouter_tier, openrouter_status, openrouter_help = openrouter_f.result()
         claude_limits, claude_tier, claude_status, claude_help = claude_f.result()
         claude_api_balance, claude_api_stats, claude_api_status, claude_api_help = claude_api_f.result()
+        cerebras_status, cerebras_help = cerebras_f.result()
 
     openai_stats_final = openai_stats
     xai_api_stats = empty_bucket_snapshot() if xai_status else snapshot_from(xai_local)
     openrouter_local = local.get("openrouter") or Bucket()
     anthropic_local = local.get("anthropic") or Bucket()
+    cerebras_local = local.get("cerebras") or Bucket()
 
     opencode_all = Bucket()
-    for source in (zen_local, go_local, openai_local, xai_local, openrouter_local, anthropic_local):
+    for source in (zen_local, go_local, openai_local, xai_local, openrouter_local, anthropic_local, cerebras_local):
         for model, usage in source.models.items():
             opencode_all.models[model] = {
                 "inputTokens": opencode_all.models.get(model, {}).get("inputTokens", 0) + usage["inputTokens"],
@@ -1499,23 +1680,36 @@ def build_snapshot() -> dict[str, Any]:
             ready=not openrouter_status,
             stats=snapshot_from(openrouter_local),
         ),
+        provider_record(
+            "cerebras",
+            "Cerebras",
+            tier="API",
+            status=cerebras_status,
+            help_text=cerebras_help,
+            ready=not cerebras_status,
+            stats=snapshot_from(cerebras_local),
+        ),
     ]
-    providers = subs + apis
+    return assemble_snapshot(subs, apis, load_omarchy_providers())
+
+
+def assemble_snapshot(
+    subs: list[dict[str, Any]],
+    apis: list[dict[str, Any]],
+    extras: list[dict[str, Any]],
+) -> dict[str, Any]:
+    catalog = [{"id": p["id"], "name": p["name"], "defaultView": "subs"} for p in subs]
+    catalog += [{"id": p["id"], "name": p["name"], "defaultView": "apis"} for p in apis]
+    catalog += [{"id": p["id"], "name": p["name"], "defaultView": p["defaultView"]} for p in extras]
     return {
         "schemaVersion": 1,
         "updatedAt": iso_now(),
-        "catalog": [
-            {"id": "codex", "name": "Codex", "defaultView": "subs"},
-            {"id": "grok", "name": "Grok", "defaultView": "subs"},
-            {"id": "claude", "name": "Claude Code", "defaultView": "subs"},
-            {"id": "opencode", "name": "OpenCode", "defaultView": "subs"},
-            {"id": "openai-api", "name": "OpenAI API", "defaultView": "apis"},
-            {"id": "xai-api", "name": "xAI API", "defaultView": "apis"},
-            {"id": "claude-api", "name": "Claude API", "defaultView": "apis"},
-            {"id": "openrouter", "name": "OpenRouter", "defaultView": "apis"},
-        ],
-        "providers": providers,
-        "views": {"subs": subs, "apis": apis},
+        "catalog": catalog,
+        "providers": subs + apis + extras,
+        "views": {
+            "subs": subs + [p for p in extras if p["defaultView"] == "subs"],
+            "apis": apis + [p for p in extras if p["defaultView"] == "apis"],
+        },
     }
 
 

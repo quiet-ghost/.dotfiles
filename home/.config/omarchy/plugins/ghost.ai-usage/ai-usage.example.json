@@ -4,5 +4,6 @@
   "xaiTeamId": "",
   "openrouterApiKey": "",
   "openrouterManagementKey": "",
-  "anthropicAdminKey": ""
+  "anthropicAdminKey": "",
+  "cerebrasApiKey": ""
 }

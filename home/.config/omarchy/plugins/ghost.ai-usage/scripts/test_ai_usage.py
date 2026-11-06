@@ -7,6 +7,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE = Path(__file__).with_name("ai_usage.py")
 SPEC = importlib.util.spec_from_file_location("ai_usage", MODULE)
@@ -264,6 +265,195 @@ class OAuthRefreshTests(unittest.TestCase):
         self.assertEqual(status, "")
         self.assertEqual(help_text, "")
         self.assertEqual(self.calls, [])
+
+
+class OmarchyProviderTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+
+    def write(self, name: str, record: object) -> None:
+        (self.dir / f"{name}.json").write_text(json.dumps(record))
+
+    def by_id(self) -> dict[str, dict]:
+        return {p["id"]: p for p in USAGE.load_omarchy_providers(self.dir)}
+
+    def test_reads_any_record_except_providers_collected_here(self) -> None:
+        self.write("cursor", {"id": "cursor", "name": "Cursor", "tierLabel": "Premium", "ready": True})
+        self.write("brand-new", {"id": "brand-new", "name": "Brand New", "totalPrompts": 3})
+        for own in ("claude", "codex", "grok", "opencode", "openrouter"):
+            self.write(own, {"id": own, "name": own, "totalPrompts": 9})
+
+        self.assertEqual(sorted(self.by_id()), ["brand-new", "cursor"])
+
+    def test_keeps_limits_balance_and_token_stats(self) -> None:
+        self.write("cursor", {
+            "id": "cursor",
+            "name": "Cursor",
+            "tierLabel": "Premium",
+            "ready": True,
+            "limits": [{"label": "Included total", "title": "Weekly", "percent": 0.4, "resetsAt": "2026-11-10T09:32:46+00:00"}],
+            "balance": {"remaining": 5, "funded": 20, "spent": 15, "currency": "USD", "estimated": True},
+            "recentDays": [{"date": "2026-11-05", "messageCount": 12}],
+            "modelUsage": {"m": {"inputTokens": 1, "outputTokens": 2, "cacheReadInputTokens": 3, "cacheCreationInputTokens": 4}},
+        })
+
+        record = self.by_id()["cursor"]
+
+        self.assertEqual(record["source"], "omarchy")
+        self.assertEqual(record["limits"][0]["title"], "Weekly")
+        self.assertEqual(record["limits"][0]["percent"], 0.4)
+        self.assertEqual(record["balance"]["remaining"], 5.0)
+        self.assertTrue(record["balance"]["estimated"])
+        self.assertEqual(record["recentDays"], [{"date": "2026-11-05", "messageCount": 12}])
+        self.assertEqual(record["modelUsage"]["m"]["cacheCreationInputTokens"], 4)
+
+    def test_default_view_follows_what_the_record_has(self) -> None:
+        empty = USAGE.omarchy_default_view({"ready": False, "tierLabel": "Pro"})
+        signed_in = USAGE.omarchy_default_view({"ready": True, "tierLabel": "Pro"})
+        history = USAGE.omarchy_default_view({"totalPrompts": 1})
+        limits = USAGE.omarchy_default_view({"limits": [{"percent": 0.1}]})
+        prepaid = USAGE.omarchy_default_view({"balance": {"remaining": 1.0}})
+
+        self.assertEqual(empty, "hidden")
+        self.assertEqual(signed_in, "subs")
+        self.assertEqual(history, "subs")
+        self.assertEqual(limits, "subs")
+        self.assertEqual(prepaid, "apis")
+
+    def test_bad_input_is_skipped_or_dropped_without_failing(self) -> None:
+        (self.dir / "broken.json").write_text("{not json")
+        (self.dir / "huge.json").write_text(json.dumps({"id": "huge", "name": "x" * USAGE.OMARCHY_RECORD_MAX_BYTES}))
+        self.write("list", ["not", "a", "record"])
+        self.write("badid", {"id": "../../etc", "name": "Bad"})
+        self.write("odd", {
+            "id": "odd",
+            "name": "n" * 500,
+            "limits": [{"percent": "lots"}, {"percent": -1}, "nope", {"percent": 0.5}],
+            "balance": {"remaining": -3},
+            "recentDays": "nope",
+            "modelUsage": {"m": "nope"},
+            "totalPrompts": "many",
+        })
+
+        found = self.by_id()
+
+        self.assertEqual(sorted(found), ["odd"])
+        odd = found["odd"]
+        self.assertLessEqual(len(odd["name"]), USAGE.OMARCHY_TEXT_MAX)
+        self.assertEqual([limit["percent"] for limit in odd["limits"]], [0.5])
+        self.assertIsNone(odd["balance"])
+        self.assertEqual(odd["recentDays"], [])
+        self.assertEqual(odd["modelUsage"], {})
+        self.assertEqual(odd["totalPrompts"], 0)
+
+    def test_missing_directory_means_no_extra_providers(self) -> None:
+        self.assertEqual(USAGE.load_omarchy_providers(self.dir / "missing"), [])
+
+    def test_providers_with_something_to_show_sort_first(self) -> None:
+        self.write("aaa", {"id": "aaa", "name": "Aaa"})
+        self.write("zzz", {"id": "zzz", "name": "Zzz", "totalPrompts": 1})
+
+        order = [p["id"] for p in USAGE.load_omarchy_providers(self.dir)]
+
+        self.assertEqual(order, ["zzz", "aaa"])
+
+    def test_assemble_adds_extras_to_catalog_and_their_view_only(self) -> None:
+        sub = USAGE.provider_record("codex", "Codex")
+        api = USAGE.provider_record("openrouter", "OpenRouter")
+        shown = dict(USAGE.provider_record("cursor", "Cursor", limits=[{"percent": 0.1}]), source="omarchy", defaultView="subs")
+        prepaid = dict(USAGE.provider_record("deepseek", "DeepSeek", balance={"remaining": 1.0}), source="omarchy", defaultView="apis")
+        empty = dict(USAGE.provider_record("kimi", "Kimi"), source="omarchy", defaultView="hidden")
+
+        snapshot = USAGE.assemble_snapshot([sub], [api], [shown, prepaid, empty])
+
+        catalog = {row["id"]: row["defaultView"] for row in snapshot["catalog"]}
+        self.assertEqual(catalog["cursor"], "subs")
+        self.assertEqual(catalog["deepseek"], "apis")
+        self.assertEqual(catalog["kimi"], "hidden")
+        self.assertEqual(catalog["codex"], "subs")
+        self.assertEqual([p["id"] for p in snapshot["views"]["subs"]], ["codex", "cursor"])
+        self.assertEqual([p["id"] for p in snapshot["views"]["apis"]], ["openrouter", "deepseek"])
+        self.assertIn("kimi", [p["id"] for p in snapshot["providers"]])
+
+
+class CerebrasTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.home = Path(self.tmp.name)
+        self.requests: list[tuple[str, dict[str, str]]] = []
+        self.answer = (200, {"data": []}, {})
+
+        def fake_http(url: str, headers: dict[str, str], **_kwargs: object) -> tuple[int, object, dict[str, str]]:
+            self.requests.append((url, headers))
+            return self.answer
+
+        for name, value in (("http_json", fake_http), ("home", lambda: self.home), ("secret", lambda *_args: self.key)):
+            patcher = mock.patch.object(USAGE, name, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.key = "csk-test"
+
+    def test_missing_key_says_where_to_put_one_and_makes_no_request(self) -> None:
+        self.key = ""
+
+        status, help_text = USAGE.fetch_cerebras()
+
+        self.assertEqual(status, "Cerebras key missing")
+        self.assertIn("cerebrasApiKey", help_text)
+        self.assertEqual(self.requests, [])
+
+    def test_valid_key_has_no_status(self) -> None:
+        self.assertEqual(USAGE.fetch_cerebras(), ("", ""))
+        url, headers = self.requests[0]
+        self.assertEqual(url, "https://api.cerebras.ai/v1/models")
+        self.assertEqual(headers["Authorization"], "Bearer csk-test")
+
+    def test_rejected_key_is_reported(self) -> None:
+        self.answer = (401, None, {})
+
+        status, help_text = USAGE.fetch_cerebras()
+
+        self.assertEqual(status, "Cerebras key rejected")
+        self.assertIn("cloud.cerebras.ai", help_text)
+
+    def test_outage_says_history_is_unaffected(self) -> None:
+        self.answer = (0, None, {})
+
+        status, help_text = USAGE.fetch_cerebras()
+
+        self.assertEqual(status, "Cerebras unavailable")
+        self.assertIn("history", help_text)
+
+    def test_reads_key_opencode_saved(self) -> None:
+        self.key = ""
+        auth = self.home / ".local" / "share" / "opencode" / "auth.json"
+        auth.parent.mkdir(parents=True)
+        auth.write_text(json.dumps({"cerebras": {"type": "api", "key": "csk-opencode"}}))
+
+        USAGE.fetch_cerebras()
+
+        self.assertEqual(self.requests[0][1]["Authorization"], "Bearer csk-opencode")
+
+    def test_opencode_sessions_on_cerebras_get_their_own_bucket(self) -> None:
+        db = self.home / "opencode.db"
+        write_session_db(db, old=[("s1", json.dumps({"providerID": "cerebras", "id": "gpt-oss-120b"}), 1_790_000_000_000, 50)], new=None)
+
+        buckets = USAGE.scan_opencode_db(db)
+
+        self.assertEqual(buckets["cerebras"].models["gpt-oss-120b"]["inputTokens"], 50)
+
+    def test_omarchy_record_never_duplicates_cerebras(self) -> None:
+        self.assertIn("cerebras", USAGE.OMARCHY_COLLECTED_HERE)
+
+
+class ApiStyleDefaultViewTests(unittest.TestCase):
+    def test_pay_per_token_providers_start_in_apis_once_they_have_data(self) -> None:
+        for provider in ("fireworks", "deepseek"):
+            self.assertEqual(USAGE.omarchy_default_view({"id": provider, "totalPrompts": 1}), "apis")
+            self.assertEqual(USAGE.omarchy_default_view({"id": provider}), "hidden")
 
 
 if __name__ == "__main__":

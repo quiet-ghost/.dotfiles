@@ -39,7 +39,28 @@
           "id": "io.github.ilyazar.syncthing"
         },
         {
-          "id": "ghost.ai-usage"
+          "id": "ghost.ai-usage",
+          "assignments": {
+            "agy": "hidden",
+            "deepseek": "hidden",
+            "fireworks": "apis",
+            "copilot": "hidden",
+            "hermes": "hidden",
+            "kimchi": "hidden",
+            "kimi": "hidden",
+            "local": "hidden",
+            "minimax": "hidden",
+            "vibe": "hidden",
+            "muse": "hidden",
+            "ollama": "hidden",
+            "qwen": "hidden",
+            "synthetic": "hidden",
+            "zai": "hidden",
+            "devin": "hidden",
+            "claude-api": "hidden",
+            "openai-api": "hidden",
+            "opencode": "hidden"
+          }
         },
         {
           "id": "mdick.cloudflare",

@@ -29,10 +29,13 @@ Panel {
 
   readonly property int refreshIntervalSec: Math.max(30, Number(setting("refreshIntervalSec", 300)))
   readonly property string scannerPath: pathFromUrl(Qt.resolvedUrl("scripts/ai_usage.py"))
+  readonly property string omarchyPath: Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy"
 
   property string activeView: String(setting("defaultView", "subs")) === "apis" ? "apis" : "subs"
   property bool settingsMode: false
   property bool refreshing: false
+  property bool rescanPending: false
+  property string pendingOmarchyUpdate: ""
   property var snapshot: ({ schemaVersion: 1, catalog: [], providers: [], views: { subs: [], apis: [] } })
   property var assignments: ({})
   // Provider id -> showing its token breakdown. Lives here because refreshes
@@ -53,14 +56,15 @@ Panel {
   readonly property var catalog: {
     var rows = snapshot && Array.isArray(snapshot.catalog) ? snapshot.catalog : []
     return rows.length > 0 ? rows : [
-      { id: "codex", name: "Codex" },
-      { id: "grok", name: "Grok" },
-      { id: "claude", name: "Claude Code" },
-      { id: "opencode", name: "OpenCode" },
-      { id: "openai-api", name: "OpenAI API" },
-      { id: "xai-api", name: "xAI API" },
-      { id: "claude-api", name: "Claude API" },
-      { id: "openrouter", name: "OpenRouter" }
+      { id: "codex", name: "Codex", defaultView: "subs" },
+      { id: "grok", name: "Grok", defaultView: "subs" },
+      { id: "claude", name: "Claude Code", defaultView: "subs" },
+      { id: "opencode", name: "OpenCode", defaultView: "subs" },
+      { id: "openai-api", name: "OpenAI API", defaultView: "apis" },
+      { id: "xai-api", name: "xAI API", defaultView: "apis" },
+      { id: "claude-api", name: "Claude API", defaultView: "apis" },
+      { id: "openrouter", name: "OpenRouter", defaultView: "apis" },
+      { id: "cerebras", name: "Cerebras", defaultView: "apis" }
     ]
   }
   readonly property var allProviders: snapshot && Array.isArray(snapshot.providers) ? snapshot.providers : []
@@ -175,8 +179,8 @@ Panel {
   // Nothing picked means Enter refreshes, which is what it has always done here.
   function activateSelection() {
     var target = keyTarget
-    if (!target) refreshNow(true)
-    else if (target.kind === "refresh") refreshNow(true)
+    if (!target) refreshEverything(true)
+    else if (target.kind === "refresh") refreshEverything(true)
     else if (target.kind === "settings") settingsMode ? showUsage() : openSettings()
     else if (target.kind === "view") selectView(target.index === 1 ? "apis" : "subs")
     else if (target.kind === "provider") toggleExpanded(viewProviders[target.index])
@@ -199,9 +203,13 @@ Panel {
 
   // ------------------------------------------------------------------- views
 
+  // The scanner decides each provider's starting view; empty Omarchy records
+  // start hidden so they don't fill the page with blank sections.
   function defaultAssignment(id) {
-    if (id === "openai-api" || id === "xai-api" || id === "openrouter" || id === "claude-api") return "apis"
-    return "subs"
+    for (var i = 0; i < catalog.length; i++) {
+      if (catalog[i].id === id && catalog[i].defaultView) return String(catalog[i].defaultView)
+    }
+    return "hidden"
   }
 
   function assignmentFor(id) {
@@ -251,12 +259,38 @@ Panel {
   // ---------------------------------------------------------------- snapshot
 
   function refreshNow(force) {
-    if (scanner.running) return
+    if (scanner.running) {
+      rescanPending = true
+      return
+    }
     refreshing = true
     scanner.command = force
       ? ["python3", scannerPath, "--force-refresh"]
       : ["python3", scannerPath]
     scanner.running = true
+  }
+
+  // Omarchy's collectors for every provider the scanner doesn't handle itself.
+  // Skipping those keeps the two from probing the same limits endpoints, which
+  // Anthropic answers with 429s if asked too often. The kinds match Agents:
+  // "limits" reuses transcript scans, "force" ignores every cache.
+  function updateOmarchyRecords(kind) {
+    if (omarchyUpdate.running) {
+      if (kind === "force" || pendingOmarchyUpdate === "") pendingOmarchyUpdate = kind
+      return
+    }
+    var command = ["omarchy-agent-usage-update"]
+    if (kind === "force") command.push("--force")
+    if (kind === "limits") command.push("--limits-only")
+    var collectedHere = ["cerebras", "claude", "codex", "grok", "opencode", "openrouter"]
+    for (var i = 0; i < collectedHere.length; i++) command.push("--except", collectedHere[i])
+    omarchyUpdate.command = command
+    omarchyUpdate.running = true
+  }
+
+  function refreshEverything(force) {
+    refreshNow(force)
+    updateOmarchyRecords(force ? "force" : "limits")
   }
 
   function applySnapshot(text) {
@@ -270,11 +304,14 @@ Panel {
 
   // ------------------------------------------------------------------ limits
 
+  // Collectors spell windows differently ("Session (5-hour)", "5h window",
+  // "30m window", "30-day"); all of them land on the same few titles.
   function windowTitle(label) {
     var text = String(label || "").toLowerCase()
-    if (text.indexOf("month") >= 0) return "Monthly"
-    if (text.indexOf("week") >= 0 || text.indexOf("7-day") >= 0) return "Weekly"
-    if (text.indexOf("session") >= 0 || text.indexOf("5h") >= 0 || text.indexOf("rolling") >= 0) return "Session"
+    if (text.indexOf("month") >= 0 || text.indexOf("30-day") >= 0) return "Monthly"
+    if (text.indexOf("week") >= 0 || text.indexOf("7-day") >= 0 || text.indexOf("seven") >= 0) return "Weekly"
+    if (text.indexOf("session") >= 0 || text.indexOf("rolling") >= 0
+        || /\d+\s*-?\s*h(our)?\b/.test(text) || /\d+\s*-?\s*m(in(ute)?s?)?\b/.test(text)) return "Session"
     var plain = String(label || "").replace(/\s*\(.*\)\s*/, "").trim()
     return plain === "" ? "Limit" : plain
   }
@@ -386,8 +423,13 @@ Panel {
     return tier === "" ? "" : tier.charAt(0).toUpperCase() + tier.slice(1)
   }
 
+  // Help text alone isn't a problem: an unconfigured Omarchy provider always
+  // carries setup help. It only speaks up beside a status or numbers gone stale.
   function noteText(p) {
-    return p ? String(p.authHelpText || p.usageStatusText || "") : ""
+    if (!p) return ""
+    var status = String(p.usageStatusText || "")
+    if (status === "" && p.limitsStale !== true) return ""
+    return String(p.authHelpText || status)
   }
 
   function hasNumbers(p) {
@@ -405,7 +447,10 @@ Panel {
     if (id === "openai-api" || id === "codex") return Qt.resolvedUrl("assets/openai.png")
     if (id === "openrouter") return Qt.resolvedUrl("assets/openrouter.svg")
     if (id === "claude" || id === "claude-api") return Qt.resolvedUrl("assets/claude.svg")
-    return Qt.resolvedUrl("assets/" + id + ".svg")
+    if (id === "opencode" || id === "cerebras") return Qt.resolvedUrl("assets/" + id + ".svg")
+    // Everything else wears the mark Omarchy ships for it, so a provider added
+    // later needs nothing here. ProviderIcon falls back to the bar glyph.
+    return "file://" + root.omarchyPath + "/shell/plugins/agents/assets/" + id + ".svg"
   }
 
   // ---------------------------------------------------------------- tokens
@@ -493,10 +538,11 @@ Panel {
 
   // ----------------------------------------------------------------- summary
   //
-  // The hero's line rotates through what the active view adds up to. Providers
-  // overlap: OpenCode's history contains the Codex and Grok tokens routed
-  // through it, and xAI API repeats Grok's. Taking the largest count per day and
-  // per model counts each token once; summing would double most of them.
+  // The hero's line rotates through what the active view adds up to. The
+  // scanner's own providers overlap: OpenCode's history contains the Codex and
+  // Grok tokens routed through it, and xAI API repeats Grok's. Taking the largest
+  // count per day and per model counts each of those once. Omarchy's records read
+  // each agent's own history, so they add on top.
 
   readonly property var summaryPhrases: {
     var week = 0
@@ -505,12 +551,19 @@ Panel {
     var byModel = {}
     var money = {}
     var todayKey = todayDate()
-    for (var i = 0; i < viewProviders.length; i++) {
-      var p = viewProviders[i]
+    function tally(map, key, tokens, additive) {
+      map[key] = additive ? (map[key] || 0) + tokens : Math.max(map[key] || 0, tokens)
+    }
+    // Overlapping providers first, so the additive ones land on their maximum.
+    var ordered = viewProviders.filter(function(p) { return p.source !== "omarchy" })
+      .concat(viewProviders.filter(function(p) { return p.source === "omarchy" }))
+    for (var i = 0; i < ordered.length; i++) {
+      var p = ordered[i]
+      var additive = p.source === "omarchy"
       var days = dayNumbers(p)
-      for (var d = 0; d < days.length; d++) byDay[days[d].date] = Math.max(byDay[days[d].date] || 0, days[d].tokens)
+      for (var d = 0; d < days.length; d++) tally(byDay, days[d].date, days[d].tokens, additive)
       var models = modelRows(p)
-      for (var m = 0; m < models.length; m++) byModel[models[m].name] = Math.max(byModel[models[m].name] || 0, models[m].total)
+      for (var m = 0; m < models.length; m++) tally(byModel, models[m].name, models[m].total, additive)
       if (p.balance) {
         var code = String(p.balance.currency || "USD")
         money[code] = (money[code] || 0) + Number(p.balance.remaining || 0)
@@ -561,7 +614,7 @@ Panel {
     resetKeys()
     nowMs = Date.now()
     if (panelFlick) panelFlick.contentY = 0
-    refreshNow(false)
+    refreshEverything(false)
     Qt.callLater(function() { if (panel.loadedContent) panel.loadedContent.forceActiveFocus() })
   }
 
@@ -577,7 +630,32 @@ Panel {
       waitForEnd: true
       onStreamFinished: if (text.trim() !== "") console.warn("ghost.ai-usage", text.trim())
     }
-    onExited: root.refreshing = false
+    onExited: {
+      root.refreshing = false
+      if (root.rescanPending) {
+        root.rescanPending = false
+        root.refreshNow(false)
+      }
+    }
+  }
+
+  Process {
+    id: omarchyUpdate
+    running: false
+    command: []
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: if (text.trim() !== "") console.warn("ghost.ai-usage", text.trim())
+    }
+    // The records are on disk now; the scanner is what brings them to the panel.
+    onExited: {
+      root.refreshNow(false)
+      if (root.pendingOmarchyUpdate !== "") {
+        var kind = root.pendingOmarchyUpdate
+        root.pendingOmarchyUpdate = ""
+        root.updateOmarchyRecords(kind)
+      }
+    }
   }
 
   Timer {
@@ -586,6 +664,15 @@ Panel {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refreshNow(false)
+  }
+
+  // Same pace as Agents' default: the collectors walk transcripts on disk.
+  Timer {
+    interval: 900000
+    running: true
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.updateOmarchyRecords("normal")
   }
 
   Timer {
@@ -627,7 +714,7 @@ Panel {
     function show(): void { root.open() }
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
-    function refresh(): string { root.refreshNow(true); return "ok" }
+    function refresh(): string { root.refreshEverything(true); return "ok" }
     function settings(): string { root.openSettings(); return "ok" }
     function subs(): string { root.selectView("subs"); root.open(); return "ok" }
     function apis(): string { root.selectView("apis"); root.open(); return "ok" }
@@ -641,7 +728,7 @@ Panel {
     tooltipText: "AI usage"
     active: root.alarming
     onPressed: function(buttonCode) {
-      if (buttonCode === Qt.MiddleButton) root.refreshNow(true)
+      if (buttonCode === Qt.MiddleButton) root.refreshEverything(true)
       else if (buttonCode === Qt.RightButton) root.selectView(root.activeView === "subs" ? "apis" : "subs")
       else root.toggle()
     }
@@ -670,7 +757,7 @@ Panel {
       onCloseRequested: root.settingsMode ? root.showUsage() : root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(t) {
-        if (t === "r" || t === "R") root.refreshNow(true)
+        if (t === "r" || t === "R") root.refreshEverything(true)
         else if (t === "s" || t === "S") root.selectView("subs")
         else if (t === "a" || t === "A") root.selectView("apis")
         else if (t === ",") root.settingsMode ? root.showUsage() : root.openSettings()
@@ -731,7 +818,7 @@ Panel {
                   onHovered: root.pointAt("refresh")
                   glyph: "󰑐"
                   tooltip: "Refresh (r)"
-                  onClicked: root.refreshNow(true)
+                  onClicked: root.refreshEverything(true)
                 }
 
                 HeroButton {
