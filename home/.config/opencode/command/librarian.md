@@ -7,7 +7,7 @@ Load the `librarian` skill and use it to help with the user request.
 First, invoke the skill tool to load the librarian skill:
 
 ```
-skill({ name: 'librarian' })
+skill({ id: 'librarian' })
 ```
 
 Then follow the skill instructions to complete the request.

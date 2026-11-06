@@ -11,7 +11,7 @@ Load the OpenTUI TUI framework skill and help with any terminal user interface d
 If $ARGUMENTS contains `--update-skill`:
 
 1. Determine install location by checking which exists:
-   - Local: `.opencode/skill/opentui/`
+   - Local: `.opencode/skills/opentui/`
    - Global: `~/.agents/skills/opentui/`
 
 2. Run the appropriate install command:
@@ -28,7 +28,7 @@ If $ARGUMENTS contains `--update-skill`:
 ### Step 2: Load opentui skill
 
 ```
-skill({ name: 'opentui' })
+skill({ id: 'opentui' })
 ```
 
 ### Step 3: Identify task type from user request

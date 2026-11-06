@@ -7,7 +7,7 @@ Convert markdown planning documents into trackable Overseer task hierarchies.
 First, invoke the skill tool to load the overseer-plan skill:
 
 ```
-skill({ name: 'overseer-plan' })
+skill({ id: 'overseer-plan' })
 ```
 
 Then follow the skill instructions to convert the document.

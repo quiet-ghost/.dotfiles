@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "ghost.tray",
   "name": "My System tray",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "ghost",
-  "description": "System tray icons plus bar widgets captured into the drawer",
+  "description": "Omarchy's system tray, with draggable status icons",
   "kinds": [
     "bar-widget"
   ],
@@ -13,7 +13,7 @@
   },
   "barWidget": {
     "displayName": "My System tray",
-    "description": "Status notifier items, plus bar widgets dropped into the drawer",
+    "description": "Status notifier items you can reorder, pin, and hide by dragging",
     "category": "Status",
     "allowMultiple": false
   },

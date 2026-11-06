@@ -7,18 +7,24 @@ description: Create effective OpenCode agents for specific tasks. Load FIRST bef
 
 Agents give OpenCode specialized prompts, permissions, and operating modes for repeatable work.
 
+Author for OpenCode V2. Read the current [agents guide](https://opencode.ai/v2/docs/agents) and [permissions guide](https://opencode.ai/v2/docs/permissions) before changing definitions. For conversions, also read the [migration guide](https://opencode.ai/v2/docs/migrate-v1#agent-files); preserve behavior and unrelated settings.
+
 ## Quick Start
 
 Minimal viable agent in 30 seconds:
 
 ```bash
-mkdir -p .opencode/agent && cat > .opencode/agent/professional-writer.md << 'EOF'
+mkdir -p .opencode/agents && cat > .opencode/agents/professional-writer.md << 'EOF'
 ---
 description: Writes polished, professional prose for documents, proposals, emails, and long-form content. Use when drafting, rewriting, or refining writing for tone, clarity, and audience fit.
 mode: subagent
-permission:
-  edit: allow
-  bash: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
 ---
 
 You are a professional writer.
@@ -27,7 +33,7 @@ Write with a clear sense of audience, purpose, structure, and tone. Improve clar
 EOF
 ```
 
-Place in `.opencode/agent/` (project) or `~/.config/opencode/agent/` (global).
+Place new agents in `.opencode/agents/` (project) or `~/.config/opencode/agents/` (global). Existing singular directories remain supported; moving existing files is optional.
 
 ## Agent Type Decision Tree
 
@@ -47,9 +53,9 @@ What are you building?
 
 If Agent:
 ├─ User should switch into it directly → primary
-├─ Specialist helper invoked via @mention or Task → subagent
+├─ Specialist helper launched through the subagent tool → subagent
 ├─ Truly useful in both roles → all
-└─ Internal helper not meant for autocomplete → subagent + hidden
+└─ Helper intentionally omitted from listings and the model catalog → subagent + hidden
 ```
 
 ## When to Create an Agent
@@ -60,7 +66,7 @@ Create an agent when:
 - A task needs a distinct prompt/persona, not just extra knowledge
 - The work needs a different permission profile than build/plan
 - A primary agent needs a reusable specialist subagent
-- The agent should be discoverable by description in Task or `@` mention
+- The agent should be discoverable by description in the subagent catalog
 
 ## When NOT to Create an Agent
 
@@ -99,25 +105,26 @@ Create an agent when:
 
 Before using an agent:
 
-- [ ] File is in `agent/` and uses a stable lowercase-hyphen name
+- [ ] New file is in `agents/` and uses a stable lowercase-hyphen name
 - [ ] `description:` states what the agent does and when to use it
 - [ ] `mode:` is intentional, not just left at default
-- [ ] `permission:` is minimal for the job
-- [ ] `tools:` is avoided unless updating legacy config
-- [ ] `hidden: true` is used only for subagents
+- [ ] `permissions:` uses ordered `action`/`resource`/`effect` rules
+- [ ] Legacy fields are not mixed into native V2 frontmatter
+- [ ] `hidden: true` is intentional; hidden agents are omitted from the model catalog
 - [ ] `steps:` is set when bounded work or cost control matters
 - [ ] Prompt defines role, scope, and quality bar without bloating context
 
 ## Agent Locations
 
-| Priority | Location |
-| -------- | -------- |
-| 1 | `.opencode/agent/<name>.md` (project) |
-| 2 | `~/.config/opencode/agent/<name>.md` (global) |
-| 3 | `.opencode/agents/<name>.md` (supported, but prefer `agent/`) |
+| Scope | Preferred location |
+| ----- | ------------------ |
+| Project | `.opencode/agents/<name>.md` |
+| Global | `~/.config/opencode/agents/<name>.md` |
 
-The filename becomes the default agent identifier. Prefer `agent/` as the canonical directory even though OpenCode also supports `agents/`.
+Paths determine agent IDs: `agents/team/reviewer.md` becomes `team/reviewer`. V2 also reads legacy `agent/`, `mode/`, and `modes/` directories. A new custom agent defaults to `primary`; choose `mode` explicitly.
+
+Config and definition changes reload automatically. Use `/reload` to force a reload; do not restart the service just to apply edits.
 
 ## See Also
 
-- [OpenCode Agents Docs](https://opencode.ai/docs/agents/) - User-facing reference
+- [OpenCode V2 Agents](https://opencode.ai/v2/docs/agents) - User-facing reference

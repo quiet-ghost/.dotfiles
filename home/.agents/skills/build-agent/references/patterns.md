@@ -5,8 +5,7 @@ Concrete agent archetypes with recommended defaults.
 ## Pattern 1: Read-Only Reviewer
 
 **When to use:**
-- Review code, docs, configs, or plans
-- Primary task is finding issues, not editing
+- Find issues in code, docs, configs, or plans without editing.
 
 **Recommended defaults:**
 
@@ -14,20 +13,24 @@ Concrete agent archetypes with recommended defaults.
 ---
 description: Reviews code changes for bugs, regressions, and maintainability risks. Use when asked to review diffs, pull requests, or suspicious implementations.
 mode: subagent
-temperature: 0.1
-permission:
-  edit: deny
-  bash: ask
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 ```
 
 **Prompt shape:** direct, evidence-seeking, context-aware.
 
+Shell approval can authorize writes even when `edit` is denied. Deny shell entirely if the reviewer must be strictly read-only.
+
 ## Pattern 2: Professional Writer
 
 **When to use:**
-- Draft or revise prose
-- Improve tone, clarity, structure, and audience fit
+- Draft or revise prose for tone, clarity, structure, and audience fit.
 
 **Recommended defaults:**
 
@@ -35,10 +38,13 @@ permission:
 ---
 description: Writes polished, professional prose for documents, proposals, emails, and long-form content. Use when drafting, rewriting, or refining writing for tone, clarity, and audience fit.
 mode: subagent
-temperature: 0.3
-permission:
-  edit: allow
-  bash: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
 ---
 ```
 
@@ -47,9 +53,7 @@ permission:
 ## Pattern 3: Docs Writer
 
 **When to use:**
-- README work
-- Guides, API docs, onboarding docs
-- Documentation maintenance
+- Create or maintain README files, guides, API docs, and onboarding material.
 
 **Recommended defaults:**
 
@@ -57,11 +61,16 @@ permission:
 ---
 description: Writes and maintains technical documentation. Use when creating or revising README files, guides, onboarding docs, or API documentation.
 mode: subagent
-temperature: 0.2
-permission:
-  edit: allow
-  bash: deny
-  webfetch: allow
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: webfetch
+    resource: "*"
+    effect: allow
 steps: 6
 ---
 ```
@@ -71,9 +80,7 @@ steps: 6
 ## Pattern 4: Research / Explore Agent
 
 **When to use:**
-- Investigate codebases or docs
-- Gather context before implementation
-- Answer architecture questions
+- Investigate code, docs, and architecture before implementation.
 
 **Recommended defaults:**
 
@@ -81,11 +88,16 @@ steps: 6
 ---
 description: Explores code, docs, and related context to answer implementation questions. Use when researching behavior, architecture, or unfamiliar code paths.
 mode: subagent
-temperature: 0.1
-permission:
-  edit: deny
-  bash: deny
-  webfetch: allow
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: webfetch
+    resource: "*"
+    effect: allow
 ---
 ```
 
@@ -94,8 +106,7 @@ permission:
 ## Pattern 5: Hidden Helper
 
 **When to use:**
-- Internal subtask with narrow scope
-- Not intended for manual user selection
+- Narrow helper intentionally omitted from listings and the model catalog, not selected automatically.
 
 **Recommended defaults:**
 
@@ -104,9 +115,13 @@ permission:
 description: Performs a narrow internal transformation for parent agents. Use only for task delegation inside larger workflows.
 mode: subagent
 hidden: true
-permission:
-  edit: deny
-  bash: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: deny
 steps: 4
 ---
 ```
@@ -116,9 +131,7 @@ steps: 4
 ## Pattern 6: Orchestrator
 
 **When to use:**
-- Break large work into subtasks
-- Correlate outputs from specialist agents
-- Keep direct edits secondary to coordination
+- Decompose work and correlate specialist results; direct edits are secondary.
 
 **Recommended defaults:**
 
@@ -126,11 +139,16 @@ steps: 4
 ---
 description: Coordinates work across specialist agents. Use when a request spans planning, validation, analysis, and synthesis across multiple domains.
 mode: subagent
-permission:
-  task:
-    "*": deny
-    "review-*": allow
-    "docs-*": allow
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "review-*"
+    effect: allow
+  - action: subagent
+    resource: "docs-*"
+    effect: allow
 steps: 8
 ---
 ```
@@ -140,8 +158,7 @@ steps: 8
 ## Pattern 7: Primary Specialist
 
 **When to use:**
-- User should switch into it directly for a whole session
-- Persistent tone and workflow differ materially from build/plan
+- Direct specialist sessions whose tone and workflow differ materially from build/plan.
 
 **Recommended defaults:**
 
@@ -149,9 +166,13 @@ steps: 8
 ---
 description: Serves as a direct writing-focused primary agent for polished business and technical prose. Use when the main session is centered on drafting or revising written material.
 mode: primary
-permission:
-  edit: allow
-  bash: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
 ---
 ```
 

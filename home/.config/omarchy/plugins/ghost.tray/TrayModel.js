@@ -1,5 +1,3 @@
-var SECTIONS = ["left", "center", "right"]
-
 function text(value) {
   return String(value || "").toLowerCase()
 }
@@ -13,26 +11,17 @@ function itemNamed(item, name) {
 
 function entryId(entry) {
   if (typeof entry === "string") return entry
-  if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+  if (entry && typeof entry === "object") {
     var id = entry.id
     if (id !== undefined && id !== null && String(id) !== "") return String(id)
   }
   return ""
 }
 
-function entrySettings(entry) {
-  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return {}
-  var copy = {}
-  for (var key in entry) {
-    if (key === "id") continue
-    copy[key] = entry[key]
-  }
-  return copy
-}
-
 function layoutHasWidget(layout, id) {
-  for (var s = 0; s < SECTIONS.length; s++) {
-    var entries = layout && layout[SECTIONS[s]]
+  var sections = ["left", "centerBegin", "center", "centerEnd", "right", "tray"]
+  for (var s = 0; s < sections.length; s++) {
+    var entries = layout && layout[sections[s]]
     if (!Array.isArray(entries)) continue
     for (var i = 0; i < entries.length; i++) {
       if (entryId(entries[i]) === id) return true
@@ -41,18 +30,43 @@ function layoutHasWidget(layout, id) {
   return false
 }
 
+// A bar widget that stands in for an app's tray item takes its place: the app's
+// own icon would only show the same thing twice.
+var widgetsForTrayItems = [
+  { widget: "omarchy.dropbox", item: "dropbox" },
+  { widget: "superwhisper.panel", item: "superwhisper" }
+]
+
 // LocalSend's item shows no state, offers only Open and Quit, and its primary
 // click is a no-op, so Share > Receive is the whole surface. Hiding it by hand
 // doesn't stick either: LocalSend picks a fresh tray id every launch.
 function ownedByOmarchy(item, layout) {
-  return itemNamed(item, "localsend")
-    || (layoutHasWidget(layout, "omarchy.dropbox") && itemNamed(item, "dropbox"))
+  if (itemNamed(item, "localsend")) return true
+  for (var i = 0; i < widgetsForTrayItems.length; i++) {
+    var owner = widgetsForTrayItems[i]
+    if (itemNamed(item, owner.item) && layoutHasWidget(layout, owner.widget)) return true
+  }
+  return false
+}
+
+// The stretch of the tray section, from `start` and `length` long along the
+// bar, that the drawer's clip, from `clipStart` and `clipLength` long, shows:
+// { start, length }, or null while it shows none of it. An empty section
+// shows once it is within a pixel of the clip's edge, as the drawer eases to
+// rest.
+function shownSpan(clipStart, clipLength, start, length) {
+  var from = Math.max(start, clipStart)
+  var to = Math.min(start + length, clipStart + clipLength)
+  if (to < from) {
+    if (from - to > 1) return null
+    from = to
+  }
+  return { start: from, length: to - from }
 }
 
 // QML can hand a settings array across property boundaries as a variant-list
-// proxy: typeof "object", instanceof Array, but Array.isArray false and array
-// methods missing. Which form arrives depends on the injection path, so every
-// settings-derived list must be copied into a real array before use.
+// proxy: typeof "object", but Array.isArray false and array methods missing.
+// Every settings-derived list is copied into a real array before use.
 function asList(value) {
   if (Array.isArray(value)) return value
   if (value && typeof value === "object" && typeof value.length === "number") {
@@ -63,238 +77,112 @@ function asList(value) {
   return []
 }
 
-// The `widgets` setting holds one wrapper per captured bar widget:
-//   { entry: <original layout entry> }
-// Tolerate hand-edited shorthand (a bare id string, or a bare entry object)
-// so a typo'd shell.json degrades to defaults instead of a dead tray.
-function normalizeWrappers(raw) {
-  var out = []
-  var values = asList(raw)
-  for (var i = 0; i < values.length; i++) {
-    var wrapper = values[i]
-    if (!wrapper) continue
-    if (typeof wrapper === "string") {
-      out.push({ entry: { id: wrapper } })
-      continue
-    }
-    if (wrapper.entry && entryId(wrapper.entry)) {
-      out.push({ entry: wrapper.entry })
-      continue
-    }
-    if (entryId(wrapper)) out.push({ entry: wrapper })
-  }
-  return out
+function stringList(value) {
+  return asList(value).map(String)
 }
 
-function wrapperId(wrapper) {
-  if (!wrapper) return ""
-  return wrapper.entry ? entryId(wrapper.entry) : entryId(wrapper)
-}
-
-// The shell loads a third-party plugin's widget component only while its id
-// is referenced in shell.json (bar.id, a bar.layout entry, or plugins[]).
-// A captured widget's id lives inside the tray's settings, which that scan
-// does not see, so without a plugins[] entry the shell unloads the component
-// and the hosted widget renders as nothing. Returns true when an entry was
-// added (i.e. the tray owns it and must remove it again on release).
-function ensurePluginListed(config, id) {
-  // This adapter owns its backend; listing it also starts a second host service.
-  if (id === "io.github.ilyazar.syncthing") return false
-  if (!Array.isArray(config.plugins)) config.plugins = []
-  for (var i = 0; i < config.plugins.length; i++) {
-    var e = config.plugins[i]
-    var eid = typeof e === "string" ? e : (e ? String(e.id || "") : "")
-    if (eid === id) return false
-  }
-  config.plugins.push({ id: id })
-  return true
-}
-
-function unlistPlugin(config, id) {
-  if (!Array.isArray(config.plugins)) return
-  config.plugins = config.plugins.filter(function(e) {
-    if (!e) return false
-    var eid = typeof e === "string" ? e : String(e.id || "")
-    return eid !== id
-  })
-}
-
-function findLayoutEntry(layout, id) {
-  for (var s = 0; s < SECTIONS.length; s++) {
-    var entries = layout ? layout[SECTIONS[s]] : null
-    if (!Array.isArray(entries)) continue
-    for (var i = 0; i < entries.length; i++) {
-      if (entryId(entries[i]) === id) {
-        return { section: SECTIONS[s], entries: entries, index: i, entry: entries[i] }
-      }
-    }
-  }
-  return null
-}
-
-// Mutates `config` in place: pull `sourceId`'s entry out of the bar layout
-// and append it to the tray entry's `widgets` list. `orderTokens`, when
-// given, becomes the tray's drawer order — the caller computes it from the
-// drop position so a dragged-in widget lands exactly where it was released.
-// Returns true when anything moved.
-function captureIntoTray(config, trayId, sourceId, orderTokens) {
-  if (!sourceId || sourceId === trayId) return false
-  var layout = config && config.bar ? config.bar.layout : null
-  if (!layout) return false
-
-  var source = findLayoutEntry(layout, sourceId)
-  if (!source) return false
-  source.entries.splice(source.index, 1)
-
-  // Resolve the tray entry only after the splice: both can live in the same
-  // section array, and an index recorded before the removal would be stale.
-  var tray = findLayoutEntry(layout, trayId)
-  if (!tray) {
-    source.entries.splice(source.index, 0, source.entry)
-    return false
-  }
-
-  var trayEntry = tray.entry
-  if (typeof trayEntry === "string") {
-    trayEntry = { id: trayEntry }
-    tray.entries[tray.index] = trayEntry
-  }
-  if (!Array.isArray(trayEntry.widgets)) trayEntry.widgets = []
-  var entry = typeof source.entry === "string" ? { id: source.entry } : source.entry
-  var wrapper = { entry: entry }
-  // Keep the plugin loaded while its only reference is inside the tray.
-  if (ensurePluginListed(config, sourceId)) wrapper.listed = true
-  trayEntry.widgets.push(wrapper)
-  if (Array.isArray(orderTokens) && orderTokens.length) trayEntry.order = orderTokens.map(String)
-  return true
-}
-
-// Remove `widgetId`'s wrapper from a tray entry (widgets + pinnedWidgets)
-// and return it, or null when it isn't hosted there.
-function takeWrapper(trayEntry, widgetId) {
-  var wrappers = Array.isArray(trayEntry.widgets) ? trayEntry.widgets : []
-  var index = -1
-  for (var i = 0; i < wrappers.length; i++) {
-    if (wrapperId(wrappers[i]) === widgetId) { index = i; break }
-  }
-  if (index === -1) return null
-  var wrapper = wrappers.splice(index, 1)[0]
-  if (wrappers.length === 0) delete trayEntry.widgets
-  if (Array.isArray(trayEntry.order)) {
-    trayEntry.order = trayEntry.order.filter(function(token) { return String(token) !== widgetId })
-    if (trayEntry.order.length === 0) delete trayEntry.order
-  }
-  return wrapper
-}
-
-function indexOfEntry(entries, id) {
-  for (var i = 0; i < entries.length; i++) {
-    if (entryId(entries[i]) === id) return i
-  }
-  return -1
-}
-
-// Drop a hosted widget back into the bar layout at an explicit position —
-// the drag-out counterpart of captureIntoTray. Inserts before `beforeName`
-// in `toRegion`, or at the section's end when beforeName is empty or gone.
-function dragOutOfTray(config, trayId, widgetId, toRegion, beforeName) {
-  var layout = config && config.bar ? config.bar.layout : null
-  if (!layout) return false
-
-  var tray = findLayoutEntry(layout, trayId)
-  if (!tray || typeof tray.entry === "string") return false
-  var wrapper = takeWrapper(tray.entry, widgetId)
-  if (!wrapper) return false
-  // Back in the layout, the entry itself keeps the plugin loaded again.
-  if (wrapper.listed) unlistPlugin(config, widgetId)
-
-  var entry = wrapper && wrapper.entry ? wrapper.entry : wrapper
-  var region = SECTIONS.indexOf(toRegion) !== -1 ? toRegion : "right"
-  if (!Array.isArray(layout[region])) layout[region] = []
-  var target = layout[region]
-  var index = beforeName ? indexOfEntry(target, String(beforeName)) : -1
-  if (index < 0) target.push(entry)
-  else target.splice(index, 0, entry)
-  return true
-}
-
-// Sort drawer content by the persisted `order` token list. Works on anything
-// carrying a `key` (mixed drawer entries) or an `id` (raw status-notifier
-// items). Tokens not in the list keep their arrival order, after every
-// ordered one, so new content appears at the end instead of shuffling the
-// arranged pieces.
-function orderKey(item) {
-  if (!item) return ""
-  if (item.key !== undefined) return String(item.key)
-  return String(item.id || "")
-}
-
+// Sort items carrying an `id` by a persisted id list. Ids not in the list keep
+// their arrival order after every listed one, so a newly started app appears at
+// the end instead of shuffling what was arranged.
 function sortByOrder(items, order) {
-  var ord = asList(order).map(String)
-  var decorated = []
-  for (var i = 0; i < items.length; i++) decorated.push({ item: items[i], index: i })
-  decorated.sort(function(a, b) {
-    var ai = ord.indexOf(orderKey(a.item))
-    var bi = ord.indexOf(orderKey(b.item))
-    var ak = ai === -1 ? ord.length + a.index : ai
-    var bk = bi === -1 ? ord.length + b.index : bi
-    return ak - bk
+  var ids = stringList(order)
+  return asList(items).map(function(item, index) {
+    var at = ids.indexOf(String(item && item.id || ""))
+    return { item: item, rank: at === -1 ? ids.length + index : at }
+  }).sort(function(a, b) {
+    return a.rank - b.rank
+  }).map(function(row) {
+    return row.item
   })
-  return decorated.map(function(e) { return e.item })
 }
 
-// Move `id` within an id list so it sits before `beforeId` ("" = end).
-// Returns the new array, or null when the order would not change.
-function movedBefore(order, id, beforeId) {
-  var ids = asList(order).map(String)
-  var from = ids.indexOf(String(id))
-  if (from === -1) return null
-  ids.splice(from, 1)
-  var to = beforeId ? ids.indexOf(String(beforeId)) : ids.length
-  if (to === -1) to = ids.length
-  if (to === from) return null
-  ids.splice(to, 0, String(id))
-  return ids
+function insertedBefore(ids, id, beforeId) {
+  var next = ids.filter(function(other) { return other !== id })
+  var at = beforeId ? next.indexOf(String(beforeId)) : -1
+  if (at === -1) next.push(id)
+  else next.splice(at, 0, id)
+  return next
 }
 
-function widgetFileUrl(id, home, omarchyPath) {
-  var key = String(id || "")
-  if (!key) return ""
-  var user = String(home || "") + "/.config/omarchy/plugins/"
-  var stock = String(omarchyPath || "/usr/share/omarchy") + "/shell/plugins/"
-  var map = {
-    "grigorip.linear": user + "grigorip.linear/Panel.qml",
-    "dev.git": user + "dev.git/Panel.qml",
-    "ghost.cloudflare": user + "ghost.cloudflare/Panel.qml",
-    "io.github.ilyazar.syncthing": user + "ghost.tray/SyncthingWidget.qml",
-    "chyld.mise-radar": user + "chyld.mise-radar/BarWidget.qml",
-    "njpatel.omaherdr": user + "njpatel.omaherdr/Widget.qml",
-    "ghost.govee": user + "ghost.govee/BarWidget.qml",
-    "ghost.currency": user + "ghost.currency/BarWidget.qml",
-    "omarchy.tailscale": stock + "panels/tailscale/Panel.qml",
-    "omarchy.monitor": stock + "panels/monitor/Panel.qml"
+// Where a status icon dragged to `axis` along the bar lands:
+//   { zone: "hidden" }                         pulled off the bar
+//   { zone: "pinned"|"drawer", beforeId, markerAt }  among that zone's icons
+//   null                                       nowhere (the release is a no-op)
+// `outside` is how far the pointer is past the bar across it. `tray`, `pinned`
+// and `drawer` are { start, length } along the bar; `rows` the icons as
+// { id, zone, start, length }. A beforeId of "" means the end of the zone.
+function iconDrop(args) {
+  if (args.outside >= args.removeDistance) return { zone: "hidden" }
+
+  var axis = args.axis
+  var tray = args.tray
+  if (axis < tray.start || axis > tray.start + tray.length) return null
+
+  var pinned = args.pinned
+  var zone = pinned.length > 0 && axis >= pinned.start && axis <= pinned.start + pinned.length
+    ? "pinned" : "drawer"
+  var rows = asList(args.rows).filter(function(row) {
+    return row.zone === zone && row.id !== args.draggedId
+  }).sort(function(a, b) {
+    return a.start - b.start
+  })
+
+  if (rows.length === 0) {
+    var area = zone === "pinned" ? pinned : args.drawer
+    return { zone: zone, beforeId: "", markerAt: area.start + area.length / 2 }
   }
-  var path = map[key]
-  return path ? ("file://" + path) : ""
+
+  var best = null
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i]
+    var end = row.start + row.length
+    var after = Math.abs(axis - end) < Math.abs(axis - row.start)
+    var distance = Math.abs(axis - (after ? end : row.start))
+    if (best && distance >= best.distance) continue
+    best = {
+      distance: distance,
+      markerAt: after ? end : row.start,
+      beforeId: after ? (rows[i + 1] ? rows[i + 1].id : "") : row.id
+    }
+  }
+  return { zone: zone, beforeId: best.beforeId, markerAt: best.markerAt }
+}
+
+// The tray's next { pinned, hidden, order } once icon `id` has been dropped.
+// An icon is in one place only. Ids of apps not running stay in the lists, so
+// an app keeps its place across restarts. `shownDrawer` is the drawer's current
+// visual order: an icon that was never arranged has no place in `order` until
+// its first move, so the visual order is folded in before anything is inserted.
+function moveIcon(state, id, drop, shownDrawer) {
+  var key = String(id)
+  var without = function(ids) {
+    return stringList(ids).filter(function(other) { return other !== key })
+  }
+  var pinned = without(state.pinned)
+  var hidden = without(state.hidden)
+  var order = stringList(state.order)
+  stringList(shownDrawer).forEach(function(other) {
+    if (order.indexOf(other) === -1) order.push(other)
+  })
+
+  if (drop.zone === "hidden") hidden.push(key)
+  else if (drop.zone === "pinned") pinned = insertedBefore(pinned, key, drop.beforeId)
+  else order = insertedBefore(order, key, drop.beforeId)
+
+  return { pinned: pinned, hidden: hidden, order: order }
 }
 
 if (typeof module !== "undefined") {
   module.exports = {
-    asList: asList,
-    ensurePluginListed: ensurePluginListed,
-    unlistPlugin: unlistPlugin,
+    shownSpan: shownSpan,
     itemNamed: itemNamed,
     entryId: entryId,
-    entrySettings: entrySettings,
     layoutHasWidget: layoutHasWidget,
     ownedByOmarchy: ownedByOmarchy,
-    normalizeWrappers: normalizeWrappers,
-    wrapperId: wrapperId,
-    findLayoutEntry: findLayoutEntry,
-    captureIntoTray: captureIntoTray,
-    dragOutOfTray: dragOutOfTray,
+    asList: asList,
+    stringList: stringList,
     sortByOrder: sortByOrder,
-    movedBefore: movedBefore,
-    widgetFileUrl: widgetFileUrl
+    iconDrop: iconDrop,
+    moveIcon: moveIcon
   }
 }

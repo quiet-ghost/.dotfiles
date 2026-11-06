@@ -89,3 +89,6 @@
 [submodule "omarchy-herdr"]
 	path = home/.config/omarchy/plugins/njpatel.omaherdr
 	url = https://github.com/njpatel/omaherdr.git
+[submodule "oma-cast"]
+	path = extras/oma-cast
+	url = https://github.com/typecraft-dev/oma-cast.git

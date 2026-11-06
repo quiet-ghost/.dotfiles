@@ -5,7 +5,8 @@
     "/home/ghost/personal",
     "/home/ghost/dev/school",
     "/home/ghost/.config",
-    "/home/ghost/.dotfiles"
+    "/home/ghost/.dotfiles",
+    "/home/ghost/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/"
   ],
   "repos_path": "/home/ghost/dev/repos",
   "editor": "nvim",
@@ -30,11 +31,11 @@
     "~",
     "Boot",
     "boot",
-    "TwitchChat",
-    "mux-sesh",
     "streaming",
     "OrderForge",
-    "school"
+    "school",
+    "rainbet_rtp",
+    "WoW Addons"
   ],
   "icons": {
     "tmux": "",

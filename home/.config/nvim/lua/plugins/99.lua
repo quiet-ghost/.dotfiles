@@ -45,7 +45,7 @@ return {
     local basename = vim.fs.basename(cwd)
     _99.setup({
       provider = _99.Providers.OpenCodeProvider,
-      model = "opencode/kimi-k2.7-code",
+      model = "cerebras/gpt-oss-120b",
       logger = {
         level = _99.DEBUG,
         path = "/tmp/" .. basename .. ".99.debug",

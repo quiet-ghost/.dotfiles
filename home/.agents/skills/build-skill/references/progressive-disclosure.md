@@ -5,21 +5,23 @@ Token-efficient skill design through staged information loading.
 ## Three-Tier Loading Model
 
 ```
-Tier 1: Metadata (~100 tokens)
-├── name + description
-├── Loaded at agent startup for ALL skills
+Tier 1: Advertised metadata (size varies)
+├── ID, name, and description in OpenCode V2
+├── Listed for permitted, described, model-invocable skills
 └── Used to decide: "Is this skill relevant?"
 
-Tier 2: SKILL.md Body (<2000 tokens)
+Tier 2: SKILL.md Body (keep focused)
 ├── Full instructions
 ├── Loaded when skill is triggered
 └── Contains navigation to Tier 3
 
-Tier 3: Bundled Resources (on-demand)
+Tier 3: Bundled Resources (explicit reads on demand)
 ├── references/, scripts/, assets/
 ├── Loaded only when explicitly needed
 └── No token cost until accessed
 ```
+
+OpenCode's skill tool loads the selected body and supplies its base directory plus a sample of supporting file paths. It does not load those files' contents. Put task-based read instructions in the body; frontmatter reference lists do not preload them.
 
 ## Context Window Economics
 

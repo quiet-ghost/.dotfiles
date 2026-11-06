@@ -6,10 +6,10 @@ Clone a repository using opensrc and generate hierarchical AGENTS.md documentati
 
 ## Workflow
 
-### Step 1: Load opensrc skill
+### Step 1: Load librarian skill
 
 ```
-skill({ name: 'opensrc' })
+skill({ id: 'librarian' })
 ```
 
 ### Step 2: Clone the repository
@@ -33,7 +33,7 @@ Parse owner/repo from the input or from `opensrc/sources.json` after clone.
 ### Step 4: Load index-knowledge skill
 
 ```
-skill({ name: 'index-knowledge' })
+skill({ id: 'index-knowledge' })
 ```
 
 Execute in **update mode** (default) - modify existing AGENTS.md + create new where warranted.

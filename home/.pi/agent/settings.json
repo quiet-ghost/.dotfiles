@@ -2,16 +2,24 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",
-  "enabledModels": ["xai/grok-4.6", "openai-codex/gpt-6-astra"],
+  "enabledModels": [
+    "xai/grok-4.7",
+    "openai-codex/gpt-6.1-sol",
+    "openai-codex/gpt-6-astra",
+    "cerebras/gpt-oss-120b"
+  ],
   "theme": "dark",
-  "npmCommand": ["bun"],
+  "npmCommand": [
+    "bun"
+  ],
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:pi-mcp-adapter@2.21.2",
     "npm:pi-web-access"
   ],
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "1.4.0",
   "outputPad": 0,
   "treeFilterMode": "default",
-  "hideThinkingBlock": true
+  "hideThinkingBlock": true,
+  "deviceId": "c8f1aab9-cabf-4d09-9519-a5626bfc730f"
 }

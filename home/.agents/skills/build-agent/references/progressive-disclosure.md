@@ -5,12 +5,12 @@ Token-efficient agent design through staged guidance.
 ## Three-Tier Loading Model
 
 ```
-Tier 1: Metadata (~100 tokens)
-├── name + description
-├── Loaded at agent startup for all skills
+Tier 1: Advertised metadata (size varies)
+├── ID, name, and description in OpenCode V2
+├── Listed for permitted, described, model-invocable skills
 └── Used to decide: "Is build-agent relevant?"
 
-Tier 2: SKILL.md (<2000 tokens)
+Tier 2: SKILL.md (keep focused)
 ├── Agent-vs-skill decision
 ├── Quick start
 ├── Navigation to deeper references
@@ -82,7 +82,7 @@ Detailed references should answer:
 | Giant agent prompt | Context rot | Move reusable guidance to a skill |
 | Vague description | Bad routing | Add what + when |
 | Defaulting everything to `all` | Confusing UX | Pick mode intentionally |
-| Copying legacy `tools:` | Drift | Prefer `permission:` |
+| Copying legacy agent fields | Drift | Use native V2 `permissions:` rules |
 | Loading every reference | Waste | Read only the relevant file |
 
 ## See Also

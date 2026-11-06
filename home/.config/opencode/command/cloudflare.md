@@ -28,7 +28,7 @@ If $ARGUMENTS contains `--update-skill`:
 ### Step 2: Load cloudflare skill
 
 ```
-skill({ name: 'cloudflare' })
+skill({ id: 'cloudflare' })
 ```
 
 ### Step 3: Identify task type from user request

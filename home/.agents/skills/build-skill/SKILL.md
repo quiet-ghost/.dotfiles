@@ -7,6 +7,8 @@ description: Create effective skills for OpenCode agents. Load FIRST before writ
 
 Skills extend agent capabilities with specialized knowledge, workflows, and tools.
 
+Use the current [OpenCode V2 skills guide](https://opencode.ai/v2/docs/skills) for runtime behavior and the [Agent Skills specification](https://agentskills.io/specification) for portable format rules. Read both before changing discovery, IDs, frontmatter, or invocation guidance.
+
 ## Quick Start
 
 Minimal viable skill in 30 seconds:
@@ -25,6 +27,8 @@ EOF
 ```
 
 Place in `.agents/skills/` (project) or `~/.agents/skills/` (global).
+
+In this dotfiles repo, edit `home/.agents/skills/`; Stow supplies the shared global directory for OpenCode and Pi. Use `.opencode/skills/` for an OpenCode-only project skill.
 
 ## Skill Type Decision Tree
 
@@ -103,22 +107,35 @@ Before using a skill:
 - [ ] `name:` field present, matches directory name
 - [ ] `description:` includes what + when to use
 - [ ] Closing `---` after frontmatter
-- [ ] SKILL.md under 200 lines (use references/ for more)
+- [ ] SKILL.md stays focused (target roughly 200 lines; this is not a runtime limit)
 - [ ] All internal links resolve
+- [ ] Skill calls use the exact path-derived ID: `skill({ id: 'my-skill' })`
+- [ ] Required reference reads are stated in the body, not assumed from frontmatter
 
 Run: `./scripts/validate_skill.sh ./my-skill`
 
+This validator checks local portable conventions, not the complete V2 runtime contract. Its current line-based description check misreads YAML block scalars such as `>`; inspect those warnings against a YAML-aware loader rather than rewriting valid descriptions.
+
 ## Skill Locations
 
-| Priority | Location                                         |
-| -------- | ------------------------------------------------ |
-| 1        | `.opencode/skills/<name>/` (project)             |
-| 2        | `~/dev/skills/<name>` (skills storage symlinked) |
-| 2        | `~/.agents/skills/<name>/` (global)             |
-| 3        | `.claude/skills/<name>/` (Claude-compat)         |
+OpenCode V2 registers sources from lower to higher precedence:
 
-Discovery walks up from CWD to git root. First-wins for duplicate names.
+1. Built-in skills.
+2. `.claude/skills`, global then project ancestors.
+3. `.agents/skills`, global then project ancestors.
+4. `~/.config/opencode/skills`.
+5. Project `.opencode/skills`, from the project root toward the current directory.
+6. Explicit `skills` config entries, in config priority and array order.
+
+Project discovery walks from the working directory to the project root. Later sources replace earlier definitions with the same ID. Avoid duplicates unless an override is intentional; this is OpenCode precedence, not a promise about other harnesses.
+
+V2 derives IDs from paths: `teams/release/SKILL.md` has ID `release`. Frontmatter `name` is a display label. Keep directory, ID, and `name` aligned in lowercase kebab-case for portable skills.
+
+Explicit sources use an ordered `skills` array in `opencode.json(c)`. Relative source paths resolve from the active working directory, not the config file. Custom storage paths such as `~/dev/skills` require an explicit source or a symlink into a discovered directory.
+
+OpenCode reloads skill edits automatically; `/reload` forces a reload. In Pi, use `/reload` after edits. Keep the shared directory rather than copying the same skill into both harnesses.
 
 ## See Also
 
-- [Cloudflare Skill](https://github.com/dmmulroy/cloudflare-skill) - Reference implementation
+- [OpenCode V2 Skills](https://opencode.ai/v2/docs/skills) - Discovery, loading, and permissions
+- [Agent Skills Specification](https://agentskills.io/specification) - Portable format

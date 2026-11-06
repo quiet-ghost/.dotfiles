@@ -2,7 +2,9 @@
 
 One Omarchy bar panel for subscription quotas and API spend.
 
-Left click opens the panel. Right click switches Subs / APIs. Middle click, `r`, or Enter force-refreshes.
+Laid out like `omarchy.agents`: a hero with a rotating summary, then one page of providers with compact limit meters.
+
+Left click opens the panel. Right click switches Subs / APIs. Middle click or `r` force-refreshes; so does Enter when nothing is picked.
 
 Subscription meters come from Codex / Claude Code OAuth, not API keys. Rotating `ai-usage.json` keys will not fix those banners.
 
@@ -14,9 +16,11 @@ Codex still refreshes `~/.codex/auth.json` when that access token is stale.
 
 - **Subs** — Codex, Grok, Claude Code (5h/weekly), OpenCode
 - **APIs** — OpenAI, xAI, Claude Admin spend, OpenRouter
-- **Settings** — assign each provider to Subs, APIs, or Hide
+- **Settings** (gear, or `,`) — assign each provider to Subs, APIs, or Hide; a choice saves at once
 
-Both views keep tokens-by-day and tokens-by-model.
+Both views keep tokens-by-day and tokens-by-model: click a provider's header, or pick it and press Enter, to open them. Exact percentages and per-model input/output/cache counts are in the tooltips.
+
+Keys: arrows or `hjkl` move, Enter acts, `s` Subs, `a` APIs, `,` settings, `r` refresh, Tab next panel, Esc back or close.
 
 ## Keys
 

@@ -1,0 +1,63 @@
+diff --git a/plugin/core/RootSearch.js b/plugin/core/RootSearch.js
+index 6ad7673..704662f 100644
+--- a/plugin/core/RootSearch.js
++++ b/plugin/core/RootSearch.js
+@@ -2,7 +2,7 @@
+ var SUGGESTIONS_LIMIT = 6
+ 
+ var FALLBACKS = [
+-  { id: "fallback:google", title: "Search Google", icon: "", url: "https://www.google.com/search?q={query}" },
++  { id: "fallback:brave", title: "Search Brave", icon: "", url: "https://search.brave.com/search?q={query}" },
+   { id: "fallback:duckduckgo", title: "Search DuckDuckGo", icon: "", url: "https://duckduckgo.com/?q={query}" },
+   { id: "fallback:agent", title: "Ask default agent", icon: "󰚩", subtitle: "New terminal session · Ctrl+Alt+Enter" }
+ ]
+diff --git a/tests/calculator.test.js b/tests/calculator.test.js
+index cd69408..c94dcae 100644
+--- a/tests/calculator.test.js
++++ b/tests/calculator.test.js
+@@ -170,7 +170,7 @@ test("root search puts the Calculator section first; ↵ copies, Ctrl ↵ pastes
+   assert.equal(sections[0].id, "calculator")
+   assert.equal(sections[0].rows[0].candidate.calcResult, "4")
+   assert.equal(sections.at(-1).id, "fallback-commands")
+-  assert.deepEqual(sections.at(-1).rows.map((r) => r.candidate.id), ["fallback:google", "fallback:duckduckgo", "fallback:agent"])
++  assert.deepEqual(sections.at(-1).rows.map((r) => r.candidate.id), ["fallback:brave", "fallback:duckduckgo", "fallback:agent"])
+   const actions = RS.actionsFor({ kind: "calculator" }).map((a) => a.id)
+   assert.deepEqual(actions.slice(0, 2), ["copy-answer", "paste-answer"])
+   const calcHistory = RS.rootSections(RS.BUILTINS.map(RS.builtinCandidate), "calc hist", { commands: {}, frecency: {}, nowMs: NOW }, deps)
+diff --git a/tests/rootsearch.test.js b/tests/rootsearch.test.js
+index 0c3c09f..2b6844b 100644
+--- a/tests/rootsearch.test.js
++++ b/tests/rootsearch.test.js
+@@ -51,7 +51,7 @@ test("a query always ends with the fallback section", () => {
+   assert.equal(sections.length, 1)
+   assert.equal(sections[0].id, "fallback-commands")
+   assert.equal(sections[0].title, "Use “zzzz-nothing” with…")
+-  assert.deepEqual(titles(sections[0]), ["Search Google", "Search DuckDuckGo", "Ask default agent"])
++  assert.deepEqual(titles(sections[0]), ["Search Brave", "Search DuckDuckGo", "Ask default agent"])
+ })
+ 
+ test("agent hand-off is explicit, stays after apps/web search, and only appears at root with a query", () => {
+@@ -142,16 +142,16 @@ test("favourite reordering", () => {
+ })
+ 
+ test("fallback URLs encode the query", () => {
+-  assert.equal(RS.fallbackUrl(RS.FALLBACKS[0], " a&b c "), "https://www.google.com/search?q=a%26b%20c")
++  assert.equal(RS.fallbackUrl(RS.FALLBACKS[0], " a&b c "), "https://search.brave.com/search?q=a%26b%20c")
+ })
+ 
+ test("web searches take an inline argument", () => {
+-  const google = results("google")[0].rows[0].candidate
+-  assert.equal(google.id, "builtin:google-search")
+-  assert.deepEqual(google.arguments.map((a) => a.name), ["query"])
+-  assert.equal(RS.missingArgument(google.arguments, {}), 0)
+-  assert.equal(RS.missingArgument(google.arguments, { query: " a b " }), -1)
+-  assert.equal(RS.fillArguments(google.run.url, { query: " a&b " }), "https://www.google.com/search?q=a%26b")
++  const brave = results("brave")[0].rows[0].candidate
++  assert.equal(brave.id, "builtin:brave-search")
++  assert.deepEqual(brave.arguments.map((a) => a.name), ["query"])
++  assert.equal(RS.missingArgument(brave.arguments, {}), 0)
++  assert.equal(RS.missingArgument(brave.arguments, { query: " a b " }), -1)
++  assert.equal(RS.fillArguments(brave.run.url, { query: " a&b " }), "https://search.brave.com/search?q=a%26b")
+   assert.equal(results("ddg")[0].rows[0].candidate.id, "builtin:duckduckgo-search")
+ })
+ 

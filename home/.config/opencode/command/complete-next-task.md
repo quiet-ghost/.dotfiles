@@ -17,7 +17,7 @@ Where `<prd-name>` matches `.opencode/state/<prd-name>/prd.json`
 First, invoke the skill tool to detect the VCS:
 
 ```
-skill({ name: 'vcs-detect' })
+skill({ id: 'vcs-detect' })
 ```
 
 Use the detected VCS (jj or git) for all version control operations.

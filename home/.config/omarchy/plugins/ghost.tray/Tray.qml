@@ -1,733 +1,298 @@
 import Quickshell
-import Quickshell.Io
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell.Services.SystemTray
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "TrayModel.js" as TrayModel
 
-// A drop-in replacement for omarchy.tray. Everything the stock tray does —
-// status notifier icons, pin/hide, the slide-out drawer, in-popup app menus —
-// plus: any bar widget (clock, workspaces, weather, menu, panels, custom
-// modules...) can be dragged onto this tray and it moves inside the drawer.
-// Captured widgets keep their settings, clicks, tooltips, and panels; they can
-// be pinned (always visible) or restored to the bar from the right-click
-// manage popup.
+// Omarchy's tray (omarchy.tray), plus status icons you can arrange by hand.
+// Bar widgets live in the host's own tray section (bar.layout.tray), which the
+// bar draws into sectionHost and drags in and out itself. Status icons have no
+// layout entry, so this widget drags those: within the drawer, onto the pinned
+// strip, or off the bar to hide them. See README.md.
 BarWidget {
   id: root
   moduleName: "ghost.tray"
 
-  // Omarchy 4 injects PluginBarApi into clones. Hosting and dragging widgets
-  // need the actual Bar's registry and drag coordinator.
-  function isHostBar(obj) {
-    if (!obj) return false
-    var slots = obj.moduleSlots
-    var reg = obj.barWidgetRegistry
-    return slots !== undefined && slots !== null && !!reg && !!reg.widgets
-  }
-
-  function walkToHostBar(start) {
-    var p = start
-    for (var i = 0; i < 32 && p; i++) {
-      if (isHostBar(p)) return p
-      p = p.parent
-    }
-    return null
-  }
-
-  function resolveHostBar() {
-    var found = walkToHostBar(parent)
-    if (found) return found
-    if (isHostBar(bar)) return bar
-    var win = QsWindow ? QsWindow.window : null
-    if (win) {
-      found = walkToHostBar(win)
-      if (found) return found
-      if (win.parent && isHostBar(win.parent)) return win.parent
-      if (win.contentItem) {
-        found = walkToHostBar(win.contentItem)
-        if (found) return found
-        found = findHostBarInChildren(win.contentItem)
-        if (found) return found
-      }
-    }
-    return bar
-  }
-
-  // PanelWindow breaks the visual parent chain. Stock sibling widgets still
-  // receive the real Bar; discover it inside this window after slot injection.
-  function findHostBarInChildren(item) {
-    if (!item) return null
-    if (isHostBar(item.bar)) return item.bar
-    var children = item.children || []
-    for (var i = 0; i < children.length; i++) {
-      var found = findHostBarInChildren(children[i])
-      if (found) return found
-    }
-    return null
-  }
-
-  property var hostBar: null
-
-  function refreshHostBar() {
-    var found = resolveHostBar()
-    hostBar = isHostBar(found) ? found : null
-  }
-
-  Component.onCompleted: {
-    Qt.callLater(refreshHostBar)
-  }
-  onBarChanged: Qt.callLater(refreshHostBar)
-
-  // Hover-to-expand, driven by the drag-out overlay's single HoverHandler:
-  // two stacked hover items (the overlay plus a handler in the drawer) fight
-  // over hover and oscillate the reveal, so the overlay is the one authority.
-  // While another widget's panel is open, its focus grab swallows hover
-  // entirely, so the drawer cannot open by pointing at it — but clicks still
-  // arrive, so a deliberate chevron click holds it open (clickExpanded) until
-  // that panel closes.
-  property bool expanded: clickExpanded || (overlayHover.hovered && !exteriorPopoutOpen)
-  readonly property bool exteriorPopoutOpen: root.bar && root.bar.activePopout ? !ownPopoutActive : false
+  property bool expanded: false
+  // A panel's focus grab swallows hover, so the chevron must also open the
+  // drawer by click. Cleared when the pointer leaves the drawer.
   property bool clickExpanded: false
-  onExteriorPopoutOpenChanged: if (!exteriorPopoutOpen) clickExpanded = false
+  property bool managePopupOpen: false
+  property bool trayMenuOpen: false
+  property var activeTrayItem: null
+  property var activeTrayAnchor: null
+  readonly property color foreground: bar ? bar.foreground : Commons.Color.foreground
+  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+  readonly property var pinnedIds: TrayModel.stringList(settings.pinned)
+  readonly property var hiddenIds: TrayModel.stringList(settings.hidden)
+  readonly property var orderIds: TrayModel.stringList(settings.order)
+  // Master switch: off takes every status icon off the bar. They stay listed in
+  // the manage panel for when it comes back on.
+  readonly property bool showTrayIcons: settings.showTrayIcons !== false
+  readonly property var pinnedItems: bucket("pinned")
+  readonly property var drawerItems: bucket("drawer")
+  readonly property var allItems: bucket("all")
+  readonly property int drawerCount: drawerItems.length
+  readonly property int trayItemExtent: Style.bar.iconSlot
+  readonly property int trayItemGap: 0
+  readonly property int trayJoinGap: 0
+  // Bar widgets dragged into the tray section sit in the drawer after the
+  // app icons. The bar draws them into sectionHost, and outlines it while a
+  // widget is dragged, as it does the center box.
+  property Item sectionHost: null
+  // The part of the tray section the drawer shows, in the tray ({ x, y,
+  // width, height }), or null while it shows none of it. It moves with the
+  // drawer's contents as they slide in and out, and is cut to the drawer as
+  // they are, so the bar's outline of it never reaches past the tray.
+  readonly property var sectionShown: trayContent.item ? trayContent.item.sectionShown : null
+  readonly property int sectionCount: bar && bar.layoutConfig && Array.isArray(bar.layoutConfig.tray) ? bar.layoutConfig.tray.length : 0
+  readonly property real sectionExtent: sectionHost ? (vertical ? sectionHost.implicitHeight : sectionHost.implicitWidth) : 0
+  readonly property bool hasDrawer: allItems.length > 0 || sectionCount > 0 || barDragging
+  readonly property int drawerExtent: drawerCount * trayItemExtent + Math.max(0, drawerCount - 1) * trayItemGap + sectionExtent
+  // A widget being dragged along the bar opens the drawer, to show where it
+  // can go, and so does any panel open from the tray or the tray section.
+  readonly property bool barDragging: !!bar && bar.traySectionDragActive === true
+  readonly property bool holdOpen: trayMenuOpen || managePopupOpen || barDragging || iconDragActive || (!!bar && bar.traySectionPopoutOpen === true)
+  // The mark under the bar sits under the icon whose menu is open.
+  readonly property Item openPanelIndicatorItem: trayMenuOpen ? activeTrayAnchor : null
+  // Match Waybar's group/tray-expander drawer transition-duration.
+  readonly property int animationDuration: 600
+  property real revealProgress: expanded || clickExpanded || holdOpen ? 1 : 0
+  readonly property real revealExtent: drawerExtent * revealProgress
+  // The pinned icons sit against the tray's fixed edge with the chevron past
+  // them. Opening, the drawer grows the tray between the two and pushes the
+  // chevron out of the way, while the pointer that opened it stays over the
+  // drawer. A centered tray keeps the end-fixed arrangement.
+  readonly property bool fixedAtStart: fixedEdge === "start"
+  // The edge the tray section's widgets grow from: the one the pinned icons
+  // keep to, beside which the section opens.
+  readonly property string sectionEdge: fixedAtStart ? "start" : "end"
 
   function closeExteriorPopout() {
     var popout = root.bar ? root.bar.activePopout : null
     if (popout && popout !== root && typeof popout.close === "function") popout.close()
   }
-  property bool managePopupOpen: false
-  property bool trayMenuOpen: false
-  property var activeTrayItem: null
-  property var activeTrayAnchor: null
-  readonly property color foreground: bar ? bar.foreground : Color.foreground
-  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property var hiddenIds: TrayModel.asList(settings.hidden).map(String)
-  // Master switch for status-notifier icons: off removes them all from the
-  // drawer (they stay listed in the manage popup for when it comes back on).
-  readonly property bool showTrayIcons: settings.showTrayIcons !== false
-  // One user-arranged order across BOTH kinds of drawer content: hosted
-  // widget ids and status-notifier item ids share the token list, so icons
-  // and plugin widgets interleave freely. Missing tokens keep arrival order
-  // after the arranged ones.
-  readonly property var orderIds: TrayModel.asList(settings.order).map(String)
-  readonly property var drawerItems: bucket("drawer")
-  readonly property var allItems: bucket("all")
-  readonly property int drawerCount: drawerItems.length
-  readonly property int trayItemExtent: Style.bar.iconSlot
 
-  // Bar widgets captured into the drawer. Stored on this widget's own
-  // shell.json entry so they survive restarts and sync across monitors.
-  readonly property var hostedWrappers: TrayModel.normalizeWrappers(settings.widgets)
-
-  // The drawer's single mixed model: hosted widgets and tray icons in one
-  // ordered sequence.
-  readonly property var drawerEntries: {
-    var entries = []
-    for (var i = 0; i < hostedWrappers.length; i++) {
-      entries.push({ kind: "widget", key: TrayModel.wrapperId(hostedWrappers[i]), data: hostedWrappers[i] })
+  function chevronPressed(button) {
+    if (button === Qt.RightButton) {
+      root.managePopupOpen = !root.managePopupOpen
+    } else if (button === Qt.LeftButton) {
+      root.closeExteriorPopout()
+      root.clickExpanded = true
     }
-    for (var j = 0; j < drawerItems.length; j++) {
-      entries.push({ kind: "icon", key: String(drawerItems[j].id || ""), data: drawerItems[j] })
-    }
-    return TrayModel.sortByOrder(entries, orderIds)
-  }
-  readonly property bool hasDrawerContent: drawerEntries.length > 0
-
-  // True while an open popup belongs to the tray or to a widget hosted in
-  // it: the bar's popout coordinator tracks the owning widget item, and
-  // panels register their widget root as owner. Holds the drawer open while
-  // a hosted widget's panel is up; it collapses when that panel closes
-  // (escape, click-away) or when a panel outside the tray takes over.
-  readonly property bool ownPopoutActive: {
-    var popout = root.bar ? root.bar.activePopout : null
-    if (!popout) return false
-    if (popout === root) return true
-    for (var i = 0; i < hostedDelegates.length; i++) {
-      var d = hostedDelegates[i]
-      if (d && (d === popout || d.activeItem === popout)) return true
-    }
-    return false
   }
 
   // ---------------------------------------------------------------------------
-  // Center-section fence. While the drawer is out it can overrun the bar's
-  // center widgets (always on a vertical bar, and on a horizontal one when
-  // the drawer is wide), so the whole center section is scrimmed and made
-  // inert for the duration. The scrim is two rectangles — the center span
-  // minus whatever part the tray itself covers — parented to the bar window
-  // above every section, so it dims center content without ever dimming the
-  // drawer. Geometry is refreshed on a timer while visible: the reveal
-  // animates and center widgets (the clock) resize on their own.
+  // Dragging status icons. The bar's slot lays a MouseArea over its whole widget
+  // and turns any press into a drag of the widget, so nothing inside the tray
+  // can ever see one. This overlay sits above that MouseArea, in the slot, and
+  // takes only presses on icons; everything else falls through, so the chevron
+  // still moves the tray and the section's widgets still drag themselves.
   // ---------------------------------------------------------------------------
 
-  readonly property bool drawerOut: revealProgress > 0.02
-
-  // The center fence is a vertical-bar concern: there the drawer expands
-  // straight through the center section, so it dims in both bar modes — with
-  // the bar background when opaque, with a translucent dark tint when the
-  // bar is transparent (there is no background to dim against, but the
-  // wallpaper and center glyphs still recede). Horizontal bars leave the
-  // center alone: opaque needs no dimming, and transparent stays pristine.
-  readonly property bool barTransparent: root.bar ? root.bar.transparent === true : false
-
-  component ScrimBlock: Rectangle {
-    parent: root.QsWindow && root.QsWindow.window ? root.QsWindow.window.contentItem : root
-    z: 80
-    visible: root.drawerOut && root.vertical && parent !== root && width > 0.5 && height > 0.5
-    color: root.barTransparent ? "black" : (root.bar ? root.bar.background : Color.background)
-    opacity: (root.barTransparent ? 0.5 : 0.8) * root.revealProgress
-
-    MouseArea {
-      anchors.fill: parent
-      hoverEnabled: true
-      acceptedButtons: Qt.AllButtons
-      onWheel: function(wheel) { wheel.accepted = true }
-    }
-  }
-
-  ScrimBlock { id: scrimBefore }
-  ScrimBlock { id: scrimAfter }
-
-  onDrawerOutChanged: if (drawerOut) updateCenterScrim()
-
-  Timer {
-    running: root.drawerOut
-    interval: 120
-    repeat: true
-    onTriggered: root.updateCenterScrim()
-  }
-
-  function updateCenterScrim() {
-    var win = root.QsWindow ? root.QsWindow.window : null
-    var b = root.hostBar
-    if (!win || !win.contentItem || !b || !b.moduleSlots) {
-      scrimBefore.width = 0
-      scrimAfter.width = 0
-      return
-    }
-    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-    var found = false
-    for (var i = 0; i < b.moduleSlots.length; i++) {
-      var slot = b.moduleSlots[i]
-      if (!slot || slot.region !== "center" || !slot.visible || slot.width <= 0 || slot.height <= 0) continue
-      if (typeof b.slotWindow === "function" && b.slotWindow(slot) !== win) continue
-      var p
-      try {
-        p = slot.mapToItem(win.contentItem, 0, 0)
-      } catch (e) {
-        continue
-      }
-      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y)
-      maxX = Math.max(maxX, p.x + slot.width); maxY = Math.max(maxY, p.y + slot.height)
-      found = true
-    }
-    if (!found) {
-      scrimBefore.width = 0
-      scrimAfter.width = 0
-      return
-    }
-    var trayPos
-    try {
-      trayPos = root.mapToItem(win.contentItem, 0, 0)
-    } catch (e) {
-      scrimBefore.width = 0
-      scrimAfter.width = 0
-      return
-    }
-    if (root.vertical) {
-      var cut0 = Math.max(minY, Math.min(maxY, trayPos.y))
-      var cut1 = Math.max(minY, Math.min(maxY, trayPos.y + root.height))
-      scrimBefore.x = minX; scrimBefore.width = maxX - minX
-      scrimBefore.y = minY; scrimBefore.height = Math.max(0, cut0 - minY)
-      scrimAfter.x = minX; scrimAfter.width = maxX - minX
-      scrimAfter.y = cut1; scrimAfter.height = Math.max(0, maxY - cut1)
-    } else {
-      var cx0 = Math.max(minX, Math.min(maxX, trayPos.x))
-      var cx1 = Math.max(minX, Math.min(maxX, trayPos.x + root.width))
-      scrimBefore.y = minY; scrimBefore.height = maxY - minY
-      scrimBefore.x = minX; scrimBefore.width = Math.max(0, cx0 - minX)
-      scrimAfter.y = minY; scrimAfter.height = maxY - minY
-      scrimAfter.x = cx1; scrimAfter.width = Math.max(0, maxX - cx1)
-    }
-  }
-
-  // Match Waybar's group/tray-expander drawer transition-duration.
-  readonly property int animationDuration: 600
-  property real revealProgress: (expanded || dragOver || ownPopoutActive || dragOutMouse.dragging) ? 1 : 0
-
-  Behavior on revealProgress {
-    NumberAnimation { duration: root.animationDuration; easing.type: Easing.OutCubic }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Drag-into-tray. The bar host tracks every widget drag globally
-  // (barDragSource + barDragSceneX/Y). Watch that state: while a drag from
-  // another widget hovers over this tray, highlight and hold the drawer open;
-  // when it is released here, capture the widget into the drawer.
-  // ---------------------------------------------------------------------------
-
-  readonly property bool dragActive: root.hostBar ? dragEligible(root.hostBar.barDragSource) : false
-  property bool dragOver: false
-  property string dragSourceId: ""
-  // Insertion pick for a bar widget being dragged in: where among the drawer
-  // content it would land if released right now.
-  property var dragInPick: null
-  property bool markerGuard: false
-
-  // Imperative on purpose: the drag-start handler runs inside the very signal
-  // dispatch that dirtied the dragActive binding, and reading the binding
-  // there can return a stale false. Recomputing from the live properties is
-  // always current.
-  function dragEligible(slot) {
-    if (!slot || !root.hostBar) return false
-    if (slot === fakeDragSlot) return false
-    if (String(slot.moduleName || "") === root.moduleName) return false
-    var win = root.QsWindow ? root.QsWindow.window : null
-    return !!win && root.hostBar.barDragWindow === win
-  }
-
-  function updateDragOver() {
-    if (!dragEligible(root.hostBar ? root.hostBar.barDragSource : null)) {
-      dragOver = false
-      return
-    }
-    var origin
-    try {
-      origin = root.mapToItem(null, 0, 0)
-    } catch (e) {
-      dragOver = false
-      return
-    }
-    var x = root.hostBar.barDragSceneX
-    var y = root.hostBar.barDragSceneY
-    dragOver = x >= origin.x && x <= origin.x + root.width
-      && y >= origin.y && y <= origin.y + root.height
-    dragInPick = dragOver ? drawerReorderPick(Qt.point(x, y), null) : null
-  }
-
-  Connections {
-    target: root.hostBar
-    ignoreUnknownSignals: true
-
-    function onBarDragSourceChanged() {
-      var slot = root.hostBar.barDragSource
-      if (slot) {
-        // Only the instance living in the drag's own bar window can win the
-        // drop; every other monitor's copy keeps an empty id and stays inert.
-        var eligible = root.dragEligible(slot)
-        root.dragSourceId = eligible ? String(slot.moduleName || "") : ""
-        root.updateDragOver()
-        return
-      }
-      // The drop. Defer the capture past the bar's own release handling: a
-      // synchronous config write here rebuilds the bar mid-gesture, which
-      // tears down the source slot's context while its release handler is
-      // still on the stack (ReferenceError in Bar.qml, and the release leaks
-      // to whatever sits under the cursor). The closure keeps only the shell
-      // reference and plain values, so it survives this widget's own
-      // destruction in the rebuild that the bar's adjacent-slot move causes.
-      var wanted = root.dragOver ? root.dragSourceId : ""
-      // Land the widget exactly where it was released: build the drawer's
-      // next order from the insertion edge tracked during the drag.
-      var nextOrder = null
-      if (wanted) {
-        var keys = root.drawerEntries.map(function(entry) { return entry.key })
-        var beforeKey = root.dragInPick ? String(root.dragInPick.beforeKey) : ""
-        var insertAt = beforeKey !== "" ? keys.indexOf(beforeKey) : -1
-        if (insertAt < 0) keys.push(wanted)
-        else keys.splice(insertAt, 0, wanted)
-        nextOrder = keys
-      }
-      root.dragOver = false
-      root.dragSourceId = ""
-      root.dragInPick = null
-      if (!wanted) return
-      var shellRef = root.hostBar ? root.hostBar.shell : null
-      var trayId = root.moduleName || "ghost.tray"
-      if (!shellRef || typeof shellRef.mutateShellConfig !== "function") return
-      Qt.callLater(function() {
-        shellRef.mutateShellConfig(function(config) {
-          TrayModel.captureIntoTray(config, trayId, wanted, nextOrder)
-        })
-      })
-    }
-
-    // The bar recomputes its own drop marker every pointer move; while an
-    // eligible drag hovers the tray, repaint it as the drawer's insertion
-    // edge instead of the bar's adjacent-slot line. The guard stops the
-    // override from re-triggering itself.
-    function onBarDragTargetGeometryChanged() {
-      if (root.markerGuard || !root.dragOver || !root.hostBar) return
-      root.markerGuard = true
-      // Capture owns this drop. Prevent the bar's adjacent-slot move from
-      // rebuilding the source before the deferred capture runs.
-      root.hostBar.barDragTarget = null
-      root.hostBar.barDragTargetGeometry = root.dragInPick
-        ? root.hostBar.dropMarkerRect(root.dragInPick.delegate, root.dragInPick.after)
-        : null
-      root.markerGuard = false
-    }
-
-    function onBarDragSceneXChanged() { root.updateDragOver() }
-    function onBarDragSceneYChanged() { root.updateDragOver() }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Drag-out-of-tray. A transparent overlay is parented into the bar's module
-  // slot ABOVE its whole-slot drag MouseArea, covering everything except the
-  // chevron. Dragging a hosted widget there drives the bar's own drag state
-  // (ghost, drop marker) through a stand-in slot, and the drop moves the
-  // widget's entry back into the bar layout at that position. Consequence:
-  // the chevron is the only handle that moves the tray itself.
-  // ---------------------------------------------------------------------------
-
-  // Extent of the chevron along the bar axis, exported by whichever
-  // orientation component is loaded. The drag-out overlay starts after it.
-  property real chevronExtent: 0
-
-  // Live HostedWidget delegates, for hit-testing which widget a press lands on.
-  property var hostedDelegates: []
-
-  function registerHostedDelegate(item) {
-    if (!item || hostedDelegates.indexOf(item) !== -1) return
-    var next = hostedDelegates.slice()
-    next.push(item)
-    hostedDelegates = next
-  }
-
-  function unregisterHostedDelegate(item) {
-    hostedDelegates = hostedDelegates.filter(function(d) { return d !== item })
-  }
-
-  // While anything is dragged over the tray, resolve the pointer to the
-  // nearest insertion edge among ALL other drawer content — hosted widgets
-  // and status-notifier icons share one order, so the two kinds interleave
-  // freely (same math as the bar's nearestDropTarget). Returns {delegate,
-  // after, beforeKey} where beforeKey is the order token to insert before
-  // ("" = move to the end), or null when there is nothing to reorder against.
-  function drawerReorderPick(scenePoint, dragged) {
-    var axis = root.vertical ? scenePoint.y : scenePoint.x
-    var candidates = hostedDelegates.concat(trayIconDelegates)
-    var bestDelegate = null
-    var bestAfter = false
-    var bestDist = Infinity
-    for (var i = 0; i < candidates.length; i++) {
-      var d = candidates[i]
-      if (!d || d === dragged || !d.visible || d.width <= 0 || d.height <= 0) continue
-      var origin
-      try {
-        origin = d.mapToItem(null, 0, 0)
-      } catch (e) {
-        continue
-      }
-      var start = root.vertical ? origin.y : origin.x
-      var size = root.vertical ? d.height : d.width
-      var beforeDist = Math.abs(axis - start)
-      var afterDist = Math.abs(axis - (start + size))
-      var after = afterDist < beforeDist
-      var dist = after ? afterDist : beforeDist
-      if (dist < bestDist) {
-        bestDist = dist
-        bestDelegate = d
-        bestAfter = after
-      }
-    }
-    if (!bestDelegate) return null
-
-    var draggedKey = dragged ? String(dragged.widgetId || dragged.itemId || "") : ""
-    var keys = drawerEntries.map(function(entry) { return entry.key })
-    var targetIndex = keys.indexOf(String(bestDelegate.widgetId || bestDelegate.itemId || ""))
-    if (targetIndex === -1) return null
-    var beforeKey
-    if (!bestAfter) {
-      beforeKey = keys[targetIndex]
-    } else {
-      beforeKey = ""
-      for (var j = targetIndex + 1; j < keys.length; j++) {
-        if (keys[j] !== draggedKey) { beforeKey = keys[j]; break }
-      }
-    }
-    return { delegate: bestDelegate, after: bestAfter, beforeKey: beforeKey }
-  }
-
-  function hostedDelegateAt(rootX, rootY) {
-    return delegateAt(hostedDelegates, rootX, rootY)
-  }
-
-  // Live TrayItem delegates (status-notifier icons), for hit-testing and
-  // in-tray reordering. Unlike hosted widgets, these can only ever be
-  // rearranged inside the tray — they have no life in the bar layout.
-  property var trayIconDelegates: []
-
-  function registerTrayIconDelegate(item) {
-    if (!item || trayIconDelegates.indexOf(item) !== -1) return
-    var next = trayIconDelegates.slice()
-    next.push(item)
-    trayIconDelegates = next
-  }
-
-  function unregisterTrayIconDelegate(item) {
-    trayIconDelegates = trayIconDelegates.filter(function(d) { return d !== item })
-  }
-
-  function trayIconDelegateAt(rootX, rootY) {
-    return delegateAt(trayIconDelegates, rootX, rootY)
-  }
-
-  function delegateAt(delegates, rootX, rootY) {
-    for (var i = 0; i < delegates.length; i++) {
-      var d = delegates[i]
-      if (!d || !d.visible || d.width <= 0 || d.height <= 0) continue
-      var p
-      try {
-        p = root.mapToItem(d, rootX, rootY)
-      } catch (e) {
-        continue
-      }
-      if (p.x >= 0 && p.x <= d.width && p.y >= 0 && p.y <= d.height) return d
+  // The slot showing this widget. It changes when the tray moves between
+  // sections, so it is read from the host rather than found once.
+  readonly property Item hostSlot: {
+    var p = parent
+    for (var i = 0; i < 8 && p; i++) {
+      if ("owner" in p && "pool" in p) return p.owner
+      p = p.parent
     }
     return null
   }
 
-  // Stand-in for a bar module slot, fed to the bar's drag plumbing while a
-  // hosted widget is dragged out. Provides exactly the properties the bar
-  // reads from a drag source: moduleName, region, and activeItem (for the
-  // ghost image and window resolution).
-  Item {
-    id: fakeDragSlot
-    visible: false
-    property string region: "tray"
-    property string moduleName: ""
-    property var activeItem: null
+  property var iconDelegates: []
+  property Item iconDragItem: null
+  property bool iconDragActive: false
+  property var iconDrop: null
+  property real iconDragSceneX: 0
+  property real iconDragSceneY: 0
+
+  readonly property bool canPersist: !!root.bar && !!root.bar.shell && typeof root.bar.shell.updateEntryInline === "function"
+
+  function registerIconDelegate(item) {
+    if (iconDelegates.indexOf(item) === -1) iconDelegates = iconDelegates.concat([item])
+  }
+
+  function unregisterIconDelegate(item) {
+    iconDelegates = iconDelegates.filter(function(other) { return other !== item })
+    if (iconDragItem === item) cancelIconDrag()
+  }
+
+  function cancelIconDrag() {
+    iconDragActive = false
+    iconDragItem = null
+    iconDrop = null
+  }
+
+  function contains(item, x, y) {
+    return x >= 0 && y >= 0 && x <= item.width && y <= item.height
+  }
+
+  // The icon at a point in the overlay. A closed drawer's icons are still laid
+  // out, under the chevron, so they count only where its clip shows them.
+  function iconAt(overlay, x, y) {
+    var clip = trayContent.item ? trayContent.item.iconClip : null
+    for (var i = 0; i < iconDelegates.length; i++) {
+      var icon = iconDelegates[i]
+      if (!icon || !icon.visible) continue
+      var inIcon = overlay.mapToItem(icon, x, y)
+      if (!contains(icon, inIcon.x, inIcon.y)) continue
+      if (icon.zone === "pinned") return icon
+      if (!clip) continue
+      var inClip = overlay.mapToItem(clip, x, y)
+      if (contains(clip, inClip.x, inClip.y)) return icon
+    }
+    return null
+  }
+
+  function span(item) {
+    var origin = item.mapToItem(null, 0, 0)
+    return vertical ? { start: origin.y, length: item.height } : { start: origin.x, length: item.width }
+  }
+
+  function updateIconDrop() {
+    var content = trayContent.item
+    if (!content || !iconDragItem) return
+    var origin = root.mapToItem(null, 0, 0)
+    var across = vertical ? iconDragSceneX : iconDragSceneY
+    var acrossStart = vertical ? origin.x : origin.y
+    var rows = []
+    for (var i = 0; i < iconDelegates.length; i++) {
+      var icon = iconDelegates[i]
+      if (!icon || !icon.visible) continue
+      var iconSpan = span(icon)
+      rows.push({ id: icon.itemId, zone: icon.zone, start: iconSpan.start, length: iconSpan.length })
+    }
+    iconDrop = TrayModel.iconDrop({
+      axis: vertical ? iconDragSceneY : iconDragSceneX,
+      outside: Math.max(0, acrossStart - across, across - (acrossStart + barSize)),
+      removeDistance: Style.spaceReal(48),
+      tray: span(root),
+      pinned: span(content.pinnedStrip),
+      drawer: span(content.iconClip),
+      rows: rows,
+      draggedId: iconDragItem.itemId
+    })
+  }
+
+  function applyIconDrop(id, drop) {
+    var next = TrayModel.moveIcon(
+      { pinned: pinnedIds, hidden: hiddenIds, order: orderIds },
+      id,
+      drop,
+      drawerItems.map(function(item) { return String(item.id || "") })
+    )
+    persistState(next)
   }
 
   Item {
-    id: dragOutOverlay
-    // The slot stacks its own drag MouseArea above every widget it loads, so
-    // an overlay that must win the press has to live beside it in the slot,
-    // not inside this widget. Our root fills the slot, so root coordinates
-    // are slot coordinates. Covers the whole widget; presses in the chevron
-    // zone are rejected below so they fall through to the slot's MouseArea,
-    // making the chevron the tray's only whole-widget drag handle.
-    parent: root.parent && root.parent.parent ? root.parent.parent : root
+    id: iconDragOverlay
+    parent: root.hostSlot || root
+    visible: root.visible && !!root.hostSlot
+    anchors.fill: parent
     z: 60
-    visible: root.visible && parent !== root
-    x: 0
-    y: 0
-    width: root.width
-    height: root.height
-
-    // The single hover authority for the tray (drives root.expanded) and the
-    // pointing-hand cursor over clickable content. Non-blocking, so hosted
-    // widgets' own hover styling and tooltips still work underneath.
-    HoverHandler {
-      id: overlayHover
-      onHoveredChanged: if (!hovered) root.clickExpanded = false
-      cursorShape: {
-        var slot = dragOutOverlay.parent
-        if (root && root.hostBar && slot !== root && typeof root.hostBar.moduleClickTargetAt === "function"
-            && root.hostBar.moduleClickTargetAt(slot,
-                 dragOutOverlay.x + overlayHover.point.position.x,
-                 dragOutOverlay.y + overlayHover.point.position.y))
-          return Qt.PointingHandCursor
-        return Qt.ArrowCursor
-      }
-    }
 
     MouseArea {
-      id: dragOutMouse
+      id: iconDragMouse
 
-      property bool dragging: false
+      property Item pressedIcon: null
+      property real pressSceneX: 0
+      property real pressSceneY: 0
       property bool suppressClick: false
-      property real pressedX: 0
-      property real pressedY: 0
-      property var dragDelegate: null
-      // A status-notifier icon being dragged. Icons reorder within the tray
-      // only; releasing outside the tray is a deliberate no-op.
-      property var dragIconDelegate: null
-      // Order token to insert before when released over the tray ("" = end);
-      // null while the pointer is off the tray or nothing can be reordered.
-      property var orderBeforeKey: null
-      readonly property bool canReorder: root.hostBar && root.hostBar.shell
-        && typeof root.hostBar.shell.mutateShellConfig === "function"
-      readonly property real dragThreshold: Style.space(4)
 
       anchors.fill: parent
       acceptedButtons: Qt.LeftButton
-      propagateComposedEvents: true
-
-      function rootPoint(mouse) {
-        return dragOutMouse.mapToItem(root, mouse.x, mouse.y)
-      }
-
-      function beginDragOut(mouse) {
-        var b = root.hostBar
-        var win = root.QsWindow ? root.QsWindow.window : null
-        var delegate = dragDelegate || dragIconDelegate
-        if (!b || !win || !delegate) return false
-        fakeDragSlot.moduleName = String(delegate.widgetId || delegate.itemId || "")
-        fakeDragSlot.activeItem = delegate.activeItem || delegate
-        b.barDragWindow = win
-        b.barDragScreen = win.screen
-        var local = dragOutMouse.mapToItem(delegate, mouse.x, mouse.y)
-        b.barDragOffsetX = local.x
-        b.barDragOffsetY = local.y
-        b.captureBarDragGhost(fakeDragSlot)
-        b.barDragSource = fakeDragSlot
-        return true
-      }
-
-      function updateDragOut(mouse) {
-        var b = root.hostBar
-        if (!b) return
-        var scenePoint = dragOutMouse.mapToItem(null, mouse.x, mouse.y)
-        var screenPoint = b.barDragScreenPoint(scenePoint)
-        b.barDragSceneX = scenePoint.x
-        b.barDragSceneY = scenePoint.y
-        b.barDragScreenX = screenPoint.x
-        b.barDragScreenY = screenPoint.y
-
-        var p = rootPoint(mouse)
-        var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
-
-        // Over the tray the release reorders — widgets and icons share one
-        // order, so a single pick covers both kinds. Clear the bar-level
-        // drop target and mark the in-tray insertion edge, reusing the
-        // bar's marker rendering for the visual.
-        if (overTray) {
-          b.barDragTarget = null
-          b.barDragAfter = false
-          var pick = root.drawerReorderPick(scenePoint, dragDelegate || dragIconDelegate)
-          orderBeforeKey = pick ? pick.beforeKey : null
-          b.barDragTargetGeometry = pick ? b.dropMarkerRect(pick.delegate, pick.after) : null
-          return
-        }
-        orderBeforeKey = null
-
-        // Status-notifier icons only ever move inside the tray: outside it
-        // there is no drop target and the release is a no-op.
-        if (dragIconDelegate) {
-          b.barDragTarget = null
-          b.barDragAfter = false
-          b.barDragTargetGeometry = null
-          return
-        }
-        var drop = b.moduleDropAtScene(scenePoint, fakeDragSlot)
-        b.barDragTarget = drop ? drop.slot : null
-        b.barDragAfter = drop ? drop.after : false
-        b.barDragTargetGeometry = drop ? b.dropMarkerRect(drop.slot, drop.after) : null
-      }
 
       onPressed: function(mouse) {
-        dragging = false
         suppressClick = false
-        var p = rootPoint(mouse)
-        // Chevron zone: refuse the press so it falls through to the slot's
-        // own MouseArea — dragging the chevron moves the whole tray.
-        var main = root.vertical ? p.y : p.x
-        if (root.chevronExtent > 0 && main < root.chevronExtent) {
+        pressedIcon = root.iconAt(iconDragMouse, mouse.x, mouse.y)
+        if (!pressedIcon) {
           mouse.accepted = false
           return
         }
-        pressedX = mouse.x
-        pressedY = mouse.y
-        dragDelegate = root.hostedDelegateAt(p.x, p.y)
-        dragIconDelegate = dragDelegate ? null : root.trayIconDelegateAt(p.x, p.y)
+        var scene = iconDragMouse.mapToItem(null, mouse.x, mouse.y)
+        pressSceneX = scene.x
+        pressSceneY = scene.y
       }
 
       onPositionChanged: function(mouse) {
-        if (!canReorder || !(dragDelegate || dragIconDelegate) || !(mouse.buttons & Qt.LeftButton)) return
-
-        var distance = Math.abs(mouse.x - pressedX) + Math.abs(mouse.y - pressedY)
-        if (!dragging && distance >= dragThreshold) {
-          if (!beginDragOut(mouse)) return
-          dragging = true
-          if (root.bar) root.bar.hideTooltip(root)
+        if (!pressedIcon || !root.canPersist) return
+        var scene = iconDragMouse.mapToItem(null, mouse.x, mouse.y)
+        if (!root.iconDragActive) {
+          if (Math.abs(scene.x - pressSceneX) + Math.abs(scene.y - pressSceneY) < Style.space(4)) return
+          root.iconDragItem = pressedIcon
+          root.iconDragActive = true
+          if (root.bar) root.bar.hideTooltip(pressedIcon)
         }
-        if (dragging) updateDragOut(mouse)
+        root.iconDragSceneX = scene.x
+        root.iconDragSceneY = scene.y
+        root.updateIconDrop()
       }
 
       onReleased: function(mouse) {
-        var wasDragging = dragging
-        dragging = false
+        var wasDragging = root.iconDragActive
+        var id = root.iconDragItem ? root.iconDragItem.itemId : ""
+        var drop = root.iconDrop
+        root.cancelIconDrag()
         if (!wasDragging) return
-
         suppressClick = true
-        var b = root.hostBar
-        var target = b ? b.barDragTarget : null
-        var after = b ? b.barDragAfter : false
-        var widgetId = fakeDragSlot.moduleName
-        var reorder = orderBeforeKey
-        orderBeforeKey = null
-        var wasIconDrag = dragIconDelegate !== null
-        dragIconDelegate = null
-        var toRegion = target ? String(target.region || "") : ""
-        var beforeName = ""
-        if (target && b) {
-          beforeName = after
-            ? String(b.nextVisibleModuleName(target.region, target.moduleName, fakeDragSlot) || "")
-            : String(target.moduleName || "")
-        }
-        if (b) b.clearBarDrag()
-        fakeDragSlot.activeItem = null
-        fakeDragSlot.moduleName = ""
-        mouse.accepted = true
-
-        if (!widgetId || !b || !b.shell) return
-
-        // Released over the tray: rearrange the shared order (widgets and
-        // icons alike). A settings-only write, so no bar rebuild occurs;
-        // deferring just keeps the release handler off the write path.
-        if (reorder !== null && reorder !== undefined) {
-          var keys = root.drawerEntries.map(function(entry) { return entry.key })
-          var nextOrder = TrayModel.movedBefore(keys, widgetId, String(reorder))
-          if (nextOrder) Qt.callLater(function() { root.persistState({ order: nextOrder }) })
-          return
-        }
-
-        // Icon drags never leave the tray: outside it the release is a no-op.
-        if (wasIconDrag) return
-
-        if (!target || !toRegion) return
-        var shellRef = b.shell
-        var trayId = root.moduleName || "ghost.tray"
-        // Deferred for the same reason as drag-in: a synchronous write would
-        // rebuild the bar while this release handler is on the stack. The
-        // closure holds only the shell reference and plain values.
-        Qt.callLater(function() {
-          if (typeof shellRef.mutateShellConfig !== "function") return
-          shellRef.mutateShellConfig(function(config) {
-            TrayModel.dragOutOfTray(config, trayId, widgetId, toRegion, beforeName)
-          })
-        })
+        // After the release: the write rebuilds the icon rows under this handler.
+        if (id && drop) Qt.callLater(function() { root.applyIconDrop(id, drop) })
       }
 
       onCanceled: {
-        dragging = false
-        suppressClick = false
-        orderBeforeKey = null
-        dragIconDelegate = null
-        if (root.hostBar && root.hostBar.barDragSource === fakeDragSlot) root.hostBar.clearBarDrag()
-        fakeDragSlot.activeItem = null
-        fakeDragSlot.moduleName = ""
+        pressedIcon = null
+        root.cancelIconDrag()
       }
 
       onClicked: function(mouse) {
-        if (suppressClick) {
-          suppressClick = false
-          mouse.accepted = true
-          return
-        }
-        // Mirror the slot MouseArea's click routing so hosted widgets and
-        // tray icons behave exactly as before: registered click targets get
-        // triggerPress, everything else sees the composed click propagate.
-        var slot = dragOutOverlay.parent
-        if (slot === root || !root.hostBar || typeof root.hostBar.pressModuleClickTarget !== "function"
-            || !root.hostBar.pressModuleClickTarget(slot, mouse.button, dragOutOverlay.x + mouse.x, dragOutOverlay.y + mouse.y))
-          mouse.accepted = false
+        var icon = pressedIcon
+        pressedIcon = null
+        if (suppressClick || !icon) return
+        var point = iconDragMouse.mapToItem(icon, mouse.x, mouse.y)
+        icon.primaryClick(point)
       }
+    }
+  }
+
+  // What the drag looks like: the icon under the pointer, and a line where it
+  // will land. On the bar window, since the drawer clips its own contents.
+  Item {
+    id: iconDragVisuals
+    parent: root.QsWindow && root.QsWindow.window ? root.QsWindow.window.contentItem : root
+    visible: root.iconDragActive
+    anchors.fill: parent
+    z: 900
+
+    TrayIcon {
+      width: Style.bar.iconSize
+      height: Style.bar.iconSize
+      x: root.iconDragSceneX - width / 2
+      y: root.iconDragSceneY - height / 2
+      opacity: root.iconDrop && root.iconDrop.zone === "hidden" ? 0.35 : 1
+      icon: root.iconDragItem && root.iconDragItem.modelData ? root.iconDragItem.modelData.icon : ""
+    }
+
+    Rectangle {
+      readonly property bool shown: !!root.iconDrop && root.iconDrop.zone !== "hidden"
+      readonly property real origin: {
+        if (!shown) return 0
+        var corner = root.mapToItem(null, 0, 0)
+        return root.vertical ? corner.x : corner.y
+      }
+
+      visible: shown
+      color: Commons.Color.accent
+      radius: Math.max(1, Style.space(1))
+      width: root.vertical ? root.barSize : Math.max(2, Style.space(2))
+      height: root.vertical ? Math.max(2, Style.space(2)) : root.barSize
+      x: root.vertical ? origin : (shown ? root.iconDrop.markerAt - width / 2 : 0)
+      y: root.vertical ? (shown ? root.iconDrop.markerAt - height / 2 : 0) : origin
     }
   }
 
@@ -841,10 +406,9 @@ BarWidget {
     return name.slice(-9) === "-symbolic"
   }
 
-  // The bar's shared tooltip label currently uses Text.AutoText and does not
-  // expose its textFormat. Wrap escaped application metadata in known-safe
-  // rich text so the host renders the original characters without allowing
-  // the application to inject markup.
+
+  // The bar's shared tooltip label uses Text.AutoText. Wrap application metadata
+  // in known-safe rich text so an app cannot inject markup.
   function escapedTooltipText(value) {
     var text = String(value || "")
     if (!text) return ""
@@ -861,7 +425,9 @@ BarWidget {
 
   function classifyItem(item) {
     var iid = String(item.id || "")
-    return hiddenIds.indexOf(iid) !== -1 ? "hidden" : "drawer"
+    if (hiddenIds.indexOf(iid) !== -1) return "hidden"
+    if (pinnedIds.indexOf(iid) !== -1) return "pinned"
+    return "drawer"
   }
 
   function ownedByOmarchy(item) {
@@ -883,61 +449,59 @@ BarWidget {
       if (!showTrayIcons) continue
       if (classifyItem(item) === category) result.push(item)
     }
-    return TrayModel.sortByOrder(result, orderIds)
+    return TrayModel.sortByOrder(result, category === "pinned" ? pinnedIds : orderIds)
   }
 
-  // Writes the widget's full inline state. updateEntryInline replaces the
-  // whole layout entry, so every persisted key has to ride along on every
-  // write or a toggle would silently drop the captured widgets. Keys from
-  // retired features (pinning, the split icon order) are stripped so old
-  // configs converge on the simple shape.
+  // updateEntryInline replaces the whole layout entry, so every setting has to
+  // ride along on every write or a toggle would silently drop the others.
   function persistState(overrides) {
-    if (!root.bar || !root.bar.shell || typeof root.bar.shell.updateEntryInline !== "function") return
+    if (!canPersist) return
     var id = root.moduleName || "ghost.tray"
     var payload = { id: id }
     var current = root.settings || {}
     for (var key in current) {
-      if (key === "id" || key === "pinned" || key === "pinnedWidgets" || key === "iconOrder") continue
-      payload[key] = current[key]
+      if (key !== "id") payload[key] = current[key]
     }
-    payload.hidden = root.hiddenIds
     for (var name in overrides) payload[name] = overrides[name]
     root.bar.shell.updateEntryInline(id, payload)
   }
 
-  function toggleHide(iid) {
-    var h = hiddenIds.slice()
-    var idx = h.indexOf(iid)
-    if (idx !== -1) h.splice(idx, 1)
-    else h.push(iid)
-    persistState({ hidden: h })
+  function togglePin(iid) {
+    var pinned = pinnedIds.slice()
+    var hidden = hiddenIds.filter(function(other) { return other !== iid })
+    var at = pinned.indexOf(iid)
+    if (at !== -1) pinned.splice(at, 1)
+    else pinned.push(iid)
+    persistState({ pinned: pinned, hidden: hidden })
   }
 
-  // Stay on screen while a drag is in flight even when otherwise empty, so
-  // there is always a drop target to aim at.
-  visible: hasDrawerContent || hostedWrappers.length > 0 || dragActive
+  function toggleHide(iid) {
+    var hidden = hiddenIds.slice()
+    var pinned = pinnedIds.filter(function(other) { return other !== iid })
+    var at = hidden.indexOf(iid)
+    if (at !== -1) hidden.splice(at, 1)
+    else hidden.push(iid)
+    persistState({ pinned: pinned, hidden: hidden })
+  }
 
-  // When the manage popup is open, the bar underlines the whole tray — from
-  // the chevron's left edge to the last icon — instead of its default 55%
-  // fraction of the slot.
-  readonly property real openPanelIndicatorWidth: width
-  readonly property real openPanelIndicatorHeight: height
+  visible: pinnedItems.length > 0 || hasDrawer
   clip: false
   implicitWidth: root.vertical ? root.barSize : trayContent.implicitWidth
   implicitHeight: root.vertical ? trayContent.implicitHeight : root.barSize
 
-  // Backdrop while the drawer is out: the tray paints over other sections it
-  // overruns, but its content is sparse glyphs — without a ground, whatever
-  // sits underneath shows through the gaps un-dimmed. The scrim handles the
-  // center content BESIDE the drawer; this covers what is directly under it.
-  // Opaque bars get the solid background; a transparent VERTICAL bar gets
-  // the same dark tint as its scrim (so under-drawer content dims with the
-  // rest of the center); a transparent horizontal bar stays pristine.
-  Rectangle {
-    anchors.fill: parent
-    visible: root.drawerOut && (root.vertical || !root.barTransparent)
-    color: root.barTransparent ? "black" : (root.bar ? root.bar.background : Color.background)
-    opacity: (root.barTransparent ? 0.5 : 1.0) * root.revealProgress
+  Behavior on revealProgress {
+    NumberAnimation { duration: Style.duration(root.animationDuration); easing.type: Easing.OutCubic }
+  }
+
+  // The section from `start`, `length` long along the bar, as far as the
+  // drawer's clip from `clipStart`, `clipLength` long, shows it
+  // (TrayModel.shownSpan).
+  function shownSection(clipStart, clipLength, start, length) {
+    var span = TrayModel.shownSpan(clipStart, clipLength, start, length)
+    if (!span) return null
+    return vertical
+      ? { x: 0, y: span.start, width: barSize, height: span.length }
+      : { x: span.start, y: 0, width: span.length, height: barSize }
   }
 
   Loader {
@@ -946,89 +510,100 @@ BarWidget {
     sourceComponent: root.vertical ? verticalTray : horizontalTray
   }
 
-  // Drop-target highlight while a dragged widget hovers over the tray.
-  Rectangle {
-    anchors.fill: parent
-    visible: root.dragOver
-    color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.14)
-    border.color: Color.accent
-    border.width: 1
-    radius: Math.min(Style.cornerRadius, height / 2)
-    z: 40
-  }
-
   Component {
     id: horizontalTray
 
     Item {
       id: horizontalTrayRoot
 
-      // Content-driven: unlike the stock tray's fixed icon-count math, the
-      // drawer holds arbitrary widgets, so its extent is whatever the row
-      // measures. The widget grows only while revealed rather than reserving
-      // the expanded width — with whole widgets inside, a permanent reserved
-      // gap could hollow out most of the bar.
-      readonly property real drawerExtent: drawerRow.implicitWidth
-      readonly property real revealExtent: drawerExtent * root.revealProgress
-      readonly property bool showDrawerBlock: root.hasDrawerContent || root.dragActive
-      readonly property real drawerBlockWidth: showDrawerBlock ? expandIcon.implicitWidth + revealExtent : 0
+      readonly property int chevronWidth: root.hasDrawer ? expandIcon.implicitWidth : 0
+      readonly property Item pinnedStrip: pinnedRow
+      readonly property Item iconClip: trayClip
+      readonly property var sectionShown: root.shownSection(drawerArea.x + trayClip.x, trayClip.width, drawerArea.x + trayClip.x + drawerContent.x + section.x, section.width)
 
-      implicitWidth: drawerBlockWidth
+      implicitWidth: pinnedRow.implicitWidth + chevronWidth + root.revealExtent
       implicitHeight: root.barSize
-
-      Binding {
-        target: root
-        property: "chevronExtent"
-        value: horizontalTrayRoot.showDrawerBlock ? expandIcon.implicitWidth : 0
-      }
 
       Item {
         id: drawerArea
-        x: 0
-        width: horizontalTrayRoot.drawerBlockWidth
+        x: root.fixedAtStart ? pinnedRow.implicitWidth : 0
+        width: horizontalTrayRoot.chevronWidth + root.revealExtent
         height: root.barSize
-        visible: horizontalTrayRoot.showDrawerBlock
+        visible: root.hasDrawer
+
+        HoverHandler {
+          onHoveredChanged: {
+            root.expanded = hovered
+            if (!hovered) root.clickExpanded = false
+          }
+        }
 
         BarIconButton {
           id: expandIcon
           bar: root.bar
           width: implicitWidth
           height: implicitHeight
-          x: 0
-          text: "\uf053"
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-            else if (button === Qt.LeftButton) {
-              // Opening the drawer is also a dismissal gesture for whatever
-              // exterior panel is up.
-              root.closeExteriorPopout()
-              root.clickExpanded = true
-            }
-          }
+          x: root.fixedAtStart ? root.revealExtent : 0
+          text: root.fixedAtStart ? "\uf054" : "\uf053"
+          onPressed: function(button) { root.chevronPressed(button) }
         }
 
+        // The icons and the tray section travel out with the chevron from
+        // beside the pinned icons, the section nearest them.
         Item {
           id: trayClip
-          x: expandIcon.implicitWidth
+          x: root.fixedAtStart ? 0 : expandIcon.width
           anchors.verticalCenter: parent.verticalCenter
-          width: horizontalTrayRoot.revealExtent
+          width: root.revealExtent
           height: root.barSize
           clip: true
 
-          Row {
-            id: drawerRow
-            // Right-anchored inside the clip: the drawer's inner edge stays
-            // put while the reveal uncovers content leftward, matching the
-            // stock slide.
-            x: horizontalTrayRoot.revealExtent - horizontalTrayRoot.drawerExtent
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: 0
+          Item {
+            id: drawerContent
+            x: root.fixedAtStart ? root.revealExtent - root.drawerExtent : 0
+            width: root.drawerExtent
+            height: root.barSize
 
-            Repeater {
-              model: root.drawerEntries
-              delegate: DrawerEntry {}
+            Row {
+              id: trayIcons
+              x: root.fixedAtStart ? root.sectionExtent : 0
+              anchors.verticalCenter: parent.verticalCenter
+              spacing: root.trayItemGap
+              layer.enabled: true
+
+              Repeater {
+                model: root.drawerItems
+                TrayItem { zone: "drawer" }
+              }
+            }
+
+            // Placed by hand: a Row leaves a child with no width where it
+            // was, and an empty section has none.
+            SectionArea {
+              id: section
+              x: root.fixedAtStart ? 0 : trayIcons.width
+              anchors.verticalCenter: parent.verticalCenter
             }
           }
+        }
+      }
+
+      Row {
+        id: pinnedRow
+        x: root.fixedAtStart ? 0 : drawerArea.width
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: root.trayItemGap
+        leftPadding: !root.fixedAtStart && root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        rightPadding: root.fixedAtStart && root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        // An empty strip has no size, so a drag gets one icon's room to land in.
+        Item {
+          visible: root.iconDragActive && root.pinnedItems.length === 0
+          width: root.trayItemExtent
+          height: root.trayItemExtent
+        }
+        Repeater {
+          model: root.pinnedItems
+          TrayItem { zone: "pinned" }
         }
       }
     }
@@ -1040,84 +615,99 @@ BarWidget {
     Item {
       id: verticalTrayRoot
 
-      readonly property real drawerExtent: drawerColumn.implicitHeight
-      readonly property real revealExtent: drawerExtent * root.revealProgress
-      readonly property bool showDrawerBlock: root.hasDrawerContent || root.dragActive
-      readonly property real drawerBlockHeight: showDrawerBlock ? expandIcon.implicitHeight + revealExtent : 0
+      readonly property int chevronHeight: root.hasDrawer ? expandIcon.implicitHeight : 0
+      readonly property Item pinnedStrip: pinnedCol
+      readonly property Item iconClip: trayClip
+      readonly property var sectionShown: root.shownSection(drawerArea.y + trayClip.y, trayClip.height, drawerArea.y + trayClip.y + drawerContent.y + section.y, section.height)
 
       implicitWidth: root.barSize
-      implicitHeight: drawerBlockHeight
-
-      Binding {
-        target: root
-        property: "chevronExtent"
-        value: verticalTrayRoot.showDrawerBlock ? expandIcon.implicitHeight : 0
-      }
+      implicitHeight: pinnedCol.implicitHeight + chevronHeight + root.revealExtent
 
       Item {
         id: drawerArea
-        y: 0
+        y: root.fixedAtStart ? pinnedCol.implicitHeight : 0
         width: root.barSize
-        height: verticalTrayRoot.drawerBlockHeight
-        visible: verticalTrayRoot.showDrawerBlock
+        height: verticalTrayRoot.chevronHeight + root.revealExtent
+        visible: root.hasDrawer
+
+        HoverHandler {
+          onHoveredChanged: {
+            root.expanded = hovered
+            if (!hovered) root.clickExpanded = false
+          }
+        }
 
         BarIconButton {
           id: expandIcon
           bar: root.bar
           width: implicitWidth
           height: implicitHeight
-          y: 0
-          text: "\uf053"
+          y: root.fixedAtStart ? root.revealExtent : 0
+          text: root.fixedAtStart ? "\uf054" : "\uf053"
           textRotation: 90
-          onPressed: function(button) {
-            if (button === Qt.RightButton) root.managePopupOpen = !root.managePopupOpen
-            else if (button === Qt.LeftButton) {
-              // Opening the drawer is also a dismissal gesture for whatever
-              // exterior panel is up.
-              root.closeExteriorPopout()
-              root.clickExpanded = true
-            }
-          }
+          onPressed: function(button) { root.chevronPressed(button) }
         }
 
+        // The icons and the tray section travel out with the chevron from
+        // beside the pinned icons, the section nearest them.
         Item {
           id: trayClip
-          y: expandIcon.implicitHeight
+          y: root.fixedAtStart ? 0 : expandIcon.height
           anchors.horizontalCenter: parent.horizontalCenter
           width: root.barSize
-          height: verticalTrayRoot.revealExtent
+          height: root.revealExtent
           clip: true
 
-          Column {
-            id: drawerColumn
-            y: verticalTrayRoot.revealExtent - verticalTrayRoot.drawerExtent
-            anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 0
+          Item {
+            id: drawerContent
+            y: root.fixedAtStart ? root.revealExtent - root.drawerExtent : 0
+            width: root.barSize
+            height: root.drawerExtent
 
-            Repeater {
-              model: root.drawerEntries
-              delegate: DrawerEntry {}
+            Column {
+              id: trayIcons
+              y: root.fixedAtStart ? root.sectionExtent : 0
+              anchors.horizontalCenter: parent.horizontalCenter
+              spacing: root.trayItemGap
+              layer.enabled: true
+
+              Repeater {
+                model: root.drawerItems
+                TrayItem { zone: "drawer" }
+              }
+            }
+
+            // Placed by hand: a Column leaves a child with no height where it
+            // was, and an empty section has none.
+            SectionArea {
+              id: section
+              y: root.fixedAtStart ? 0 : trayIcons.height
+              anchors.horizontalCenter: parent.horizontalCenter
             }
           }
         }
       }
+
+      Column {
+        id: pinnedCol
+        y: root.fixedAtStart ? 0 : drawerArea.height
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: root.trayItemGap
+        topPadding: !root.fixedAtStart && root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        bottomPadding: root.fixedAtStart && root.pinnedItems.length > 0 && root.allItems.length > 0 ? root.trayJoinGap : 0
+        // An empty strip has no size, so a drag gets one icon's room to land in.
+        Item {
+          visible: root.iconDragActive && root.pinnedItems.length === 0
+          width: root.trayItemExtent
+          height: root.trayItemExtent
+        }
+        Repeater {
+          model: root.pinnedItems
+          TrayItem { zone: "pinned" }
+        }
+      }
     }
   }
-
-  // One delegate for the drawer's mixed model: instantiates a hosted widget
-  // or a status-notifier icon depending on the entry kind. modelData on the
-  // inner components is set post-creation, so they tolerate a null start.
-  component DrawerEntry: Loader {
-    id: drawerEntry
-
-    required property var modelData
-
-    sourceComponent: modelData && modelData.kind === "widget" ? hostedWidgetComponent : trayItemComponent
-    onLoaded: item.modelData = drawerEntry.modelData.data
-  }
-
-  Component { id: hostedWidgetComponent; HostedWidget {} }
-  Component { id: trayItemComponent; TrayItem {} }
 
   // The popup anchors to a frozen snapshot of the tray's rect rather than
   // the live widget: toggling icons resizes the drawer, which moves the
@@ -1172,7 +762,7 @@ BarWidget {
       PanelHero {
         width: manageColumn.width
         title: "Tray"
-        meta: "Hide & reorder bar icons"
+        meta: "Pin, hide, or drag on the bar"
         foreground: root.foreground
         fontFamily: root.fontFamily
         iconComponent: Component {
@@ -1263,6 +853,7 @@ BarWidget {
             return slash !== -1 ? id.substring(slash + 1) : (id || "Unknown")
           }
           readonly property bool isHidden: root.hiddenIds.indexOf(itemId) !== -1
+          readonly property bool isPinned: root.pinnedIds.indexOf(itemId) !== -1
 
           MouseArea {
             id: iconRowMouse
@@ -1295,7 +886,7 @@ BarWidget {
               id: rowTitle
               anchors.left: rowIcon.right
               anchors.leftMargin: Style.space(10)
-              anchors.right: rightGlyph.left
+              anchors.right: pinGlyph.left
               anchors.rightMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
               text: rowRoot.displayName
@@ -1304,6 +895,24 @@ BarWidget {
               font.family: root.fontFamily
               font.pixelSize: Style.font.body
               elide: Text.ElideRight
+            }
+
+            Text {
+              id: pinGlyph
+              anchors.right: rightGlyph.left
+              anchors.verticalCenter: parent.verticalCenter
+              width: Style.space(22)
+              horizontalAlignment: Text.AlignHCenter
+              text: "\uf08d"
+              color: rowRoot.isPinned ? Commons.Color.accent : Qt.darker(root.foreground, 1.4)
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.subtitle
+
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.togglePin(rowRoot.itemId)
+              }
             }
 
             Item {
@@ -1591,7 +1200,8 @@ BarWidget {
   }
 
   // Renders a tray icon, recoloring symbolic icons to the bar foreground so
-  // they stay visible on any theme.
+  // they stay visible on any theme (a raw symbolic icon keeps its baked-in
+  // fill and disappears against a matching background).
   component TrayIcon: Item {
     id: trayIconRoot
     required property var icon
@@ -1601,8 +1211,8 @@ BarWidget {
       id: trayIconImage
       anchors.fill: parent
       fillMode: Image.PreserveAspectFit
-      // Decode at physical pixels: IconImage uses the logical size, which
-      // leaves PNG icons upscaled and blurry on HiDPI displays.
+      // Decode at physical pixels: IconImage uses the logical size,
+      // which leaves PNG icons upscaled and blurry on HiDPI displays.
       sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
       source: root.trayIconSource(trayIconRoot.icon)
@@ -1611,41 +1221,69 @@ BarWidget {
       layer.enabled: trayIconRoot.symbolic
     }
 
-    MultiEffect {
+    // Paint the foreground through the icon's alpha. MultiEffect's colorization
+    // keeps the source's lightness, so a dark fill stayed dark on a dark bar.
+    Rectangle {
       anchors.fill: trayIconImage
-      source: trayIconImage
+      color: root.foreground
       visible: trayIconRoot.symbolic
-      colorization: 1.0
-      colorizationColor: root.foreground
+      layer.enabled: trayIconRoot.symbolic
+      layer.effect: MultiEffect {
+        maskEnabled: true
+        maskSource: trayIconImage
+        maskThresholdMin: 0.5
+        maskSpreadAtMin: 1.0
+      }
     }
+  }
+
+  // The tray section's place in the drawer: the bar parents its widgets here.
+  // Empty, it takes no room.
+  component SectionArea: Item {
+    id: sectionArea
+    implicitWidth: childrenRect.width
+    implicitHeight: childrenRect.height
+
+    Component.onCompleted: root.sectionHost = sectionArea
+    // The bar can tear this area down after the widget itself is gone
+    // (a plugin rescan destroys them in its own order), so unregister
+    // only while the widget is still there to unregister from.
+    Component.onDestruction: if (root && root.sectionHost === sectionArea) root.sectionHost = null
   }
 
   component TrayItem: Item {
     id: trayItemRoot
 
-    property var modelData: null
+    required property var modelData
+    // Which strip it is laid out in: "pinned" or "drawer".
+    property string zone: "drawer"
+    readonly property string itemId: String(modelData.id || "")
 
-    readonly property string itemId: String(modelData && modelData.id ? modelData.id : "")
-
-    visible: modelData ? modelData.status !== Status.Passive : false
+    visible: modelData.status !== Status.Passive
     implicitWidth: visible ? root.trayItemExtent : 0
     implicitHeight: visible ? root.trayItemExtent : 0
+    opacity: root.iconDragActive && root.iconDragItem === trayItemRoot ? 0.22 : 1
 
-    Component.onCompleted: root.registerTrayIconDelegate(trayItemRoot)
-    Component.onDestruction: {
-      root.unregisterTrayIconDelegate(trayItemRoot)
-      if (dragOutMouse && dragOutMouse.dragIconDelegate === trayItemRoot) dragOutMouse.dragIconDelegate = null
-    }
+    Component.onCompleted: root.registerIconDelegate(trayItemRoot)
+    Component.onDestruction: if (root) root.unregisterIconDelegate(trayItemRoot)
 
     function displayMenu(mouse) {
-      if (trayItemRoot.modelData) root.openTrayMenu(trayItemRoot.modelData, trayItemRoot, mouse)
+      root.openTrayMenu(trayItemRoot.modelData, trayItemRoot, mouse)
+    }
+
+    // The overlay holds left presses to tell a click from a drag, so a left
+    // click arrives here from it rather than through the MouseArea below.
+    function primaryClick(mouse) {
+      if (trayItemRoot.modelData.onlyMenu) trayItemRoot.displayMenu(mouse)
+      else trayItemRoot.modelData.activate()
     }
 
     TrayIcon {
-      anchors.centerIn: parent
-      width: Style.space(12)
-      height: Style.space(12)
-      icon: trayItemRoot.modelData ? trayItemRoot.modelData.icon : ""
+      x: Math.round((parent.width - width) / 2)
+      y: Math.round((parent.height - height) / 2)
+      width: Style.bar.iconSize
+      height: Style.bar.iconSize
+      icon: trayItemRoot.modelData.icon
     }
 
     MouseArea {
@@ -1654,11 +1292,10 @@ BarWidget {
       acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      // No tooltips while one of the tray's own popups is up — they would
-      // render on top of the open menu.
+      // No tooltips while one of the tray's own panels is up, or mid-drag.
       onEntered: {
-        if (root.trayMenuOpen || root.managePopupOpen) return
-        if (root.bar && trayItemRoot.modelData) root.bar.showTooltip(trayItemRoot, root.trayTooltip(trayItemRoot.modelData))
+        if (root.trayMenuOpen || root.managePopupOpen || root.iconDragActive) return
+        if (root.bar) root.bar.showTooltip(trayItemRoot, root.trayTooltip(modelData))
       }
       onExited: if (root.bar) root.bar.hideTooltip(trayItemRoot)
       onPressed: function(mouse) {
@@ -1668,205 +1305,20 @@ BarWidget {
         }
       }
       onClicked: function(mouse) {
-        if (!trayItemRoot.modelData) return
         if (mouse.button === Qt.RightButton) {
           mouse.accepted = true
         } else if (mouse.button === Qt.MiddleButton) {
           trayItemRoot.modelData.secondaryActivate()
-        } else if (trayItemRoot.modelData.onlyMenu) {
-          trayItemRoot.displayMenu(mouse)
         } else {
-          trayItemRoot.modelData.activate()
+          trayItemRoot.primaryClick(mouse)
         }
       }
       onWheel: function(wheel) {
-        if (trayItemRoot.modelData) trayItemRoot.modelData.scroll(wheel.angleDelta.y, false)
+        trayItemRoot.modelData.scroll(wheel.angleDelta.y, false)
       }
     }
 
     readonly property bool tooltipHovered: visible && opacity > 0 && mouseArea.containsMouse
       && !root.trayMenuOpen && !root.managePopupOpen
-  }
-
-  // A captured bar widget living inside the tray. Instantiates the same
-  // registry component the bar's own module slots use and injects the same
-  // three properties (bar, moduleName, settings), so the widget cannot tell
-  // it isn't sitting directly in a bar section — clicks route through the
-  // bar's registered click targets, tooltips and panels anchor normally.
-  component HostedWidget: Item {
-    id: hostedRoot
-
-    property var modelData: null
-
-    readonly property var entry: modelData && modelData.entry ? modelData.entry : ({})
-    readonly property string widgetId: TrayModel.entryId(entry)
-    readonly property var widgetSettings: TrayModel.entrySettings(entry)
-    readonly property string customType: root.hostBar && typeof root.hostBar.customModuleType === "function"
-      ? String(root.hostBar.customModuleType(entry) || "") : ""
-    readonly property var registryComponent: {
-      if (customType) return null
-      if (widgetId === "io.github.ilyazar.syncthing") return null
-      var registry = root.hostBar ? root.hostBar.barWidgetRegistry : null
-      if (!registry || !registry.widgets) return null
-      var revision = registry.revision
-      var record = registry.widgets[widgetId]
-      return record ? record.component : null
-    }
-    readonly property string fileSource: TrayModel.widgetFileUrl(
-      widgetId,
-      Quickshell.env("HOME"),
-      Quickshell.env("OMARCHY_PATH") || "/usr/share/omarchy"
-    )
-    readonly property var activeItem: {
-      if (registryComponent) return registryLoader.item
-      if (customType === "qml") return qmlLoader.item
-      if (customType === "command") return commandLoader.item
-      return fileLoader.item
-    }
-
-    readonly property bool hasVisual: !!(activeItem && activeItem.visible)
-    implicitWidth: hasVisual ? (root.vertical ? root.barSize : activeItem.implicitWidth) : (root.vertical ? root.barSize : Style.bar.iconSlot)
-    implicitHeight: hasVisual ? (root.vertical ? activeItem.implicitHeight : root.barSize) : (root.vertical ? Style.bar.iconSlot : root.barSize)
-    width: implicitWidth
-    height: implicitHeight
-
-    Component.onCompleted: root.registerHostedDelegate(hostedRoot)
-    Component.onDestruction: {
-      // Unregister first: if anything below throws mid-teardown, a stale
-      // delegate left in the list would poison every future hit test.
-      if (root) root.unregisterHostedDelegate(hostedRoot)
-      if (dragOutMouse && dragOutMouse.dragDelegate === hostedRoot) dragOutMouse.dragDelegate = null
-    }
-
-    onActiveItemChanged: Qt.callLater(injectProps)
-    onWidgetSettingsChanged: injectProps()
-
-    function injectProps() {
-      var target = activeItem
-      if (!target) return
-      if ("bar" in target) target.bar = root.bar
-      if ("moduleName" in target) target.moduleName = widgetId
-      if ("settings" in target) target.settings = widgetSettings
-    }
-
-    Text {
-      visible: !hostedRoot.hasVisual
-      anchors.centerIn: parent
-      text: hostedRoot.widgetId.indexOf(".") >= 0
-        ? hostedRoot.widgetId.substring(hostedRoot.widgetId.lastIndexOf(".") + 1).charAt(0)
-        : "?"
-      color: root.foreground
-      font.family: root.fontFamily
-      font.pixelSize: Style.font.body
-    }
-
-    Loader {
-      id: fileLoader
-      active: hostedRoot.registryComponent === null && hostedRoot.customType === "" && hostedRoot.fileSource !== ""
-      source: hostedRoot.fileSource
-      anchors.fill: parent
-      onLoaded: {
-        hostedRoot.injectProps()
-        Qt.callLater(hostedRoot.injectProps)
-      }
-    }
-
-    Loader {
-      id: registryLoader
-      active: hostedRoot.registryComponent !== null
-      sourceComponent: hostedRoot.registryComponent
-      anchors.fill: parent
-      onLoaded: {
-        hostedRoot.injectProps()
-        Qt.callLater(hostedRoot.injectProps)
-      }
-    }
-
-    Loader {
-      id: qmlLoader
-      active: hostedRoot.customType === "qml"
-      source: active && root.hostBar && typeof root.hostBar.customModuleSource === "function"
-        ? root.hostBar.customModuleSource(hostedRoot.entry) : ""
-      anchors.fill: parent
-      onLoaded: {
-        hostedRoot.injectProps()
-        Qt.callLater(hostedRoot.injectProps)
-      }
-    }
-
-    Loader {
-      id: commandLoader
-      active: hostedRoot.customType === "command"
-      sourceComponent: hostedCommandComponent
-      anchors.fill: parent
-      onLoaded: item.entry = hostedRoot.entry
-    }
-  }
-
-  // Minimal clone of the bar's private exec-based custom module, so command
-  // widgets can live inside the tray too.
-  Component {
-    id: hostedCommandComponent
-
-    WidgetButton {
-      id: commandRoot
-
-      property var entry: ({})
-      readonly property var moduleSettings: TrayModel.entrySettings(entry)
-      property string outputText: ""
-      property string outputTooltip: ""
-      property bool outputActive: false
-
-      function setting(name, fallback) {
-        var value = moduleSettings ? moduleSettings[name] : undefined
-        return value === undefined || value === null ? fallback : value
-      }
-
-      function update(raw) {
-        var data = Util.parseModuleJson(raw)
-        var klass = data.class || data.alt || ""
-        outputText = data.text || String(raw || "").trim()
-        outputTooltip = data.tooltip || String(setting("tooltip", ""))
-        outputActive = klass === "active" || (Array.isArray(klass) && klass.indexOf("active") !== -1)
-      }
-
-      bar: root.bar
-      text: outputText || String(setting("text", ""))
-      tooltipText: outputTooltip || String(setting("tooltip", ""))
-      active: outputActive
-      keepSpace: setting("keepSpace", false) === true
-      horizontalMargin: Number(setting("horizontalMargin", 7.5))
-      verticalPadding: Number(setting("verticalPadding", 6))
-      fontSize: Number(setting("fontSize", 12))
-
-      onPressed: function(button) {
-        var command = ""
-        if (button === Qt.RightButton)
-          command = String(setting("onRightClick", ""))
-        else if (button === Qt.MiddleButton)
-          command = String(setting("onMiddleClick", ""))
-        else
-          command = String(setting("onClick", ""))
-
-        if (command && root.bar) root.bar.run(command)
-      }
-
-      Process {
-        id: commandProc
-        command: ["bash", "-lc", String(commandRoot.setting("exec", ""))]
-        stdout: StdioCollector {
-          waitForEnd: true
-          onStreamFinished: commandRoot.update(text)
-        }
-      }
-
-      Timer {
-        interval: Math.max(1, Number(commandRoot.setting("interval", 5))) * 1000
-        running: String(commandRoot.setting("exec", "")) !== ""
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: if (!commandProc.running) commandProc.running = true
-      }
-    }
   }
 }

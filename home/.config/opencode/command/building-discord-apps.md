@@ -7,7 +7,7 @@ Load the `building-discord-apps` skill and use it to help with the user request.
 First, invoke the skill tool to load the building-discord-apps skill:
 
 ```
-skill({ name: 'building-discord-apps' })
+skill({ id: 'building-discord-apps' })
 ```
 
 Then follow the skill instructions to complete the request.

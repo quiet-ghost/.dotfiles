@@ -1,14 +1,12 @@
 {
-  "version": 1,
-  "idle": {
-    "screensaver": 900,
-    "lock": 902
-  },
   "bar": {
-    "position": "top",
-    "transparent": false,
-    "centerAnchor": "tmn73.calendar",
     "layout": {
+      "center": [
+        {
+          "format": "ddd d MMM h:mm AP",
+          "id": "tmn73.calendar"
+        }
+      ],
       "left": [
         {
           "id": "omarchy.menu"
@@ -17,115 +15,46 @@
           "id": "ghost.workspaces"
         }
       ],
-      "center": [
-        {
-          "id": "ghost.indicators"
-        },
-        {
-          "id": "omarchy.system-update"
-        },
-        {
-          "id": "tmn73.calendar",
-          "format": "dddd h:mm AP"
-        },
-        {
-          "id": "omarchy.weather"
-        },
-        {
-          "id": "local.timer"
-        },
-        {
-          "id": "ghost.currency"
-        }
-      ],
       "right": [
         {
           "id": "ghost.tray",
-          "hidden": ["steam", "vesktop_status_icon_1", "wine-0x200e2-0"],
+          "hidden": [
+            "steam",
+            "vesktop_status_icon_1",
+            "wine-0x200e2-0"
+          ],
           "order": [
-            "ghost.govee",
-            "dev.git",
-            "ghost.cloudflare",
-            "omarchy.tailscale",
-            "omarchy.monitor",
-            "io.github.ilyazar.syncthing",
-            "chyld.mise-radar",
-            "njpatel.omaherdr"
+            "chrome_status_icon_1",
+            "hex"
           ],
-          "widgets": [
-            {
-              "entry": {
-                "id": "dev.git"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "ghost.cloudflare"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "omarchy.tailscale"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "omarchy.monitor"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "io.github.ilyazar.syncthing"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "chyld.mise-radar"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "barIcon": "server",
-                "barStyle": "lights",
-                "id": "njpatel.omaherdr"
-              },
-              "listed": true
-            },
-            {
-              "entry": {
-                "id": "ghost.govee"
-              },
-              "listed": true
-            }
-          ],
-          "showTrayIcons": true
+          "showTrayIcons": true,
+          "pinned": [
+            "hex"
+          ]
+        },
+        {
+          "id": "ghost.cloudflare"
+        },
+        {
+          "id": "io.github.ilyazar.syncthing"
+        },
+        {
+          "id": "ghost.ai-usage"
+        },
+        {
+          "id": "mdick.cloudflare",
+          "starred": [
+            "d1:522bc885-229c-4a07-aecb-d28ee387297b"
+          ]
         },
         {
           "id": "omarchy.bluetooth"
         },
         {
-          "id": "omarchy.audio"
+          "id": "crmne.hyprmoncfg"
         },
         {
-          "id": "ghost.ai-usage",
-          "refreshIntervalSec": 300,
-          "defaultView": "subs",
-          "assignments": {
-            "codex": "subs",
-            "grok": "subs",
-            "claude": "subs",
-            "opencode": "subs",
-            "openai-api": "apis",
-            "xai-api": "apis",
-            "claude-api": "apis",
-            "openrouter": "apis"
-          }
+          "id": "omarchy.audio"
         },
         {
           "id": "djjeane.docker-monitor"
@@ -145,8 +74,61 @@
         {
           "id": "apurva.notifications"
         }
+      ],
+      "centerBegin": [
+        {
+          "id": "ghost.indicators"
+        }
+      ],
+      "centerEnd": [
+        {
+          "id": "omarchy.system-update"
+        },
+        {
+          "id": "omarchy.weather"
+        },
+        {
+          "id": "local.timer"
+        }
+      ],
+      "tray": [
+        {
+          "id": "coinbase"
+        },
+        {
+          "id": "ghost.govee"
+        },
+        {
+          "id": "dev.git"
+        },
+        {
+          "id": "omarchy.tailscale"
+        },
+        {
+          "id": "chyld.mise-radar"
+        },
+        {
+          "id": "omarchy.monitor"
+        },
+        {
+          "barIcon": "server",
+          "barStyle": "lights",
+          "id": "njpatel.omaherdr"
+        }
       ]
-    }
+    },
+    "position": "top",
+    "transparent": false
+  },
+  "cloneSourceRestores": [
+    "apurva.notifications"
+  ],
+  "disabledPlugins": [
+    "omarchy.notifications"
+  ],
+  "idle": {
+    "lock": 902,
+    "screensaver": 900
   },
   "plugins": [
     {
@@ -159,27 +141,11 @@
       "id": "grigorip.linear"
     },
     {
-      "id": "dev.git"
+      "id": "omakade.guide"
     },
     {
-      "id": "ghost.cloudflare"
-    },
-    {
-      "id": "omarchy.tailscale"
-    },
-    {
-      "id": "omarchy.monitor"
-    },
-    {
-      "id": "chyld.mise-radar"
-    },
-    {
-      "id": "njpatel.omaherdr"
-    },
-    {
-      "id": "ghost.govee"
+      "id": "typecraft.omacast"
     }
   ],
-  "disabledPlugins": ["omarchy.notifications"],
-  "cloneSourceRestores": ["apurva.notifications"]
+  "version": 1
 }

@@ -7,7 +7,7 @@ Generate hierarchical AGENTS.md files for the current codebase.
 First, invoke the skill tool to load the index-knowledge skill:
 
 ```
-skill({ name: 'index-knowledge' })
+skill({ id: 'index-knowledge' })
 ```
 
 Then follow the skill instructions to analyze and generate documentation.

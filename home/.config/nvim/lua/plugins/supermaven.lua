@@ -1,7 +1,7 @@
 return {
   {
     "supermaven-inc/supermaven-nvim",
-    enabled = true,
+    enabled = false,
     opts = {
       keymaps = {
         accept_suggestion = "<C-f>",

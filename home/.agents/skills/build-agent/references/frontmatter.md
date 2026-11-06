@@ -2,14 +2,18 @@
 
 Markdown agents use YAML frontmatter followed by the prompt body.
 
+Use the [V2 agents guide](https://opencode.ai/v2/docs/agents) as the runtime contract. The Markdown body supplies the agent's `system` prompt; project instructions and skills are still added separately.
+
 ## Required Format
 
 ```yaml
 ---
 description: What this agent does and when to use it.
 mode: subagent
-permission:
-  edit: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
 ---
 ```
 
@@ -22,7 +26,6 @@ permission:
 | Constraint           | Value           |
 | -------------------- | --------------- |
 | Required in practice | Yes             |
-| Max length           | 1024 characters |
 | Min recommended      | 50 characters   |
 
 **Rules:**
@@ -61,18 +64,24 @@ mode: subagent
 mode: all
 ```
 
-Default is `all`, but do not rely on the default. Choose intentionally.
+The runtime default for a new custom agent is `primary`. Choose explicitly; `subagent` is usually appropriate for specialist helpers.
 
-### permission
+### permissions
 
 ```yaml
-permission:
-  edit: allow
-  bash: deny
-  webfetch: ask
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: webfetch
+    resource: "*"
+    effect: ask
 ```
 
-Prefer `permission:` for new agents. It is more explicit and current than `tools:`.
+Each rule has `action`, `resource`, and `effect`. Rules are ordered; the last match wins. Use `shell` for commands and `subagent` for child-agent launch permissions.
 
 ### hidden
 
@@ -80,7 +89,7 @@ Prefer `permission:` for new agents. It is more explicit and current than `tools
 hidden: true
 ```
 
-Hide a subagent from `@` autocomplete. This is not a security boundary.
+Hide an agent from normal listings, interactive discovery, and the model's subagent catalog. Keep helpers visible when the parent must discover them automatically. This is not a security boundary.
 
 ### steps
 
@@ -88,45 +97,40 @@ Hide a subagent from `@` autocomplete. This is not a security boundary.
 steps: 6
 ```
 
-Caps agentic iterations before the model must respond with text only. Useful for cost and scope control.
+Positive maximum number of model steps. The final step is text-only; new user input resets the allowance. Useful for cost and scope control.
 
 ### model
 
 ```yaml
-model: openai/gpt-5.5
+model: provider/model#variant
 ```
 
-Set only when the role materially benefits from a specific model. Otherwise inherit defaults.
+Replace this placeholder with a verified configured model ID; `#variant` is optional. Set only when the role needs a specific model. Otherwise a subagent inherits its parent's model. Selecting a primary agent alone does not change the session's stored model.
 
-### temperature
+### color and disabled
 
 ```yaml
-temperature: 0.2
+color: "#ff6b6b"
+disabled: true
 ```
 
-Lower for review, auditing, or analysis. Higher only for brainstorming-heavy roles.
+Use a six-digit hex color. `disabled: true` removes the agent at that point in configuration loading.
 
-### color, top_p, disable
+### request
 
 ```yaml
-color: accent
-top_p: 0.9
-disable: true
+request:
+  headers:
+    x-agent: documentation
 ```
 
-Use sparingly. Most custom agents do not need them.
+V2 currently preserves per-agent request headers/body overlays but does not send them to model requests. Configure active sampling or provider options on the provider, model, or model variant instead. Do not add inert request options to tune an agent.
 
-## Deprecated Field
+## Legacy Compatibility
 
-### tools
+Legacy agent frontmatter remains supported, but new V2 files use `permissions`, `disabled`, and `provider/model#variant`. Do not use legacy `permission`, `tools`, `temperature`, `top_p`, `disable`, `maxSteps`, or separate `variant` fields in new definitions.
 
-```yaml
-tools:
-  bash: false
-  edit: false
-```
-
-`tools:` still works, but prefer `permission:` for all new agent definitions and revisions.
+Convert each file's frontmatter as a whole. Fields such as `permissions`, `request`, `system`, or `disabled` select V2 parsing, so mixing legacy fields into that file causes them to be ignored with warnings. Read the [migration guide](https://opencode.ai/v2/docs/migrate-v1#agent-files) before converting existing definitions.
 
 ## Complete Example
 
@@ -134,12 +138,16 @@ tools:
 ---
 description: Drafts and edits technical documentation. Use when writing README files, guides, onboarding docs, or API documentation.
 mode: subagent
-model: openai/gpt-5.5
-temperature: 0.2
-permission:
-  edit: allow
-  bash: deny
-  webfetch: allow
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: webfetch
+    resource: "*"
+    effect: allow
 steps: 6
 ---
 You are a technical writer.
@@ -155,8 +163,8 @@ Write documentation that is accurate, structured, easy to navigate, and useful t
 | Has `description:`       | Required in practice               |
 | Description quality      | Includes what + when               |
 | Has `mode:`              | Explicitly chosen                  |
-| Uses `permission:`       | Preferred for new agents           |
-| Uses `hidden:` correctly | Only meaningful for subagents      |
+| Uses `permissions:`      | Ordered V2 rules                   |
+| Uses `hidden:` correctly | Catalog visibility is intentional  |
 | Uses `steps:` correctly  | Optional, but realistic if present |
 | Prompt body is focused   | Role, method, quality bar          |
 

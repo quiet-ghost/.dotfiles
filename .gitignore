@@ -75,6 +75,20 @@
 /home/.config/gws-omarchy-calendar/
 /home/.config/systemd/user/*.target.wants/
 
+# Agent working documents
+/specs/
+**/*HANDOFF*.md
+
+# Third-party plugin checkouts not pinned as submodules
+/home/.config/omarchy/plugins/coinbase/
+/home/.config/omarchy/plugins/mdick.cloudflare/
+/home/.config/omarchy/plugins/ryrobes.hazel/
+/home/.config/omarchy/plugins/typecraft.omacast/
+
+# Symlinks into machine-local system packages
+/home/.config/omarchy/plugins/omakade.guide
+/home/.pi/agent/skills/omarchy-app
+
 # Backups and sync-conflict artifacts
 /.backup/
 /backups/

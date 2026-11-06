@@ -1,6 +1,8 @@
 # YAML Frontmatter Specification
 
-Every SKILL.md must begin with YAML frontmatter.
+For portable skills, begin `SKILL.md` with YAML frontmatter and keep `name` aligned with the directory. These are Agent Skills/local authoring conventions, not all runtime requirements of OpenCode V2.
+
+V2 derives the case-sensitive skill ID from its path; `name` is a display label. Frontmatter is optional at runtime, but a skill without a description is not advertised to the model. V2 does not enforce the portable name/description length limits below. See the [V2 skills guide](https://opencode.ai/v2/docs/skills).
 
 ## Required Format
 
@@ -13,7 +15,7 @@ description: What this skill does and when to use it.
 
 **Critical:** Frontmatter must start at line 1. No blank lines before `---`.
 
-## Required Fields
+## Portable Required Fields
 
 ### name
 
@@ -115,19 +117,34 @@ metadata:
 
 String-to-string map. Arbitrary key-value pairs.
 
-### references (OpenCode-specific)
+### disable-model-invocation
 
 ```yaml
-references:
-  - references/api.md
-  - references/schemas.md
+disable-model-invocation: true
 ```
 
-Hints for pre-loading. Agent may use these to proactively load files.
+Use for a deliberately manual-only skill. OpenCode and Pi omit it from automatic model discovery. This is visibility control, not a permission boundary; V2 still permits explicit loading by ID when permissions allow it.
+
+### OpenCode-specific invocation metadata
+
+```yaml
+metadata:
+  opencode/autoinvoke: false
+```
+
+V2 also supports this boolean setting. It takes precedence over `disable-model-invocation` when both exist. Prefer the portable top-level flag for shared OpenCode/Pi skills; other harnesses need not interpret this metadata key.
+
+### Supporting references
+
+Supporting files are not automatically loaded. Do not rely on a `references` frontmatter field for preloading. Put links and required read conditions in the Markdown body:
+
+```markdown
+For schema changes, read [the schema guide](references/schemas.md).
+```
 
 ## Complete Example
 
-```yaml
+```markdown
 ---
 name: release-manager
 description: Create releases with changelogs, version bumps, and git tags. Use when preparing a release, generating changelog, or bumping version numbers.
@@ -136,14 +153,12 @@ compatibility: Requires git and gh CLI
 metadata:
   author: dmmulroy
   version: "2.0"
-references:
-  - references/changelog-format.md
-  - references/versioning.md
 ---
 
 # Release Manager
 
-Instructions here...
+Before proposing a version, read [versioning](references/versioning.md).
+When drafting the changelog, read [changelog format](references/changelog-format.md).
 ```
 
 ## Validation Checklist
@@ -157,7 +172,7 @@ Instructions here...
 | Has `description:` | Required |
 | Description quality | 50+ chars, third person, includes triggers |
 | Closes with `---` | Required |
-| No XML tags | `<purpose>`, `<refs>` invalid |
+| YAML fields | Use YAML frontmatter fields, not XML wrappers |
 
 ## See Also
 

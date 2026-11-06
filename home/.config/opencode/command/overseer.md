@@ -7,7 +7,7 @@ Task orchestration via Overseer codemode MCP.
 First, invoke the skill tool to load the overseer skill:
 
 ```
-skill({ name: 'overseer' })
+skill({ id: 'overseer' })
 ```
 
 Then follow the skill instructions to manage tasks.

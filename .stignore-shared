@@ -26,6 +26,8 @@ out
 .zcompdump*
 
 // Machine-local and generated configuration source.
+/extras/oma-cast/search/target
+/extras/oma-cast/plugin/bin
 /home/.config/mise
 /home/.config/hypr/monitors_local.lua
 /home/.config/herdr/session*.json
@@ -38,6 +40,7 @@ out
 /home/.config/opencode/bun.lock
 /home/.config/opencode/package.json
 /home/.config/opencode/package-lock.json
+/home/.config/opencode/service.json
 /home/.config/opencode/v2/service.json
 /home/.config/omarchy/current
 /home/.config/omarchy/calendar-ics.json

@@ -7,7 +7,7 @@ Load the `career-ops` skill and use it to handle the request.
 First, invoke the skill tool:
 
 ```text
-skill({ name: 'career-ops' })
+skill({ id: 'career-ops' })
 ```
 
 Then follow the skill instructions for this request:

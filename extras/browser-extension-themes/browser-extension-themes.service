@@ -1,0 +1,10 @@
+[Unit]
+Description=Remove Omarchy's forced Chromium and Helium theme color
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rm -f -- /etc/chromium/policies/managed/color.json
+NoNewPrivileges=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=-/etc/chromium/policies/managed

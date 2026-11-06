@@ -2,6 +2,8 @@
 
 Mode determines how the agent is surfaced and invoked.
 
+V2 defaults new custom agents to `primary`. The recommendation to use `subagent` for helpers below is an authoring choice, not the runtime default.
+
 ## primary
 
 Use `primary` when the user should switch into the agent directly as the main session persona.
@@ -13,7 +15,7 @@ Use `primary` when the user should switch into the agent directly as the main se
 
 ## subagent
 
-Use `subagent` when the agent is a specialist helper invoked by `@mention` or the Task tool.
+Use `subagent` when the agent is a specialist helper launched through the `subagent` tool into a fresh child session. It can run in foreground or background.
 
 **Good fit:**
 - Reviewer
@@ -42,12 +44,12 @@ mode: subagent
 hidden: true
 ```
 
-Hide a subagent from `@` autocomplete. Useful for internal helpers.
+Hide an agent from normal listings, interactive discovery, and the model's subagent catalog. Useful only when that reduced visibility is intentional.
 
 **Important:**
-- Only meaningful for subagents
 - Not a security boundary
-- Does not stop programmatic task use when permissions allow it
+- Keep helpers visible when the parent needs to discover them automatically
+- Use permissions, not visibility, to restrict access
 
 ## steps and Bounded Work
 
@@ -70,11 +72,11 @@ Do not set `steps` so low that the agent cannot complete normal work.
 | User should switch into it directly | `primary` |
 | Specialist helper for one kind of work | `subagent` |
 | Useful in both roles | `all` |
-| Internal-only helper | `subagent` + `hidden: true` |
+| Helper intentionally omitted from the model catalog | `subagent` + `hidden: true` |
 
 ## Heuristics
 
-- Default to `subagent`
+- Prefer `subagent` for helpers; always declare the mode
 - Use `primary` only when the user will actively choose it
 - Use `all` rarely
 - Pair `hidden` only with narrow internal helpers

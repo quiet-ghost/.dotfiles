@@ -23,10 +23,12 @@ Issues, causes, and fixes for agent creation.
 
 | Mistake | Fix |
 | ------- | --- |
-| Granting broad bash access by default | Start with `deny` or `ask` |
-| Using legacy `tools:` in new files | Prefer `permission:` |
-| Forgetting `permission.task` for orchestrators | Add explicit task rules |
+| Granting broad shell access by default | Start with `deny` or `ask` |
+| Using legacy fields in new files | Use ordered `permissions:` rules |
+| Forgetting delegation rules for orchestrators | Add `subagent` action rules |
 | Assuming first match wins | Last matching rule wins |
+| Denying `edit` but permitting shell writes | Restrict shell too when strict read-only access is required |
+| Mixing V1 and V2 fields | Convert the whole frontmatter; legacy fields in a V2 file are ignored with warnings |
 
 ## Steps Errors
 
@@ -40,7 +42,7 @@ Issues, causes, and fixes for agent creation.
 
 | Mistake | Fix |
 | ------- | --- |
-| Putting files outside `agent/` | Use `.opencode/agent/` or `~/.config/opencode/agent/` |
+| Teaching singular directories for new V2 files | Prefer `.opencode/agents/` or `~/.config/opencode/agents/`; legacy locations remain supported |
 | Unstable names like `writer-final-v3` | Use stable names like `professional-writer` |
 | Overgeneric names like `helper` | Use descriptive role names |
 
@@ -59,6 +61,8 @@ Issues, causes, and fixes for agent creation.
 | Agent triggers for wrong work | Tighten `description` |
 | Agent is too risky | Reduce permissions |
 | Agent is missing from `@` menu | Check `mode` and `hidden` |
+| Parent cannot discover a helper | Remove `hidden: true` if catalog discovery is needed |
+| Agent's sampling setting does nothing | Configure the provider/model variant; agent request overlays are currently not sent |
 | Agent stops too early | Increase `steps` |
 | Agent feels bloated | Move guidance to a skill |
 

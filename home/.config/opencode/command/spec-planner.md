@@ -7,7 +7,7 @@ Load the `spec-planner` skill and use it to help with the user request.
 First, invoke the skill tool to load the spec-planner skill:
 
 ```
-skill({ name: 'spec-planner' })
+skill({ id: 'spec-planner' })
 ```
 
 Then follow the skill instructions to complete the request.

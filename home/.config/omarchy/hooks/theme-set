@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ~/.local/bin/omarchy-theme-set-browser prevents Omarchy from recreating the
-# managed BrowserThemeColor policy that overrides browser extension themes.
+# The user-level browser theme override avoids normal policy writes; the system
+# browser-extension-themes.path guard catches updates and commands bypassing it.
 helium-browser --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true
 chromium --refresh-platform-policy --no-startup-window >/dev/null 2>&1 || true

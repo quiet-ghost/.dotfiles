@@ -1,0 +1,8 @@
+[Unit]
+Description=Keep Chromium and Helium extension themes user-controlled
+
+[Path]
+PathExists=/etc/chromium/policies/managed/color.json
+
+[Install]
+WantedBy=multi-user.target

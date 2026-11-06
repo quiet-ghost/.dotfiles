@@ -11,14 +11,15 @@ hl.unbind("SUPER + T")
 hl.unbind("SUPER + SHIFT + SPACE")
 hl.unbind("SUPER + SPACE")
 hl.unbind("SUPER + ALT + SPACE")
+hl.unbind("ALT + SPACE")
 
 o.bind("SUPER + CTRL + RETURN", "Herdr", { omarchy = "terminal-herdr" })
 o.bind("SUPER + SHIFT + E", "File manager", terminal .. ' --title="yazi" -e yazi')
--- flea --default: begin. Written by `flea --default`; `flea --default off` removes the block whole.
 hl.unbind("SUPER + SHIFT + F")
-o.bind("SUPER + E", "File manager", { launch = "flea --gui" })
-o.bind("SUPER + CTRL + SHIFT + E", "File manager (cwd)", { launch = 'flea --gui "$(omarchy-cmd-terminal-cwd)"' })
--- flea --default: end.
+hl.unbind("SUPER + E")
+hl.unbind("SUPER + CTRL + SHIFT + E")
+o.bind("SUPER + E", "File manager", { launch = "strata" })
+o.bind("SUPER + CTRL + SHIFT + E", "File manager (cwd)", { launch = 'strata "$(omarchy-cmd-terminal-cwd)"' })
 o.bind("SUPER + B", "Browser", { omarchy = "browser" })
 o.bind("SUPER + SHIFT + B", "Browser (private)", { omarchy = "browser --private" })
 o.bind("SUPER + N", "Editor", { omarchy = "editor" })
@@ -42,7 +43,10 @@ o.bind("SUPER + ALT + F", "Force full screen", hl.dsp.window.fullscreen({ mode =
 o.bind("SUPER + SHIFT + T", "Toggle window floating/tiling", hl.dsp.window.float({ action = "toggle" }))
 o.bind("SUPER + L", "Lock system", "omarchy-system-lock")
 
-o.bind("ALT + SPACE", "Omarchy menu", "omarchy-menu toggle root")
+o.bind("ALT + SPACE", "omacast launcher", hl.dsp.global("omacast:toggle"))
+o.bind("F10", "Hex dictation (hold)", "hex dictation start")
+o.bind("F10", "Hex dictation (release)", "hex dictation stop", { release = true })
+o.bind("SUPER + SPACE", "Omarchy menu (fallback)", "omarchy-menu toggle root")
 o.bind("ALT + P", "Screenshot of region", "omarchy-capture-screenshot region")
 o.bind("ALT + CTRL + R", "Screen record a region", "omarchy-capture-screenrecording")
 o.bind("ALT + SHIFT + R", "Screen record with audio", "omarchy-capture-screenrecording --with-desktop-audio")
@@ -64,6 +68,9 @@ for workspace = 1, 10 do
 	)
 end
 
--- flea --picker: begin. Written by `flea --picker`; `flea --picker off` removes the block whole.
-o.window("com.thisisgm.flea.picker", { tag = "+floating-window" })
--- flea --picker: end.
+-- Dictation keys from before Alt + Space and Right Alt became the defaults.
+-- Remove these lines to give the keys back to applications.
+if o.dictation_installed and o.dictation_installed() then
+  o.bind("SUPER + CTRL + X", "Toggle dictation", "omarchy-dictation toggle")
+  o.bind_hold("F9", "Start dictation (push-to-talk)", "omarchy-dictation start", "Stop dictation (push-to-talk)", "omarchy-dictation stop")
+end

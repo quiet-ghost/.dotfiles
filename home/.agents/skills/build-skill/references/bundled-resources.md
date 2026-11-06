@@ -89,13 +89,9 @@ Agent copies/uses files without loading into context.
 | references/ | Documentation | When read | Read |
 | assets/ | Output files | Zero | Copy/use |
 
-## Not Supported in OpenCode
+## OpenCode V2 Integration Boundary
 
-| Feature | Status |
-|---------|--------|
-| `toolbox/` protocol | Not supported |
-| `mcp.json` bundling | Not supported |
-| Per-skill MCP | Use global opencode.json |
+A skill bundle supplies instructions and supporting files, not automatic MCP server registration. Configure servers under `mcp.servers` in the appropriate global or project `opencode.json(c)`, following the [V2 MCP guide](https://opencode.ai/v2/docs/mcp-servers). Do not assume a bundled `mcp.json` installs a server, or change configuration without authorization.
 
 ## See Also
 

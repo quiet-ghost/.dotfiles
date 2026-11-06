@@ -8,7 +8,7 @@ Agent file structures from minimal to specialized.
 
 ```
 .opencode/
-└── agent/
+└── agents/
     └── professional-writer.md
 ```
 
@@ -23,7 +23,7 @@ Agent file structures from minimal to specialized.
 
 ```
 .opencode/
-└── agent/
+└── agents/
     └── code-reviewer.md
 ```
 
@@ -38,9 +38,13 @@ Agent file structures from minimal to specialized.
 ---
 description: Reviews code for bugs and maintainability. Use when analyzing diffs or pull requests.
 mode: subagent
-permission:
-  edit: deny
-  bash: ask
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: ask
 ---
 ```
 
@@ -48,13 +52,13 @@ permission:
 
 ```
 .opencode/
-└── agent/
+└── agents/
     └── internal-helper.md
 ```
 
 **When to use:**
-- Internal helper used via Task
-- Not meant to appear in `@` autocomplete
+- Helper intentionally omitted from normal listings and the model's subagent catalog
+- Not meant for automatic specialist selection
 - Narrow purpose inside a larger workflow
 
 **Typical frontmatter:**
@@ -64,8 +68,10 @@ permission:
 description: Performs a narrow internal transformation. Use only for internal task delegation.
 mode: subagent
 hidden: true
-permission:
-  edit: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
 ---
 ```
 
@@ -73,7 +79,7 @@ permission:
 
 ```
 .opencode/
-└── agent/
+└── agents/
     └── writing-studio.md
 ```
 
@@ -88,9 +94,13 @@ permission:
 ---
 description: Handles direct writing sessions for polished business and technical prose. Use when the main task is drafting or revising written material.
 mode: primary
-permission:
-  edit: allow
-  bash: deny
+permissions:
+  - action: edit
+    resource: "*"
+    effect: allow
+  - action: shell
+    resource: "*"
+    effect: deny
 ---
 ```
 
@@ -98,7 +108,7 @@ permission:
 
 ```
 .opencode/
-└── agent/
+└── agents/
     └── release-orchestrator.md
 ```
 
@@ -113,10 +123,13 @@ permission:
 ---
 description: Coordinates release work across specialist agents. Use when planning, validating, and documenting a release spans multiple domains.
 mode: subagent
-permission:
-  task:
-    "*": deny
-    "release-*": allow
+permissions:
+  - action: subagent
+    resource: "*"
+    effect: deny
+  - action: subagent
+    resource: "release-*"
+    effect: allow
 steps: 8
 ---
 ```
@@ -125,11 +138,10 @@ steps: 8
 
 | Scope | Path |
 | ----- | ---- |
-| Project | `.opencode/agent/<name>.md` |
-| Global | `~/.config/opencode/agent/<name>.md` |
-| Legacy/supported | `.opencode/agents/<name>.md` |
+| Project | `.opencode/agents/<name>.md` |
+| Global | `~/.config/opencode/agents/<name>.md` |
 
-Prefer `agent/` for consistency with the OpenCode CLI.
+Prefer `agents/` for new V2 files. Existing `agent/`, `mode/`, and `modes/` directories remain supported. When moving a legacy mode into `agents/`, preserve its primary behavior with `mode: primary`.
 
 ## File Naming
 
@@ -139,7 +151,7 @@ Prefer `agent/` for consistency with the OpenCode CLI.
 | Descriptive | `security-auditor.md` | `helper.md` |
 | Stable identifier | `docs-writer.md` | `writer-v2-final.md` |
 
-The filename becomes the default agent name. Choose names that will still make sense months later.
+The relative path determines the agent ID: `agents/team/reviewer.md` becomes `team/reviewer`. Choose names that will still make sense months later.
 
 ## File Size Guidelines
 
@@ -154,7 +166,7 @@ Large domain knowledge belongs in a skill, not in the agent file.
 
 ```
 .opencode/
-└── agent/
+└── agents/
     ├── code-reviewer.md
     ├── docs-writer.md
     ├── internal-helper.md

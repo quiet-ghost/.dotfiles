@@ -1,29 +1,40 @@
 # ghost.tray
 
-Local tray. Edit `Tray.qml` / `TrayModel.js` here. Omarchy updates do not overwrite it.
+Omarchy's stock tray (`omarchy.tray`), plus status icons you can arrange by hand.
+Edit `Tray.qml` / `TrayModel.js` here. Omarchy updates do not overwrite it.
 
 ## Use
 
-- Hover or click the chevron → drawer (system icons + captured bar plugins)
-- Drag a bar widget onto the tray → it moves into the drawer
-- Open drawer, drag a plugin back onto the bar → it leaves the tray
-- Drag within the drawer → reorder plugins and system icons
-- Drag the chevron → move the whole tray
-- Right-click chevron → hide/show system icons
+Hover or click the chevron to open the drawer.
 
-The drawer stays open during a drag. System tray icons can be reordered or hidden;
-only bar plugins can be dragged out onto the bar.
+**Bar widgets** (handled by Omarchy's own bar):
 
-On stock Omarchy 4, host discovery uses a stock widget in the same bar window
-(for example Menu, Audio, or Network). Keep at least one stock widget on the bar
-so the tray can reconnect to the drag coordinator after a restart.
+- Drag a widget from the bar into the open drawer to tuck it away
+- Drag it within the drawer to reorder
+- Drag it onto the bar to pull it back out
 
-Captured plugins live on this widget's `shell.json` entry (`widgets`, `order`). They also stay listed in `plugins[]` so the shell keeps their components loaded.
+**Status icons** (handled by this plugin):
 
-Syncthing uses `SyncthingWidget.qml`: a local wrapper around the installed upstream
-panel, with one shared backend across monitors. It stays out of `plugins[]` while
-hosted to avoid starting a second backend. Returning it to the bar restores normal
-Omarchy service loading. Upstream Syncthing files remain updateable.
+- Drag within the drawer to reorder
+- Drag onto the icons beside the chevron to pin one, so it stays visible
+- Drag a pinned icon back into the drawer to unpin it
+- Drag one well off the bar to hide it
 
-Mise Radar 1.2.0+ and local Govee use their own shared QML backends. These tray
-integrations run on stock Omarchy; no host patches are required.
+Right-click the chevron to pin, hide, or bring back icons, or to turn them all off.
+Drag the chevron to move the whole tray.
+
+Status icons stay in the tray's own strips. They have no `bar.layout` entry, so
+they cannot sit between bar widgets. Icons always come before widgets in the drawer.
+
+## Config
+
+In `shell.json`:
+
+- `bar.layout.tray`: the drawer's bar widgets, owned by Omarchy
+- `pinned`, `hidden`, `order` on this widget's entry: status icon ids
+
+## Test
+
+```bash
+node --test tests/
+```

@@ -7,7 +7,7 @@ Develop implementation-ready specs through iterative dialogue and skeptical ques
 First, invoke the skill tool to load the spec-planner skill:
 
 ```
-skill({ name: 'spec-planner' })
+skill({ id: 'spec-planner' })
 ```
 
 Then follow the skill instructions to develop the spec.
