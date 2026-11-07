@@ -1,20 +1,19 @@
 # OpenCode 2
 
-One global setup lives here. `oc` / `opencode` launch the Mise-managed
-`npm:@opencode-ai/cli@beta` through a host-local Omarchy wrapper:
-
-```sh
-omarchy-mise-install 'npm:@opencode-ai/cli@beta' opencode opencode2
-```
+One global setup lives here. `oc` / `opencode` launch Omarchy's Mise-managed
+`opencode` tool (`/etc/mise/conf.d/omarchy-tools.toml`). Do not also declare
+`npm:@opencode/cli` in the user Mise config: it installs a second copy that
+shadows this one on `PATH`.
 
 `opencode2` remains the native executable name. There is no isolated launcher.
 
 ## Updates
 
-`mup` runs Mise upgrades and `opencode-update`. The latter updates package
-plugins, explicitly refreshes the beta tag (Mise otherwise considers the tag
-current), and verifies the installed binary's version. It does not deliberately
-restart the shared service. When active sessions can be interrupted:
+Mise auto-updates the tool every 4 hours when it runs. `mup` runs Mise upgrades
+and `opencode-update`. Both skip Mise's 1-hour version cache. `opencode-update`
+upgrades the tool, verifies the installed binary's version, and updates package
+plugins. It does not deliberately restart the shared service. When active
+sessions can be interrupted:
 
 ```sh
 opencode2 service restart

@@ -269,9 +269,12 @@
       "package": "@plannotator/opencode@latest",
       "options": {
         "workflow": "plan-agent",
-        "planningAgents": ["plan"]
+        "planningAgents": [
+          "plan"
+        ]
       }
-    }
+    },
+    "opencode-mobile-notifications"
   ],
   "mcp": {
     "servers": {

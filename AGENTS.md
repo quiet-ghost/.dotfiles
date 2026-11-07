@@ -113,7 +113,7 @@ stow home                                     # deploy
 stow -R home                                  # restow after pull
 stow -D home                                  # unlink
 omarchy-mise-install <pkg> [cmd [bin]]        # add a mise tool + live wrapper
-omarchy update mise                           # Mise tools only; mup also refreshes OpenCode's beta tag and plugins
+omarchy update mise                           # Mise tools only; mup also skips Mise's version cache and updates OpenCode plugins
 git submodule update --init --recursive       # themes, tmux, herdr-splits
 herdr server reload-config                    # after herdr/config.toml
 hyprctl reload && hyprctl configerrors        # after hypr changes

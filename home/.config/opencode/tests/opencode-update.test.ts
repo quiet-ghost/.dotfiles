@@ -25,7 +25,8 @@ function runUpdate(
     mise: `#!/bin/bash
 printf 'mise %s\\n' "$*" >> "$OC_UPDATE_TEST_ROOT/trace"
 if [[ $1 == where ]]; then printf '%s\\n' "$OC_UPDATE_TEST_ROOT/install"; fi
-if [[ $1 == use && $OC_UPDATE_TEST_FAIL == 1 ]]; then exit 17; fi
+if [[ $1 == upgrade && $OC_UPDATE_TEST_FAIL == 1 ]]; then exit 17; fi
+if [[ $1 == upgrade ]]; then printf 'version cache %s\\n' "\${MISE_FETCH_REMOTE_VERSIONS_CACHE:-unset}" >> "$OC_UPDATE_TEST_ROOT/trace"; fi
 if [[ $1 == exec ]]; then shift 3; exec "$@"; fi
 `,
     opencode: `#!/bin/bash
@@ -64,11 +65,14 @@ fi
 it("tracks stable and updates plugins after verifying the installed CLI", () => {
   const result = runUpdate();
   expect(result.status).toBe(0);
-  expect(result.trace).toMatch(
-    /^mise use --global --fuzzy npm:@opencode\/cli@latest\n/,
-  );
-  expect(result.trace).toContain("opencode --version\nmise exec npm:@opencode/cli -- opencode plugin update\nopencode plugin update\n");
+  expect(result.trace).toMatch(/^mise upgrade opencode\n/);
+  expect(result.trace).toContain("opencode --version\nmise exec opencode -- opencode plugin update\nopencode plugin update\n");
   expect(result.trace).not.toContain("service restart");
+});
+
+it("bypasses the Mise version cache so a new release is seen immediately", () => {
+  const result = runUpdate();
+  expect(result.trace).toContain("version cache 0s\n");
 });
 
 it("propagates installation failure without claiming success", () => {

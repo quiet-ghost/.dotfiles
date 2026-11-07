@@ -69,13 +69,7 @@
           ]
         },
         {
-          "id": "omarchy.bluetooth"
-        },
-        {
           "id": "crmne.hyprmoncfg"
-        },
-        {
-          "id": "omarchy.audio"
         },
         {
           "id": "djjeane.docker-monitor"
@@ -88,6 +82,9 @@
           "id": "stappmus.activity-monitor",
           "openExpanded": false,
           "samplingSpeed": "Efficient"
+        },
+        {
+          "id": "omarchy.audio"
         },
         {
           "id": "omarchy.network"
@@ -114,7 +111,7 @@
       ],
       "tray": [
         {
-          "id": "coinbase"
+          "id": "chyld.mise-radar"
         },
         {
           "id": "ghost.govee"
@@ -126,15 +123,15 @@
           "id": "omarchy.tailscale"
         },
         {
-          "id": "chyld.mise-radar"
-        },
-        {
           "id": "omarchy.monitor"
         },
         {
           "barIcon": "server",
           "barStyle": "lights",
           "id": "njpatel.omaherdr"
+        },
+        {
+          "id": "omarchy.bluetooth"
         }
       ]
     },

@@ -6,7 +6,7 @@
 
 // Dependencies, build output, caches, and transient files.
 node_modules
-__pycache__
+(?d)__pycache__
 .cache
 .venv
 dist

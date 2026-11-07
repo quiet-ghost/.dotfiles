@@ -1,16 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
-# Track the stable npm release; resolve through Mise even in an older shell.
+# Track the stable release through Omarchy's `opencode` tool. Skip Mise's version
+# cache so a new release is seen immediately; resolve through Mise even in an older shell.
 export MISE_MINIMUM_RELEASE_AGE=0
+export MISE_FETCH_REMOTE_VERSIONS_CACHE=0s
 export npm_config_min_release_age=0
-mise use --global --fuzzy 'npm:@opencode/cli@latest'
-cli="$(mise where 'npm:@opencode/cli')/lib/node_modules/@opencode/cli"
+mise upgrade opencode
+cli="$(mise where opencode)/lib/node_modules/@opencode/cli"
 version="$(node -p 'require(process.argv[1]).version' "$cli/package.json")"
 
-[[ "$(mise exec 'npm:@opencode/cli' -- opencode --version)" == "opencode v$version" ]] || {
-  echo 'OpenCode binary does not match the installed package. Existing sessions are unchanged; reinstall with mise use --global --force npm:@opencode/cli@latest.' >&2
+[[ "$(mise exec opencode -- opencode --version)" == "opencode v$version" ]] || {
+  echo 'OpenCode binary does not match the installed package. Existing sessions are unchanged; reinstall with mise install --force opencode.' >&2
   exit 1
 }
-mise exec 'npm:@opencode/cli' -- opencode plugin update
+mise exec opencode -- opencode plugin update
 printf '%s\n' "OpenCode CLI and package plugins updated (v$version). Run opencode service restart when active sessions can be interrupted, then reopen the TUI."

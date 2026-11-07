@@ -24,7 +24,7 @@ alias bd="bootdev"
 alias cc="calc"
 alias cat=bat
 function mup() {
-  MISE_MINIMUM_RELEASE_AGE=0 npm_config_min_release_age=0 mise up "$@" || return
+  MISE_MINIMUM_RELEASE_AGE=0 MISE_FETCH_REMOTE_VERSIONS_CACHE=0s npm_config_min_release_age=0 mise up "$@" || return
   opencode-update
 }
 
