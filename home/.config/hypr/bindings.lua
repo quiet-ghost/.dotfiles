@@ -42,6 +42,9 @@ o.bind("SUPER + F", "Full width", hl.dsp.window.fullscreen({ mode = "maximized" 
 o.bind("SUPER + ALT + F", "Force full screen", hl.dsp.window.fullscreen({ mode = "fullscreen" }))
 o.bind("SUPER + SHIFT + T", "Toggle window floating/tiling", hl.dsp.window.float({ action = "toggle" }))
 o.bind("SUPER + L", "Lock system", "omarchy-system-lock")
+-- Blank monitors without unplugging them; power buttons drop DisplayPort and
+-- make Hyprland move workspaces. Any key or mouse movement wakes them.
+o.bind("SUPER + End", "Turn off monitors", hl.dsp.dpms({ action = "off" }))
 
 o.bind("ALT + SPACE", "omacast launcher", hl.dsp.global("omacast:toggle"))
 o.bind("F10", "Hex dictation (hold)", "hex dictation start")

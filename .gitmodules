@@ -92,3 +92,6 @@
 [submodule "oma-cast"]
 	path = extras/oma-cast
 	url = https://github.com/typecraft-dev/oma-cast.git
+[submodule "omarchy-logitech"]
+	path = home/.config/omarchy/plugins/io.github.rvcabc.logitech
+	url = https://github.com/rvcabc/omarchy-logitech.git

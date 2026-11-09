@@ -90,7 +90,7 @@
           "id": "omarchy.network"
         },
         {
-          "id": "apurva.notifications"
+          "id": "omarchy.notifications"
         }
       ],
       "centerBegin": [
@@ -114,9 +114,6 @@
           "id": "chyld.mise-radar"
         },
         {
-          "id": "ghost.govee"
-        },
-        {
           "id": "dev.git"
         },
         {
@@ -132,18 +129,18 @@
         },
         {
           "id": "omarchy.bluetooth"
+        },
+        {
+          "id": "io.github.rvcabc.logitech"
+        },
+        {
+          "id": "ghost.govee"
         }
       ]
     },
     "position": "top",
     "transparent": false
   },
-  "cloneSourceRestores": [
-    "apurva.notifications"
-  ],
-  "disabledPlugins": [
-    "omarchy.notifications"
-  ],
   "idle": {
     "lock": 902,
     "screensaver": 900

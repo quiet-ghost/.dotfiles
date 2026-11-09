@@ -5,6 +5,11 @@ dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/boo
 -- Keep core window-manager bindings. Personal app/web binds live in bindings.lua.
 omarchy_preinstalled_bindings = false
 
+-- Shared workspaces 1-10 across monitors instead of Omarchy's per-monitor
+-- blocks. Must run before default.hypr.omarchy requires that module.
+require("default.hypr.helpers")
+package.loaded["default.hypr.monitor-workspaces"] = require("hypr.global-workspaces")
+
 require("default.hypr.omarchy")
 
 require("hypr.monitors")

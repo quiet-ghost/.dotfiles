@@ -42,6 +42,11 @@ need_cmd() {
 
 need_cmd hyprctl
 need_cmd jq
+need_cmd flock
+
+# Autostart and the Elgato guard in monitors_local.lua can both launch this.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/${TAG}.lock"
+flock -n 9 || exit 0
 
 monitors_json() {
   hyprctl monitors all -j 2>/dev/null || hyprctl monitors -j 2>/dev/null || echo "[]"
